@@ -1,0 +1,701 @@
+[
+  {
+    "id": "basic",
+    "label": "basic",
+    "lang": "keycode_setting_4",
+    "keycodes": [
+      {
+        "name": "Q",
+        "code": "KC_Q",
+        "keys": "q"
+      },
+      {
+        "name": "W",
+        "code": "KC_W",
+        "keys": "w"
+      },
+      {
+        "name": "E",
+        "code": "KC_E",
+        "keys": "e"
+      },
+      {
+        "name": "R",
+        "code": "KC_R",
+        "keys": "r"
+      },
+      {
+        "name": "T",
+        "code": "KC_T",
+        "keys": "t"
+      },
+      {
+        "name": "Y",
+        "code": "KC_Y",
+        "keys": "y"
+      },
+      {
+        "name": "U",
+        "code": "KC_U",
+        "keys": "u"
+      },
+      {
+        "name": "I",
+        "code": "KC_I",
+        "keys": "i"
+      },
+      {
+        "name": "O",
+        "code": "KC_O",
+        "keys": "o"
+      },
+      {
+        "name": "P",
+        "code": "KC_P",
+        "keys": "p"
+      },
+      {
+        "name": "A",
+        "code": "KC_A",
+        "keys": "a"
+      },
+      {
+        "name": "S",
+        "code": "KC_S",
+        "keys": "s"
+      },
+      {
+        "name": "D",
+        "code": "KC_D",
+        "keys": "d"
+      },
+      {
+        "name": "F",
+        "code": "KC_F",
+        "keys": "f"
+      },
+      {
+        "name": "G",
+        "code": "KC_G",
+        "keys": "g"
+      },
+      {
+        "name": "H",
+        "code": "KC_H",
+        "keys": "h"
+      },
+      {
+        "name": "J",
+        "code": "KC_J",
+        "keys": "j"
+      },
+      {
+        "name": "K",
+        "code": "KC_K",
+        "keys": "k"
+      },
+      {
+        "name": "L",
+        "code": "KC_L",
+        "keys": "l"
+      },
+      {
+        "name": "Z",
+        "code": "KC_Z",
+        "keys": "z"
+      },
+      {
+        "name": "X",
+        "code": "KC_X",
+        "keys": "x"
+      },
+      {
+        "name": "C",
+        "code": "KC_C",
+        "keys": "c"
+      },
+      {
+        "name": "V",
+        "code": "KC_V",
+        "keys": "v"
+      },
+      {
+        "name": "B",
+        "code": "KC_B",
+        "keys": "b"
+      },
+      {
+        "name": "N",
+        "code": "KC_N",
+        "keys": "n"
+      },
+      {
+        "name": "M",
+        "code": "KC_M",
+        "keys": "m"
+      },
+      {
+        "name": "1",
+        "code": "KC_1",
+        "keys": "1",
+        "code1": 30
+      },
+      {
+        "name": "2",
+        "code": "KC_2",
+        "keys": "2",
+        "code1": 31
+      },
+      {
+        "name": "3",
+        "code": "KC_3",
+        "keys": "3",
+        "code1": 32
+      },
+      {
+        "name": "4",
+        "code": "KC_4",
+        "keys": "4",
+        "code1": 33
+      },
+      {
+        "name": "5",
+        "code": "KC_5",
+        "keys": "5",
+        "code1": 34
+      },
+      {
+        "name": "6",
+        "code": "KC_6",
+        "keys": "6",
+        "code1": 35
+      },
+      {
+        "name": "7",
+        "code": "KC_7",
+        "keys": "7",
+        "code1": 36
+      },
+      {
+        "name": "8",
+        "code": "KC_8",
+        "keys": "8",
+        "code1": 37
+      },
+      {
+        "name": "9",
+        "code": "KC_9",
+        "keys": "9",
+        "code1": 38
+      },
+      {
+        "name": "0",
+        "code": "KC_0",
+        "keys": "0",
+        "code1": 39
+      },
+      {
+        "name": "-",
+        "code": "KC_MINS",
+        "keys": "-",
+        "code1": 45
+      },
+      {
+        "name": ",",
+        "code": "KC_COMM",
+        "keys": ",",
+        "code1": 54
+      },
+      {
+        "name": ";",
+        "code": "KC_SCLN",
+        "keys": ";",
+        "code1": 51
+      },
+      {
+        "name": ".",
+        "code": "KC_DOT",
+        "keys": ".",
+        "code1": 55
+      },
+      {
+        "name": "'",
+        "code": "KC_QUOT",
+        "keys": "'",
+        "code1": 52
+      },
+      {
+        "name": "[",
+        "code": "KC_LBRC",
+        "keys": "[",
+        "code1": 47
+      },
+      {
+        "name": "]",
+        "code": "KC_RBRC",
+        "keys": "]",
+        "code1": 48
+      },
+      {
+        "name": "/",
+        "code": "KC_SLSH",
+        "keys": "/",
+        "code1": 56
+      },
+      {
+        "name": "\\",
+        "code": "KC_BSLS",
+        "keys": "\\",
+        "width": 1500,
+        "code1": 49
+      },
+      {
+        "name": "`",
+        "code": "KC_GRV",
+        "keys": "`"
+      },
+      {
+        "name": "=",
+        "code": "KC_EQL",
+        "keys": "=",
+        "code1": 46
+      }
+    ]
+  },
+  {
+    "id": "expand",
+    "label": "expand",
+    "lang": "keycode_setting_5",
+    "keycodes": [
+      {
+        "name": "Backspace",
+        "code": "KC_BSPC",
+        "keys": "backspace",
+        "width": 2000,
+        "shortName": "Bksp"
+      },
+      {
+        "name": "Caps Lock",
+        "code": "KC_CAPS",
+        "keys": "caps_lock",
+        "width": 1750,
+        "code1": 57
+      },
+      {
+        "name": "Delete",
+        "code": "KC_DEL",
+        "keys": "delete"
+      },
+      {
+        "name": "End",
+        "code": "KC_END",
+        "keys": "end"
+      },
+      {
+        "name": "Enter",
+        "code": "KC_ENT",
+        "keys": "enter",
+        "width": 2250
+      },
+      {
+        "name": "Esc",
+        "code": "KC_ESC",
+        "keys": "esc"
+      },
+      {
+        "name": "Home",
+        "code": "KC_HOME",
+        "keys": "home"
+      },
+      {
+        "name": "Insert",
+        "code": "KC_INS",
+        "keys": "insert",
+        "shortName": "Ins"
+      },
+     
+      {
+        "name": "Num -",
+        "code": "KC_PMNS",
+        "keys": "num_subtract",
+        "title": "Numpad -"
+      },
+      {
+        "name": "Num *",
+        "code": "KC_PAST",
+        "keys": "num_multiply",
+        "title": "Numpad ×"
+      },
+      {
+        "name": "Num /",
+        "code": "KC_PSLS",
+        "keys": "num_divide",
+        "title": "Numpad ÷"
+      },
+      {
+        "name": "Num +",
+        "code": "KC_PPLS",
+        "keys": "num_add",
+        "title": "Numpad +"
+      },
+      {
+        "name": "Num 0",
+        "code": "KC_P0",
+        "width": 2000,
+        "keys": "num_0",
+        "title": "Numpad 0"
+      },
+      {
+        "name": "Num 1",
+        "code": "KC_P1",
+        "keys": "num_1",
+        "title": "Numpad 1"
+      },
+      {
+        "name": "Num 2",
+        "code": "KC_P2",
+        "keys": "num_2",
+        "title": "Numpad 2"
+      },
+      {
+        "name": "Num 3",
+        "code": "KC_P3",
+        "keys": "num_3",
+        "title": "Numpad 3"
+      },
+      {
+        "name": "Num 4",
+        "code": "KC_P4",
+        "keys": "num_4",
+        "title": "Numpad 4"
+      },
+      {
+        "name": "Num 5",
+        "code": "KC_P5",
+        "keys": "num_5",
+        "title": "Numpad 5"
+      },
+      {
+        "name": "Num 6",
+        "code": "KC_P6",
+        "keys": "num_6",
+        "title": "Numpad 6"
+      },
+      {
+        "name": "Num 7",
+        "code": "KC_P7",
+        "keys": "num_7",
+        "title": "Numpad 7"
+      },
+      {
+        "name": "Num 8",
+        "code": "KC_P8",
+        "keys": "num_8",
+        "title": "Numpad 8"
+      },
+      {
+        "name": "Num 9",
+        "code": "KC_P9",
+        "keys": "num_9",
+        "title": "Numpad 9"
+      },
+      {
+        "name": "Num\nEnter",
+        "code": "KC_PENT",
+        "shortName": "N.Ent",
+        "title": "Numpad Enter"
+      },
+      {
+        "name": "Num\nLock",
+        "code": "KC_NLCK",
+        "keys": "num",
+        "shortName": "N.Lck"
+      },
+      {
+        "name": "Page Down",
+        "code": "KC_PGDN",
+        "keys": "pagedown",
+        "shortName": "PgDn"
+      },
+      {
+        "name": "Page Up",
+        "code": "KC_PGUP",
+        "keys": "pageup",
+        "shortName": "PgUp"
+      },
+      {
+        "name": "Pause",
+        "code": "KC_PAUS"
+      },
+      {
+        "name": "Left Win",
+        "code": "KC_LGUI",
+        "keys": "cmd",
+        "width": 1250,
+        "shortName": "LWin",
+        "code1": 227
+      },
+      {
+        "name": "Right Win",
+        "code": "KC_RGUI",
+        "width": 1250,
+        "shortName": "RWin"
+      },
+      {
+        "name": "Left\nAlt",
+        "code": "KC_LALT",
+        "keys": "alt",
+        "width": 1250,
+        "shortName": "LAlt",
+        "code1": 226
+      },
+      {
+        "name": "Right Alt",
+        "code": "KC_RALT",
+        "width": 1250,
+        "shortName": "RAlt",
+        "code1": 230
+      },
+      {
+        "name": "Left Ctrl",
+        "code": "KC_LCTL",
+        "keys": "ctrl",
+        "width": 1250,
+        "code1": 224
+      },
+      {
+        "name": "Right Ctrl",
+        "code": "KC_RCTL",
+        "width": 1250,
+        "shortName": "RCtl",
+        "code1": 228
+      },
+      {
+        "name": "Left Shift",
+        "code": "KC_LSFT",
+        "keys": "shift",
+        "width": 2250,
+        "shortName": "LShft",
+        "code1": 225
+      },
+      {
+        "name": "Right Shift",
+        "code": "KC_RSFT",
+        "width": 2750,
+        "shortName": "RShft",
+        "code1": 229
+      },
+      {
+        "name": "Scroll Lock",
+        "code": "KC_SLCK",
+        "shortName": "Scroll"
+      },
+      {
+        "name": "Space",
+        "code": "KC_SPC",
+        "keys": "space",
+        "width": 6250
+      },
+      {
+        "name": "Tab",
+        "code": "KC_TAB",
+        "keys": "tab",
+        "width": 1500
+      },
+      {
+        "name": "←",
+        "code": "KC_LEFT",
+        "keys": "left",
+        "shortName": "←"
+      },
+      {
+        "name": "→",
+        "code": "KC_RGHT",
+        "keys": "right",
+        "shortName": "→"
+      },
+      {
+        "name": "↑",
+        "code": "KC_UP",
+        "keys": "up",
+        "shortName": "↑"
+      },
+      {
+        "name": "↓",
+        "code": "KC_DOWN",
+        "keys": "down",
+        "shortName": "↓"
+      },
+      {
+        "name": "Fn0",
+        "code": "KC_FN0",
+        "keys": "fn0",
+        "shortName": "Fn0"
+      },
+      {
+        "name": "Fn1",
+        "code": "KC_FN1",
+        "keys": "fn1",
+        "shortName": "Fn1"
+      },
+      {
+        "name": "Mac",
+        "code": "KC_FN2",
+        "keys": "fn2",
+        "shortName": "Mac"
+      },
+      {
+        "name": "Fn3",
+        "code": "KC_FN3",
+        "keys": "fn3",
+        "shortName": "Fn3"
+      },
+      {
+        "name": "Light+",
+        "code": "KC_BRIU",
+        "keys": "fn3",
+        "shortName": "Fn3"
+      },
+      {
+        "name": "Light-",
+        "code": "KC_BRID",
+        "keys": "fn3",
+        "shortName": "Fn3"
+      },
+      {
+        "name": "F1",
+        "code": "KC_F1",
+        "keys": "f1",
+        "shortName": "F1"
+      },
+      {
+        "name": "F2",
+        "code": "KC_F2",
+        "keys": "F2",
+        "shortName": "F2"
+      },
+      {
+        "name": "F3",
+        "code": "KC_F3",
+        "keys": "f3",
+        "shortName": "F3"
+      },
+      {
+        "name": "F4",
+        "code": "KC_F4",
+        "keys": "F4",
+        "shortName": "F4"
+      },
+      {
+        "name": "F5",
+        "code": "KC_F5",
+        "keys": "f5",
+        "shortName": "F5"
+      },
+      {
+        "name": "F6",
+        "code": "KC_F6",
+        "keys": "f6",
+        "shortName": "F6"
+      },
+      {
+        "name": "F7",
+        "code": "KC_F7",
+        "keys": "f7",
+        "shortName": "F7"
+      },
+      {
+        "name": "F8",
+        "code": "KC_F8",
+        "keys": "F8",
+        "shortName": "F8"
+      },
+      {
+        "name": "F9",
+        "code": "KC_F9",
+        "keys": "f9",
+        "shortName": "F9"
+      },
+      {
+        "name": "F10",
+        "code": "KC_F10",
+        "keys": "f10",
+        "shortName": "F10"
+      },
+      {
+        "name": "F11",
+        "code": "KC_F11",
+        "keys": "f11",
+        "shortName": "F11"
+      },
+      {
+        "name": "F12",
+        "code": "KC_F12",
+        "keys": "f12",
+        "shortName": "F12"
+      }
+    ]
+  },
+  {
+    "id": "special",
+    "label": "special",
+    "lang": "keycode_setting_6",
+    "keycodes": [
+      {
+        "name": "Vol -",
+        "code": "KC_VOLD",
+        "title": "Volume Down"
+      },
+      {
+        "name": "Vol +",
+        "code": "KC_VOLU",
+        "title": "Volume Up"
+      },
+      {
+        "name": "Mute",
+        "code": "KC_MUTE",
+        "title": "Mute Audio"
+      },
+      {
+        "name": "Play",
+        "code": "KC_MPLY",
+        "title": "Play/Pause"
+      },
+      {
+        "name": "Media Stop",
+        "code": "KC_MSTP",
+        "title": "Media Stop"
+      },
+      {
+        "name": "Previous",
+        "code": "KC_MPRV",
+        "title": "Media Previous"
+      },
+      {
+        "name": "Next",
+        "code": "KC_MNXT",
+        "title": "Media Next"
+      },
+      {
+        "name": "Rewind",
+        "code": "KC_MRWD",
+        "title": "Rewind"
+      },
+      {
+        "name": "Fast Forward",
+        "code": "KC_MFFD",
+        "title": "Fast Forward"
+      },
+      {
+        "name": "Select",
+        "code": "KC_MSEL",
+        "title": "Media Select"
+      },
+      {
+        "name": "Eject",
+        "code": "KC_EJCT",
+        "title": "Media Eject"
+      }
+    ]
+  }
+]

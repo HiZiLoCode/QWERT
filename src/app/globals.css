@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+    height: 100%;
+    --background: #ffffff;
+    --foreground: #1c1c1c;
+    --radius-default: 0rem;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+img {
+    user-select: none;
+    /* 禁止用户选中文本 */
+    -webkit-user-select: none;
+    /* 对 Webkit 内核浏览器 */
+    -moz-user-select: none;
+    /* 对 Firefox */
+    -ms-user-select: none;
+    /* 对 IE 和 Edge */
+    -o-user-select: none;
+    /* 对老版 Opera */
+}
+
+html,
+body {
+    overflow-y: hidden;
+    height: 100%;
+    color: var(--foreground);
+    background: var(--background);
+    font-family: Harmony, Arial, Helvetica, sans-serif;
+    user-select: none;
+    /* 禁止用户选中文本 */
+    -webkit-user-select: none;
+    /* 对 Webkit 内核浏览器 */
+    -moz-user-select: none;
+    /* 对 Firefox */
+    -ms-user-select: none;
+    /* 对 IE 和 Edge */
+    -o-user-select: none;
+    /* 对老版 Opera */
+
+}
+
+input,
+textarea,
+select {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    -o-user-select: text;
+}
+
+code,
+pre {
+    font-family: 'Geist Mono', monospace;
+}
+
+.bg {
+    position: relative;
+    border-radius: var(--radius-default);
+    background: linear-gradient(rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(0rem);
+}
