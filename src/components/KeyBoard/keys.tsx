@@ -19,7 +19,7 @@ type KeyboardKeysProps = {
     keyColors?: string[];
     ku: number;
     kg: number;
-    keyboardStyle: { width: string; height: string; maxWidth: string };
+    keyboardStyle: { width: string; height: string };
     demoHighlightKeyIndex?: number;
     demoHighlightTitle?: string;
 };
@@ -45,7 +45,7 @@ export default function KeyboardKeys({
     demoHighlightTitle,
 }: KeyboardKeysProps) {
     return (
-        <Box sx={{ position: 'relative', ...keyboardStyle, minWidth: keyboardStyle.width }}>
+        <Box sx={{ position: 'relative', ...keyboardStyle, transition: 'none', animation: 'none' }}>
             {underPatterns.map((pattern, idx) => renderPattern(pattern, idx, ku, kg))}
             {layoutKeys.map((key, idx) => {
                 const composite = key as CompositeLayoutKey;
@@ -95,7 +95,8 @@ export default function KeyboardKeys({
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'all .16s ease',
+                            transition: 'none',
+                            animation: 'none',
                             userSelect: 'none',
                             ...(isDemoHighlight
                                 ? { boxShadow: '0 0 0 1px rgba(255, 145, 0, 0.35), 0 2px 8px rgba(255, 145, 0, 0.2)' }

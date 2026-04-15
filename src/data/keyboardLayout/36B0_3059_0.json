@@ -215,28 +215,28 @@
         ],
         "logolight": [
             {
-                "name": "LOGO灯1",
-                "lang": "261",
-                "value": 1,
+                "name": "单色",
+                "lang": "1690",
+                "value": 4,
                 "brightness": true,
                 "speed": true,
                 "direction": false,
-                "color": true,
+                "color": false,
                 "palette": true
             },
             {
-                "name": "LOGO灯2",
-                "lang": "262",
-                "value": 2,
+                "name": "色阶",
+                "lang": "2690",
+                "value": 5,
                 "brightness": true,
                 "speed": true,
                 "direction": false,
-                "color": true,
+                "color": false,
                 "palette": true
             },
             {
-                "name": "LOGO灯3",
-                "lang": "263",
+                "name": "呼吸",
+                "lang": "223",
                 "value": 3,
                 "brightness": true,
                 "speed": true,
@@ -245,11 +245,21 @@
                 "palette": true
             },
             {
-                "name": "LOGO灯4",
-                "lang": "264",
-                "value": 4,
+                "name": "光谱",
+                "lang": "2691",
+                "value": 2,
                 "brightness": true,
                 "speed": false,
+                "direction": false,
+                "color": true,
+                "palette": true
+            },
+            {
+                "name": "彩虹",
+                "lang": "2692",
+                "value": 1,
+                "brightness": true,
+                "speed": true,
                 "direction": false,
                 "color": true,
                 "palette": true
@@ -473,9 +483,9 @@
                 "type": "scrollArea",
                 "layer": "under",
                 "x": 16.4,
-                "y": 1.2,
+                "y": 1.4,
                 "w": 1,
-                "h": 2.15,
+                "h": 1.75,
                 "style": {
                     "radius": 0.3
                 }
@@ -485,21 +495,22 @@
                 "type": "functionPanel",
                 "layer": "under",
                 "x": 16.4,
-                "y": 3.75,
+                "y": 3.65,
                 "w": 1,
-                "h": 1.35,
+                "h": 1.45,
                 "style": {
                     "circlesOutside": true,
                     "smallCircleCount": 2,
                     "panelCircleSizeRem": 1,
                     "panelCircleGapRem": 0.2,
-                    "topBarWidthPercent": 100,
+                    "panelCircleBorderColors": [
+                        "rgba(0, 102, 255, 1)",
+                        "rgba(255, 0, 60, 1)"
+                    ],
                     "matrixRows": 5,
                     "matrixCols": 5,
-                    "screenCount": 1,
-                    "bottomButtonCount": 1,
-                    "matrixAreaWidthPercent": 80,
-                    "matrixScreenWidthPercent": 110,
+                    "matrixAreaWidthPercent": 64,
+                    "matrixScreenWidthPercent": 86,
                     "matrixDotGapRem": 0.02
                 }
             }

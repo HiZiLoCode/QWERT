@@ -15,6 +15,8 @@ import ScreenThemeImageSettingsPanel from "./ScreenThemeImageSettingsPanel";
 import ScreenThemeVideoSettingsPanel from "./ScreenThemeVideoSettingsPanel";
 import ScreenThemeTypingPanel from "./ScreenThemeTypingPanel";
 import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
+import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
+import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
 import type { LayoutKey } from "@/types/types_v1";
@@ -80,10 +82,44 @@ const DB_ID_ALBUM_PERSONAL = "screen-theme:personal:album";
 const DB_ID_VIDEO_PERSONAL = "screen-theme:personal:video";
 const DB_ID_PERSONAL_THEME = "screen-theme:personal:themeColor";
 
-const DEFAULT_PERSONAL_THEME_COLOR = "#0066ff";
+type PersonalThemePalette = {
+  theme: string;
+  date: string;
+  power: string;
+  status: string;
+};
+
+const DEFAULT_PERSONAL_THEME_COLORS: PersonalThemePalette = {
+  theme: "#0066ff",
+  date: "#ff3b30",
+  power: "#22c55e",
+  status: "#2563eb",
+};
 
 const MAX_GIF_FRAMES = 200;
 const MAX_ALBUM_FILES = 4;
+
+function clampRgbByte(value: unknown): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(255, Math.round(n)));
+}
+
+function rgbToHexOrFallback(r: unknown, g: unknown, b: unknown, fallback: string): string {
+  const rr = clampRgbByte(r);
+  const gg = clampRgbByte(g);
+  const bb = clampRgbByte(b);
+  if (rr == null || gg == null || bb == null) return fallback;
+  return `#${rr.toString(16).padStart(2, "0")}${gg.toString(16).padStart(2, "0")}${bb.toString(16).padStart(2, "0")}`.toUpperCase();
+}
+
+function hexToRgbTuple(hex: string): [number, number, number] | null {
+  const normalized = hex.trim().toUpperCase();
+  const match = normalized.match(/^#([0-9A-F]{6})$/);
+  if (!match) return null;
+  const v = match[1];
+  return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
+}
 
 function dataUrlToUint8Array(dataUrl: string): Uint8Array {
   const comma = dataUrl.indexOf(",");
@@ -155,7 +191,7 @@ async function loadIslandDraftFromIds(
 }
 
 export default function ScreenThemePage() {
-  const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
+  const { keyboard, keyboardLayout, connectedKeyboard } = useContext(ConnectKbContext);
   const { deviceComm, screenWidth, screenHeight, screenInfo, qgifModule, setDownLoad } = useContext(MainContext);
   const { showMessage } = useSnackbarDialog();
   const { t } = useTranslation("common");
@@ -169,7 +205,7 @@ export default function ScreenThemePage() {
   const [typingEditIsland, setTypingEditIsland] = useState<"basic" | "personal">("basic");
   const [intervalSec, setIntervalSec] = useState("5");
   const [transition, setTransition] = useState<TransitionKind>("btt");
-  const [personalThemeColor, setPersonalThemeColor] = useState(DEFAULT_PERSONAL_THEME_COLOR);
+  const [personalThemeColors, setPersonalThemeColors] = useState<PersonalThemePalette>(DEFAULT_PERSONAL_THEME_COLORS);
   const [savingSource, setSavingSource] = useState<ImportSource | "image" | null>(null);
   const [fileName] = useState("XXXX.png");
   const [restored, setRestored] = useState(false);
@@ -205,6 +241,12 @@ export default function ScreenThemePage() {
     else if (activeTab === "personal") setTypingEditIsland("personal");
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab !== "personal" && activeSource === "theme") {
+      setActiveSource("album");
+    }
+  }, [activeSource, activeTab]);
+
   const mediaEditIsland: "basic" | "personal" =
     activeTab === "personal" ? "personal" : activeTab === "basic" ? "basic" : typingEditIsland;
 
@@ -230,6 +272,36 @@ export default function ScreenThemePage() {
     },
     [mediaEditIsland, updateDraft],
   );
+
+  const applyThemePaletteFromFuncInfo = useCallback((funcInfo: Record<string, unknown> | null | undefined) => {
+    if (!funcInfo) return;
+    setPersonalThemeColors((prev) => ({
+      ...prev,
+      date: rgbToHexOrFallback(
+        funcInfo.lcdCustomTimeRValue,
+        funcInfo.lcdCustomTimeGValue,
+        funcInfo.lcdCustomTimeBValue,
+        prev.date,
+      ),
+      power: rgbToHexOrFallback(
+        funcInfo.lcdCustomBatteryRValue,
+        funcInfo.lcdCustomBatteryGValue,
+        funcInfo.lcdCustomBatteryBValue,
+        prev.power,
+      ),
+      status: rgbToHexOrFallback(
+        funcInfo.lcdCustomIconRValue,
+        funcInfo.lcdCustomIconGValue,
+        funcInfo.lcdCustomIconBValue,
+        prev.status,
+      ),
+    }));
+  }, []);
+
+  useEffect(() => {
+    if (!keyboard?.deviceFuncInfo) return;
+    applyThemePaletteFromFuncInfo(keyboard.deviceFuncInfo as unknown as Record<string, unknown>);
+  }, [keyboard?.deviceFuncInfo, applyThemePaletteFromFuncInfo]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -290,6 +362,7 @@ export default function ScreenThemePage() {
 
   const onImport = (source: ImportSource) => {
     if (isTransferLocked) return;
+    if (source === "theme" && activeTab !== "personal") return;
     setActiveSource(source);
   };
 
@@ -301,6 +374,7 @@ export default function ScreenThemePage() {
 
   const pickCurrentSourceFile = () => {
     if (isTransferLocked) return;
+    if (activeSource === "theme") return;
     if (activeSource === "video") videoRef.current?.click();
     else if (activeSource === "album") albumRef.current?.click();
     else imageRef.current?.click();
@@ -867,6 +941,60 @@ export default function ScreenThemePage() {
     [t],
   );
 
+  
+  const saveThemeColorsToKeyboard = useCallback(async (): Promise<boolean> => {
+    const protocolVer = keyboard?.deviceBaseInfo?.protocolVer;
+    
+    const currentFuncInfo = keyboard?.deviceFuncInfo;
+    if (!connectedKeyboard || protocolVer == null || !currentFuncInfo) {
+      showMessage({ type: "error", message: t("1660") });
+      return false;
+    }
+
+    const timeRgb = hexToRgbTuple(personalThemeColors.date);
+    const batteryRgb = hexToRgbTuple(personalThemeColors.power);
+    const statusRgb = hexToRgbTuple(personalThemeColors.status);
+    if (!timeRgb || !batteryRgb || !statusRgb) {
+      showMessage({ type: "warning", message: t("2548") });
+      return false;
+    }
+
+    try {
+      setSavingSource("theme");
+      
+      const next = {
+        ...currentFuncInfo,
+        lcdCustomTimeRValue: timeRgb[0],
+        lcdCustomTimeGValue: timeRgb[1],
+        lcdCustomTimeBValue: timeRgb[2],
+        lcdCustomBatteryRValue: batteryRgb[0],
+        lcdCustomBatteryGValue: batteryRgb[1],
+        lcdCustomBatteryBValue: batteryRgb[2],
+        lcdCustomIconRValue: statusRgb[0],
+        lcdCustomIconGValue: statusRgb[1],
+        lcdCustomIconBValue: statusRgb[2],
+      };
+      keyboard?.setDeviceFuncInfo?.(next);
+      await connectedKeyboard.setFuncInfo(next, protocolVer);
+      showMessage({ type: "success", message: t("2546") });
+      return true;
+    } catch {
+      showMessage({ type: "error", message: t("2547") });
+      return false;
+    } finally {
+      setSavingSource(null);
+    }
+  }, [
+    connectedKeyboard,
+    keyboard,
+    keyboard?.deviceFuncInfo,
+    personalThemeColors.date,
+    personalThemeColors.power,
+    personalThemeColors.status,
+    showMessage,
+    t,
+  ]);
+
   const saveImageToKeyboard = useCallback(async () => {
     if (!imageAsset?.dataUrl) {
       showMessage({ type: "warning", message: t("404") });
@@ -938,8 +1066,14 @@ export default function ScreenThemePage() {
         const themeFile = await getFileById(DB_ID_PERSONAL_THEME);
         if (themeFile?.content) {
           try {
-            const p = JSON.parse(themeFile.content) as { color?: string };
-            if (typeof p?.color === "string" && p.color) setPersonalThemeColor(p.color);
+            const p = JSON.parse(themeFile.content) as Partial<PersonalThemePalette> & { color?: string };
+            setPersonalThemeColors((prev) => ({
+              theme: typeof p.theme === "string" && p.theme ? p.theme : typeof p.color === "string" && p.color ? p.color : prev.theme,
+              // 时间/电量/状态颜色来自键盘功能区，不从本地草稿覆盖
+              date: prev.date,
+              power: prev.power,
+              status: prev.status,
+            }));
           } catch {
             // ignore
           }
@@ -1117,11 +1251,11 @@ export default function ScreenThemePage() {
       id: DB_ID_PERSONAL_THEME,
       name: "themeColor",
       type: "file",
-      size: personalThemeColor.length,
+      size: JSON.stringify(personalThemeColors).length,
       date: new Date().toISOString(),
-      content: JSON.stringify({ color: personalThemeColor }),
+      content: JSON.stringify({ ...personalThemeColors, color: personalThemeColors.theme }),
     });
-  }, [personalThemeColor, restored, activeTab]);
+  }, [personalThemeColors, restored, activeTab]);
 
   useEffect(() => {
     setBasicDraft((prev) => {
@@ -1179,7 +1313,14 @@ export default function ScreenThemePage() {
 
   const timeLabel = formatScreenTime(now);
   const albumCurrent = albumAssets[albumIndex] ?? null;
-  const previewUrl = activeSource === "image" ? imageAsset?.dataUrl ?? null : activeSource === "video" ? videoAsset?.dataUrl ?? null : albumCurrent?.dataUrl ?? null;
+  const previewUrl =
+    activeSource === "theme"
+      ? null
+      : activeSource === "image"
+        ? imageAsset?.dataUrl ?? null
+        : activeSource === "video"
+          ? videoAsset?.dataUrl ?? null
+          : albumCurrent?.dataUrl ?? null;
   const basicFileName =
     activeSource === "image"
       ? imageAsset?.name ?? fileName
@@ -1196,6 +1337,7 @@ export default function ScreenThemePage() {
         display: "flex",
         flexDirection: "row",
         alignItems: "stretch",
+        overflow: "auto",
         p: 25,
         gap: 0,
         boxSizing: "border-box",
@@ -1211,20 +1353,39 @@ export default function ScreenThemePage() {
         themeColorSlot={
           isPersonalIsland
             ? {
-                value: personalThemeColor,
-                onChange: setPersonalThemeColor,
+                value: personalThemeColors.theme,
+                onChange: (next) => setPersonalThemeColors((prev) => ({ ...prev, theme: next })),
                 disabled: isTransferLocked,
               }
             : null
         }
       />
       <Divider orientation="vertical" variant="middle" flexItem sx={{ my: 12 }} />
-      <ScreenThemePreview
-        previewUrl={previewUrl}
-        albumCarousel={albumCarousel}
-        gifPlaybackSpeed={activeSource === "video" ? videoSpeed : undefined}
-      />
-      {activeSource === "image" ? (
+      {isPersonalIsland && activeSource === "theme" ? (
+        <ScreenThemeThemeColorPreview
+          themeColor={personalThemeColors.theme}
+          dateColor={personalThemeColors.date}
+          powerColor={personalThemeColors.power}
+          statusColor={personalThemeColors.status}
+        />
+      ) : (
+        <ScreenThemePreview
+          previewUrl={previewUrl}
+          albumCarousel={albumCarousel}
+          gifPlaybackSpeed={activeSource === "video" ? videoSpeed : undefined}
+        />
+      )}
+      {isPersonalIsland && activeSource === "theme" ? (
+        <ScreenThemeThemeColorPanel
+          colors={personalThemeColors}
+          isSaving={savingSource === "theme"}
+          isLocked={isTransferLocked}
+          onColorChange={(field, color) => {
+            setPersonalThemeColors((prev) => ({ ...prev, [field]: color }));
+          }}
+          onSaveToKeyboard={saveThemeColorsToKeyboard}
+        />
+      ) : activeSource === "image" ? (
         <ScreenThemeImageSettingsPanel
           fileName={basicFileName}
           isSaving={savingSource === "image"}
@@ -1318,8 +1479,8 @@ export default function ScreenThemePage() {
       <Box
         sx={{
           flex: "0 1 48%",
-          minHeight: "15rem",
-          maxHeight: { xs: "50vh", md: "52vh" },
+          minHeight: "45%",
+          maxHeight: "50%",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -1367,7 +1528,6 @@ export default function ScreenThemePage() {
             display: "flex",
             flexDirection: "row",
             alignItems: "stretch",
-            overflow: "auto",
             px: 163,
           }}
         >

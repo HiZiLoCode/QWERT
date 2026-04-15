@@ -16,27 +16,87 @@ import {
 
 const OUTER_GUTTER_PX = 19;
 
+/** LAYER 列宽 144 + marginRight 39 */
+const LAYER_COLUMN_RESERVE_W = 183;
+
+function minPositive(...vals: number[]): number {
+    const ok = vals.filter((v) => Number.isFinite(v) && v > 0);
+    return ok.length ? Math.min(...ok) : 0;
+}
+
 /**
- * 缩放：用 fitScale 乘在 ku/kg 上重算整盘像素，不用 CSS transform（避免「改了代码观感不变」、双重量纲混乱）。
- * 1. 先按基准 ku/kg 算卡片自然宽高（含白边 padding/border）。
- * 2. fitScale = min(可用宽/自然宽, 可用高/自然高, scaleMax)；视口来自 viewportRef，首帧 0 则用 window.inner* 兜底。
- * 3. 再用 ku*fitScale、kg*fitScale 算 boardSizePx 与 KeyboardKeys，布局尺寸即最终所见。
+ * 与 ticktype `keyboard.tsx` 一致：`ratio = min(scaleMax, budgetW/naturalW, budgetH/naturalH)`。
+ * budget为 min(父级 viewport、root、inner/visualViewport/docClient)，保证页面缩放或窄窗时不会超出可视区域。
+ * 可选 `fitWidthReferencePx`：横向分母改为 max(naturalW,该值)，用于特殊布局。
  */
-function computeFitScaleOnly(params: {
+function computeContainerRatio(params: {
     naturalW: number;
     naturalH: number;
-    viewportW: number;
-    viewportH: number;
+    parentW: number;
+    parentH: number;
+    rootW: number;
+    rootH: number;
+    innerW: number;
+    innerH: number;
+    visualW: number;
+    visualH: number;
+    docClientW: number;
+    docClientH: number;
     scalePaddingLeft: number;
     scalePaddingRight: number;
     scaleMax: number;
+    layerReserveW: number;
+    fitWidthReferencePx?: number;
 }): number {
-    const { naturalW, naturalH, viewportW, viewportH, scalePaddingLeft, scalePaddingRight, scaleMax } = params;
+    const {
+        naturalW,
+        naturalH,
+        parentW,
+        parentH,
+        rootW,
+        rootH,
+        innerW,
+        innerH,
+        visualW,
+        visualH,
+        docClientW,
+        docClientH,
+        scalePaddingLeft,
+        scalePaddingRight,
+        scaleMax,
+        layerReserveW,
+        fitWidthReferencePx,
+    } = params;
     if (naturalW <= 0 || naturalH <= 0) return 1;
-    if (viewportW <= 0 || viewportH <= 0) return 1;
-    const availableW = Math.max(1, viewportW - scalePaddingLeft - scalePaddingRight);
-    const availableH = Math.max(1, viewportH);
-    const raw = Math.min(availableW / naturalW, availableH / naturalH, scaleMax);
+    if (parentW <= 0 || parentH <= 0) return 1;
+
+    const parentAvailW = Math.max(1, parentW - scalePaddingLeft - scalePaddingRight);
+    const parentAvailH = Math.max(1, parentH);
+
+    const innerCapW = minPositive(innerW, visualW, docClientW) || parentAvailW;
+    const innerCapH = minPositive(innerH, visualH, docClientH) || parentAvailH;
+
+    const rootBudgetW =
+        rootW > 0 ? Math.max(1, rootW - 2 * OUTER_GUTTER_PX - layerReserveW) : parentAvailW;
+    const rootBudgetH = rootH > 0 ? Math.max(1, rootH - 2 * OUTER_GUTTER_PX) : parentAvailH;
+
+    const budgetW = Math.min(parentAvailW, rootBudgetW, innerCapW);
+    const budgetH = Math.min(parentAvailH, rootBudgetH, innerCapH);
+
+    const nw = Math.max(1, naturalW);
+    const nh = Math.max(1, naturalH);
+
+    const wRat = budgetW / nw;
+    const hRat = budgetH / nh;
+
+    let raw: number;
+    if (fitWidthReferencePx != null && fitWidthReferencePx > 0) {
+        const denom = Math.max(nw, fitWidthReferencePx);
+        raw = Math.min(scaleMax, budgetW / denom, hRat);
+    } else {
+        raw = Math.min(scaleMax, wRat, hRat);
+    }
+
     return Number.isFinite(raw) && raw > 0 ? raw : 1;
 }
 
@@ -81,7 +141,7 @@ export default function TravelVirtualKeyboard({
     onToggleKey,
     keyUnitPx = DEFAULT_KEY_UNIT_PX,
     keyGapPx = DEFAULT_KEY_GAP_PX,
-    alignTop = false,
+    alignTop: _alignTop = false,
     colorMode = false,
     keyColors = [],
     showActuation = false,
@@ -89,9 +149,10 @@ export default function TravelVirtualKeyboard({
     onMouseEnter,
     onMouseUp,
     fitToContainer = true,
+    fitWidthReferencePx,
     scalePaddingLeft = 0,
     scalePaddingRight = 0,
-    scaleMax = 2,
+    scaleMax = 1,
     scaleMin: _scaleMin = 0.2,
     showLayerOverlay = false,
     layerCount = 4,
@@ -100,101 +161,142 @@ export default function TravelVirtualKeyboard({
     onRestoreDefault,
 }: TravelVirtualKeyboardProps) {
     void _scaleMin;
+    void _alignTop;
 
     const ku = keyUnitPx;
     const kg = keyGapPx;
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const viewportRef = useRef<HTMLDivElement | null>(null);
-    const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
-    const [windowViewport, setWindowViewport] = useState({ innerWidth: 0, innerHeight: 0 });
+    const [layoutSize, setLayoutSize] = useState({
+        rootW: 0,
+        rootH: 0,
+        parentW: 0,
+        parentH: 0,
+        innerW: 0,
+        innerH: 0,
+        visualW: 0,
+        visualH: 0,
+        docClientW: 0,
+        docClientH: 0,
+    });
 
-    const boardUnscaled = useMemo(() => computeBoardSize(layoutKeys, patternKeys, ku, kg), [layoutKeys, patternKeys, ku, kg]);
-    const naturalUnscaled = useMemo(() => cardOuterSize(boardUnscaled), [boardUnscaled]);
+    const boardSizePx = useMemo(() => computeBoardSize(layoutKeys, patternKeys, ku, kg), [layoutKeys, patternKeys, ku, kg]);
+    const naturalCard = useMemo(() => cardOuterSize(boardSizePx), [boardSizePx]);
 
     useLayoutEffect(() => {
-        const syncWindow = () => {
-            setWindowViewport({
-                innerWidth: window.innerWidth || 0,
-                innerHeight: window.innerHeight || 0,
-            });
-        };
+        if (!fitToContainer) return;
 
-        if (!fitToContainer) {
-            syncWindow();
-            window.addEventListener('resize', syncWindow);
-            return () => window.removeEventListener('resize', syncWindow);
-        }
-
+        const root = rootRef.current;
         const el = viewportRef.current;
-        if (!el) {
-            syncWindow();
-            window.addEventListener('resize', syncWindow);
-            return () => window.removeEventListener('resize', syncWindow);
-        }
-
         const read = () => {
-            syncWindow();
-            setViewportSize({
-                width: Math.max(0, el.clientWidth),
-                height: Math.max(0, el.clientHeight),
+            const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
+            const de = typeof document !== 'undefined' ? document.documentElement : undefined;
+            const parentW = el ? Math.max(0, el.clientWidth) : 0;
+            const innerW = typeof window !== 'undefined' ? window.innerWidth || 0 : 0;
+            const visualW = vv?.width ?? 0;
+            const docClientW = de?.clientWidth ?? 0;
+            const rootW0 = root ? Math.max(0, root.clientWidth) : 0;
+            setLayoutSize({
+                rootW: rootW0,
+                rootH: root ? Math.max(0, root.clientHeight) : 0,
+                parentW,
+                parentH: el ? Math.max(0, el.clientHeight) : 0,
+                innerW,
+                innerH: typeof window !== 'undefined' ? window.innerHeight || 0 : 0,
+                visualW,
+                visualH: vv?.height ?? 0,
+                docClientW,
+                docClientH: de?.clientHeight ?? 0,
             });
         };
 
         read();
-        const ro = new ResizeObserver(read);
-        ro.observe(el);
         window.addEventListener('resize', read);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
+        vv?.addEventListener('resize', read);
+        vv?.addEventListener('scroll', read);
+
+        if (!root && !el) {
+            return () => {
+                window.removeEventListener('resize', read);
+                vv?.removeEventListener('resize', read);
+                vv?.removeEventListener('scroll', read);
+            };
+        }
+        const ro = new ResizeObserver(read);
+        if (root) ro.observe(root);
+        if (el) ro.observe(el);
         return () => {
             ro.disconnect();
             window.removeEventListener('resize', read);
+            vv?.removeEventListener('resize', read);
+            vv?.removeEventListener('scroll', read);
         };
-    }, [fitToContainer]);
+    }, [fitToContainer, scalePaddingLeft, scalePaddingRight]);
 
-    const fitScale = useMemo(() => {
+    const ratio = useMemo(() => {
         if (!fitToContainer) return 1;
-        const measuredWidth = viewportSize.width > 0 ? viewportSize.width : windowViewport.innerWidth;
-        const measuredHeight = viewportSize.height > 0 ? viewportSize.height : windowViewport.innerHeight;
-        return computeFitScaleOnly({
-            naturalW: naturalUnscaled.w,
-            naturalH: naturalUnscaled.h,
-            viewportW: measuredWidth,
-            viewportH: measuredHeight,
+        return computeContainerRatio({
+            naturalW: naturalCard.w,
+            naturalH: naturalCard.h,
+            parentW: layoutSize.parentW,
+            parentH: layoutSize.parentH,
+            rootW: layoutSize.rootW,
+            rootH: layoutSize.rootH,
+            innerW: layoutSize.innerW,
+            innerH: layoutSize.innerH,
+            visualW: layoutSize.visualW,
+            visualH: layoutSize.visualH,
+            docClientW: layoutSize.docClientW,
+            docClientH: layoutSize.docClientH,
             scalePaddingLeft,
             scalePaddingRight,
             scaleMax,
+            layerReserveW: showLayerOverlay ? LAYER_COLUMN_RESERVE_W : 0,
+            fitWidthReferencePx,
         });
-    }, [fitToContainer, naturalUnscaled, viewportSize, windowViewport, scalePaddingLeft, scalePaddingRight, scaleMax]);
+    }, [
+        fitToContainer,
+        naturalCard,
+        layoutSize,
+        scalePaddingLeft,
+        scalePaddingRight,
+        scaleMax,
+        showLayerOverlay,
+        fitWidthReferencePx,
+    ]);
 
-    const scaledKu = ku * fitScale;
-    const scaledKg = kg * fitScale;
-
-    const boardSizePx = useMemo(
-        () => computeBoardSize(layoutKeys, patternKeys, scaledKu, scaledKg),
-        [layoutKeys, patternKeys, scaledKu, scaledKg]
-    );
+    /** ticktype：`translateX((left - right) / 2 / ratio)` */
+    const translateX = ratio > 0 ? (scalePaddingLeft - scalePaddingRight) / 2 / ratio : 0;
+    const scaleTransform =
+        ratio !== 1 || translateX !== 0 ? `scale(${ratio}, ${ratio}) translateX(${translateX}px)` : undefined;
 
     const keyboardStyle = useMemo(
-        () => ({ width: `${boardSizePx.width}px`, height: `${boardSizePx.height}px`, maxWidth: '100%' }),
+        () => ({ width: `${boardSizePx.width}px`, height: `${boardSizePx.height}px` }),
         [boardSizePx]
     );
-
-    const contentShiftX = (scalePaddingLeft - scalePaddingRight) / 2;
 
     const underPatterns = useMemo(() => patternKeys.filter((p) => (p.layer ?? 'under') === 'under'), [patternKeys]);
     const overPatterns = useMemo(() => patternKeys.filter((p) => p.layer === 'over'), [patternKeys]);
 
     return (
         <Box
+            ref={rootRef}
             sx={{
                 p: `${OUTER_GUTTER_PX}px`,
                 position: 'relative',
                 boxSizing: 'border-box',
                 display: 'flex',
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 alignItems: 'stretch',
                 width: '100%',
                 height: '100%',
                 minWidth: 0,
                 minHeight: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
+                transition: 'none',
+                animation: 'none',
             }}
         >
             {showLayerOverlay && (
@@ -206,6 +308,7 @@ export default function TravelVirtualKeyboard({
                         alignItems: 'stretch',
                         zIndex: 2,
                         marginRight: '39px',
+                        justifyContent: 'center',
                     }}
                 >
                     <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#94a3b8', mb: '10px', width: '100%', letterSpacing: '0.06em' }}>
@@ -269,29 +372,41 @@ export default function TravelVirtualKeyboard({
                     flex: 1,
                     minWidth: 0,
                     minHeight: 0,
+                    maxWidth: '100%',
+                    overflow: 'hidden',
                     display: 'flex',
                     justifyContent: 'center',
-                    alignItems: alignTop ? 'flex-start' : 'center',
+                    alignItems: 'center',
+                    transition: 'none',
+                    animation: 'none',
                 }}
             >
                 <Box
                     sx={{
                         flex: '0 0 auto',
-                        marginLeft: `${contentShiftX}px`,
-                        animation: 'var(--anim-fade-in)',
-                        filter: 'drop-shadow(0 2px 4px rgba(176, 206, 255, 0.25))',
+                        flexShrink: 0,
+                        transform: scaleTransform,
+                        transformOrigin: 'left center',
+                        backfaceVisibility: 'hidden',
+                        WebkitBackfaceVisibility: 'hidden',
+                        ...(scaleTransform ? { willChange: 'transform' } : {}),
+                        transition: 'none',
+                        animation: 'none',
                     }}
                 >
                     <Box
                         onMouseUp={() => onMouseUp?.()}
                         onMouseLeave={() => onMouseUp?.()}
                         sx={{
+                            position: 'relative',
                             borderRadius: '12px',
                             background: '#ffffff',
                             border: '1px solid #e5e7eb',
                             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
                             p: `${KEYBOARD_CARD_PADDING_PX}px`,
                             boxSizing: 'border-box',
+                            transition: 'none',
+                            animation: 'none',
                         }}
                     >
                         <KeyboardKeys
@@ -308,8 +423,8 @@ export default function TravelVirtualKeyboard({
                             showActuation={showActuation}
                             colorMode={colorMode}
                             keyColors={keyColors}
-                            ku={scaledKu}
-                            kg={scaledKg}
+                            ku={ku}
+                            kg={kg}
                             keyboardStyle={keyboardStyle}
                         />
                         {!layoutKeys.length && (

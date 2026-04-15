@@ -729,6 +729,9 @@
   "1689": "Import successful",
   "1690": "Single color",
   "1691": "Colorful",
+  "2690": "Gradient",
+  "2691": "Scan",
+  "2692": "Rainbow",
   "1692": "Import failed: invalid file format",
   "1693": "Backspace layout",
   "1694": "Non-split layout",
@@ -783,5 +786,13 @@
   "2537": "60 s",
   "2538": "180 s",
   "2539": "No images",
-  "2540": "Images (max 4):"
+  "2540": "Images (max 4):",
+  "2541": "Theme color settings",
+  "2542": "Select color",
+  "2543": "Time & date",
+  "2544": "Battery",
+  "2545": "Status indicator",
+  "2546": "Theme colors saved to keyboard",
+  "2547": "Failed to save theme colors. Please try again.",
+  "2548": "Invalid color value. Please pick again."
 }

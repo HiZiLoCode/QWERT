@@ -185,12 +185,62 @@ export default function SettingPanel() {
         minWidth: '7.5rem',
         height: '2.25rem',
         fontSize: '0.875rem',
-        color: '#334155',
-        bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);',
+        color: '#64748b',
+        bgcolor: 'rgba(255, 255, 255, 1)',
         borderRadius: '0.5rem',
-        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(148, 163, 184, 0.45)' },
-        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(100, 116, 139, 0.55)' },
-        '& .MuiSelect-select': { py: '0.35rem', display: 'flex', alignItems: 'center' },
+        transition: 'all 0.18s ease',
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 1)' },
+        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93a5be' },
+        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#3b82f6',
+            borderWidth: '1px',
+        },
+        '& .MuiSelect-select': {
+            py: '0.35rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pr: '1.75rem',
+        },
+        '& .MuiSelect-icon': {
+            color: '#3b82f6',
+            right: '0.5rem',
+        },
+    } as const;
+
+    const selectMenuProps = {
+        PaperProps: {
+            sx: {
+                mt: '0.25rem',
+                borderRadius: '0.5rem',
+                border: '1px solid rgba(22, 108, 230, 0.35)',
+                boxShadow: '0 6px 18px rgba(15, 23, 42, 0.12)',
+                overflow: 'hidden',
+            },
+        },
+        MenuListProps: {
+            sx: {
+                py: 0,
+            },
+        },
+    } as const;
+
+    const selectItemSx = {
+        fontSize: '0.875rem',
+        color: '#64748b',
+        minHeight: '2.25rem',
+        backgroundColor: '#ffffff',
+        '&:hover': {
+            border: '1px solid rgb(22, 109, 230)',
+        },
+        '&.Mui-selected': {
+            bgcolor: '#3b82f6',
+            color: '#fff',
+        },
+        '&.Mui-selected:hover': {
+            border: '1px solid rgb(22, 109, 230)',
+            color: '#fff',
+        },
     } as const;
 
     const panelBaseSx = useMemo(
@@ -378,9 +428,10 @@ export default function SettingPanel() {
                                                         updateFuncInfo({ sleepTime: minutes * 60 });
                                                     }}
                                                     sx={selectSx}
+                                                    MenuProps={selectMenuProps}
                                                 >
                                                     {sleepOptions.map((m) => (
-                                                        <MenuItem key={m} value={m} sx={{ fontSize: '0.875rem' }}>
+                                                        <MenuItem key={m} value={m} sx={selectItemSx}>
                                                             {m}
                                                             {t('787')}
                                                         </MenuItem>
@@ -404,9 +455,10 @@ export default function SettingPanel() {
                                                         updateFuncInfo({ deepSleepTime: minutes * 60 });
                                                     }}
                                                     sx={selectSx}
+                                                    MenuProps={selectMenuProps}
                                                 >
                                                     {sleepOptions.map((m) => (
-                                                        <MenuItem key={m} value={m} sx={{ fontSize: '0.875rem' }}>
+                                                        <MenuItem key={m} value={m} sx={selectItemSx}>
                                                             {m}
                                                             {t('787')}
                                                         </MenuItem>
@@ -433,9 +485,10 @@ export default function SettingPanel() {
                                                 updateFuncInfo({ scanDelay: v });
                                             }}
                                             sx={selectSx}
+                                            MenuProps={selectMenuProps}
                                         >
                                             {(['2516', '2517', '2518', '2519'] as const).map((key, v) => (
-                                                <MenuItem key={v} value={v} sx={{ fontSize: '0.875rem' }}>
+                                                <MenuItem key={v} value={v} sx={selectItemSx}>
                                                     {t(key)}
                                                 </MenuItem>
                                             ))}
@@ -460,7 +513,7 @@ export default function SettingPanel() {
                                         fontSize: '0.875rem',
                                         fontWeight: 500,
                                         color: '#64748b',
-                                        bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);',
+                                        bgcolor: ' rgba(255, 255, 255, 1)',
                                         border: '0.0625rem solid rgba(148, 163, 184, 0.55)',
                                         borderRadius: '0.5rem',
                                         boxShadow: 'none',
@@ -658,10 +711,10 @@ function SettingCard({ children }: { children: ReactNode }) {
     return (
         <Box
             sx={{
-                bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);',
-                borderRadius: '0.75rem',
+                bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+                borderRadius: '1.25rem',
                 boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '0.0625rem solid rgba(148, 163, 184, 0.12)',
+                border: '0.0625rem solid rgba(255, 255, 255, 1)',
                 px: '1.25rem',
                 py: '1rem',
             }}
@@ -683,10 +736,10 @@ function FirmwareCard({
     return (
         <Box
             sx={{
-                bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);',
+                bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
                 borderRadius: '0.75rem',
                 boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '0.0625rem solid rgba(148, 163, 184, 0.12)',
+                border: '0.0625rem solid rgba(255, 255, 255, 1)',
                 px: '1.25rem',
                 py: '1.125rem',
                 display: 'flex',
@@ -728,6 +781,7 @@ function Row({
                 justifyContent: 'space-between',
                 gap: '1rem',
                 py: '0.65rem',
+                bgColor:"linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)"
             }}
         >
             <Box sx={{ flex: 1, pr: '1rem' }}>

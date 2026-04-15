@@ -354,7 +354,6 @@ export default function KeyMappingPanel() {
                     selectedKeys={selectedIndex >= 0 ? [selectedIndex] : []}
                     travelValue={0}
                     showActuation={false}
-                    alignTop
                     showLayerOverlay={selectedSetting === 'keypress'}
                     layerCount={LAYER_COUNT}
                     currentLayer={currentLayer}

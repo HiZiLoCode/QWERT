@@ -148,34 +148,37 @@ const Matrix = () => {
     };
 
     return (
-        <Box
-            sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.25rem',
-                minHeight: 0,
-                margin: "0 auto",
-            }}
-        >
-            <Box sx={{ height: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
-                    <TravelVirtualKeyboard
-                        layoutKeys={layoutKeys}
-                        travelKeys={travelKeys}
-                        selectedKeys={[]}
-                        travelValue={1.5}
-                        onToggleKey={() => { }}
-                        colorMode={false}
-                        keyColors={[]}
-                    />
+        <>
+            <Box
+                sx={{
+                    height: '50%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.25rem',
+                    minHeight: 0,
+                        margin: '0 auto',
+          justifyContent: "center"
+                }}
+            >
+                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', width: '100%' }}>
+                    <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <TravelVirtualKeyboard
+                            layoutKeys={layoutKeys}
+                            travelKeys={travelKeys}
+                            patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+                            selectedKeys={[]}
+                            travelValue={1.5}
+                            onToggleKey={() => { }}
+                            colorMode={false}
+                            keyColors={[]}
+                        />
+                    </Box>
                 </Box>
             </Box>
-
-            <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem' }}>
+            <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', mx: 167, gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem' }}>
                 <Box sx={{ borderRadius: '0.875rem', border: '0.0625rem solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(0.375rem)', p: 20 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',  pb: 1, mb: 2 }}>
-                        <Typography sx={{ fontSize: '1.125rem',fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11}}>{t("1001")}</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, mb: 2 }}>
+                        <Typography sx={{ fontSize: '1.125rem', fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11 }}>{t("1001")}</Typography>
                     </Box>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: "0.625rem", overflowY: "auto" }}>
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "0.325rem" }}>
@@ -231,40 +234,40 @@ const Matrix = () => {
                     <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>灯光亮度</Typography>
                     <Box sx={{ mb: 3 }}>
                         <SliderBlock>
-                        <SliderRem
-                            value={brightnessValue}
-                            min={0}
-                            max={100}
-                            step={1}
-                            onChange={(_, newValue) => handleBrightnessChange(newValue as number)}
-                            sx={{
-                                color: '#3B82F6',
-                                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
-                                '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
-                                '& .MuiSlider-thumb': {
-                                    width: '2rem',
-                                    height: '2rem',
-                                    border: '0.25rem solid #fff',
-                                    boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
-                                },
-                            }}
-                        />
-                        <Box
-                            component="input"
-                            value={brightnessInput}
-                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                const onlyDigits = e.target.value.replace(/[^\d]/g, '').slice(0, 3);
-                                setBrightnessInput(onlyDigits);
-                            }}
-                            onBlur={commitBrightnessInput}
-                            onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                    e.currentTarget.blur();
-                                }
-                            }}
-                            sx={valueInputSx}
-                        />
-                        <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
+                            <SliderRem
+                                value={brightnessValue}
+                                min={0}
+                                max={100}
+                                step={1}
+                                onChange={(_, newValue) => handleBrightnessChange(newValue as number)}
+                                sx={{
+                                    color: '#3B82F6',
+                                    '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
+                                    '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                                    '& .MuiSlider-thumb': {
+                                        width: '2rem',
+                                        height: '2rem',
+                                        border: '0.25rem solid #fff',
+                                        boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                                    },
+                                }}
+                            />
+                            <Box
+                                component="input"
+                                value={brightnessInput}
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                    const onlyDigits = e.target.value.replace(/[^\d]/g, '').slice(0, 3);
+                                    setBrightnessInput(onlyDigits);
+                                }}
+                                onBlur={commitBrightnessInput}
+                                onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                                    if (e.key === 'Enter') {
+                                        e.currentTarget.blur();
+                                    }
+                                }}
+                                sx={valueInputSx}
+                            />
+                            <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
                         </SliderBlock>
                     </Box>
                     <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>播放速度</Typography>
@@ -300,7 +303,8 @@ const Matrix = () => {
                     />
                 </Box>
             </Box>
-        </Box>
+        </>
+
     );
 };
 

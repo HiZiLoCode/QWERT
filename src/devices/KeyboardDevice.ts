@@ -685,6 +685,8 @@ export class KeyboardDevice {
     if ([2, 3].includes(isProtocolVer2)) {
       // --- V2：仅 0x3059 下发满 128 字节（尾部补 0），其余设备仍为 64 字节 ---
       const isFuncLayout71 = this.productId === PID_FUNCINFO_V2_LAYOUT_71;
+      console.log(isFuncLayout71,data,'isFuncLayout71');
+      
       const buffer: number[] = new Array(isFuncLayout71 ? 128 : 64).fill(0);
       buffer[0] = data.profile || 0;
       buffer[1] = data.lightSwitch || 0;

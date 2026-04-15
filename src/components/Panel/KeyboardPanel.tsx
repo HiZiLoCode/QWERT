@@ -174,7 +174,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
             { id: 'keypress', label: '按键映射', keyboardType: true },
             { id: 'layout', label: '布局', keyBoardLayer },
             { id: 'lighting', label: '轴灯调节', keyboardType: true },
-            { id: 'logolighting', label: '氛围灯调节', keyboardType: true },
+            { id: 'logolighting', label: '拾音灯调节', keyboardType: true },
             { id: 'Led', label: '屏幕', keyboardType: !!deviceBaseInfo?.isLed },
             { id: 'matrix', label: '点阵屏', keyboardType: !!deviceBaseInfo?.matrixScreen },
         ];

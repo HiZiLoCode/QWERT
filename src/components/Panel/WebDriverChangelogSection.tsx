@@ -44,7 +44,7 @@ export default function WebDriverChangelogSection() {
         <>
             <Box
                 sx={{
-                    bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%);',
+                    bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
                     borderRadius: '0.75rem',
                     boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
                     border: '0.0625rem solid rgba(255, 255, 255, 1)',

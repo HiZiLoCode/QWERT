@@ -1,12 +1,12 @@
 "use client";
 
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import type { ImportSource } from "./types";
 import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
-import { screenThemeColors } from "./theme";
 
 const SOURCES: { id: ImportSource; labelKey: string }[] = [
+  { id: "theme", labelKey: "2535" },
   { id: "image", labelKey: "1606" },
   { id: "album", labelKey: "1607" },
   { id: "video", labelKey: "1608" },
@@ -34,7 +34,7 @@ export default function ScreenThemeImportPanel({
   themeColorSlot = null,
 }: Props) {
   const { t } = useTranslation("common");
-  const colorInputId = "screen-theme-personal-theme-color";
+  const visibleSources = themeColorSlot ? SOURCES : SOURCES.filter((item) => item.id !== "theme");
 
   return (
     <Box
@@ -48,74 +48,7 @@ export default function ScreenThemeImportPanel({
         width: "16.75rem",
       }}
     >
-      {themeColorSlot ? (
-        <Box
-          component="label"
-          htmlFor={colorInputId}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1.5,
-            width: "13.875rem",
-            height: "3rem",
-            px: 1.5,
-            boxSizing: "border-box",
-            borderRadius: "0.75rem",
-            border: `0.0625rem solid rgba(181, 187, 196, 0.55)`,
-            cursor: themeColorSlot.disabled ? "default" : "pointer",
-            "&:hover": themeColorSlot.disabled
-              ? {}
-              : {
-                  borderColor: screenThemeColors.primary,
-                },
-          }}
-        >
-          <Typography
-            component="span"
-            sx={{
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              color: screenThemeColors.textDark,
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            {t("2535")}
-          </Typography>
-          <Box
-            sx={{
-              width: "1.75rem",
-              height: "1.75rem",
-              borderRadius: "0.375rem",
-              border: "0.0625rem solid rgba(0,0,0,0.12)",
-              overflow: "hidden",
-              flexShrink: 0,
-              backgroundColor: themeColorSlot.value,
-            }}
-          >
-            <input
-              id={colorInputId}
-              type="color"
-              value={themeColorSlot.value}
-              disabled={themeColorSlot.disabled}
-              onChange={(e) => themeColorSlot.onChange(e.target.value)}
-              aria-label={t("2535")}
-              style={{
-                width: "200%",
-                height: "200%",
-                margin: "-50%",
-                padding: 0,
-                border: "none",
-                cursor: themeColorSlot.disabled ? "default" : "pointer",
-                opacity: themeColorSlot.disabled ? 0.5 : 1,
-              }}
-            />
-          </Box>
-        </Box>
-      ) : null}
-
-      {SOURCES.map((s) => {
+      {visibleSources.map((s) => {
         const active = activeSource === s.id;
         return (
           <Button

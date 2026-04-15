@@ -256,14 +256,14 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
         const totalHPx = hPx + extraTopPx;
         const circleSizePx = legacyRemToPx(getFunctionPanelCircleSizeRem(pattern));
         const circleGapPx = legacyRemToPx(getFunctionPanelCircleGapRem(pattern));
+        const defaultPanelCircleBorderColor = 'rgba(181,187,196,0.9)';
+        const panelCircleBorderColor = pattern.style?.panelCircleBorderColor ?? defaultPanelCircleBorderColor;
+        const panelCircleBorderColors = pattern.style?.panelCircleBorderColors;
         const matrixRows = Math.max(1, pattern.style?.matrixRows ?? 6);
         const matrixCols = Math.max(1, pattern.style?.matrixCols ?? 6);
-        const screenCount = Math.max(1, pattern.style?.screenCount ?? 1);
-        const matrixAreaWidthPercent = Math.min(90, Math.max(35, pattern.style?.matrixAreaWidthPercent ?? 58));
-        const matrixScreenWidthPercent = Math.min(100, Math.max(45, pattern.style?.matrixScreenWidthPercent ?? 100));
         const matrixDotGapPx = Math.max(1, legacyRemToPx(Math.max(0.02, pattern.style?.matrixDotGapRem ?? 0.0625)));
-        const bottomButtonCount = Math.max(0, pattern.style?.bottomButtonCount ?? 1);
-        const topBarW = Math.min(100, Math.max(20, pattern.style?.topBarWidthPercent ?? 66));
+        const panelStroke = 'rgba(181, 187, 196, 1)';
+        const panelBg = 'rgba(240, 240, 240, 1)';
 
         return (
             <Box
@@ -284,40 +284,125 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                 }}
             >
                 {circlesOutside && smallCircleCount > 0 ? (
-                    <Box sx={{ display: 'flex', gap: '18px', justifyContent: 'center', alignItems: 'center', flexShrink: 0, height: `${circleSizePx}px` }}>
+                    <Box sx={{ display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center', flexShrink: 0, height: `${circleSizePx}px` }}>
                         {Array.from({ length: smallCircleCount }).map((_, i) => (
-                            <Box key={i} sx={{ width: `${circleSizePx}px`, height: `${circleSizePx}px`, borderRadius: '50%', background: 'linear-gradient(180deg, rgba(252,252,253,1) 0%, rgba(236,238,242,1) 100%)', border: '1px solid rgba(181,187,196,0.9)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95)' }} />
+                            <Box
+                                key={i}
+                                sx={{
+                                    width: `${circleSizePx}px`,
+                                    height: `${circleSizePx}px`,
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(180deg, rgba(252,252,253,1) 0%, rgba(236,238,242,1) 100%)',
+                                    border: `1px solid ${panelCircleBorderColors?.[i] ?? panelCircleBorderColor}`,
+                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95)',
+                                }}
+                            />
                         ))}
                     </Box>
                 ) : null}
-                <Box sx={{ flex: 1, minHeight: 0, width: '100%', borderRadius: '8px', border: '1px solid rgba(181,187,196,1)', background: 'rgba(240,240,240,1)', boxSizing: 'border-box', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.92)', display: 'flex', flexDirection: 'column', p: '6px 5px', gap: '3px' }}>
-                    <Box sx={{ position: 'relative', width: `${topBarW}%`, height: '5px', alignSelf: 'flex-start' }}>
-                        <Box sx={{ width: '100%', height: '100%', borderRadius: '0 4px 0 0', background: 'rgba(240,240,240,1)', borderTop: '1px solid rgba(181,187,196,1)', borderRight: '1px solid rgba(181,187,196,1)' }} />
-                        <Box sx={{ position: 'absolute', left: 0, bottom: '-2px', width: '108%', height: '1px', background: 'rgba(181,187,196,1)' }} />
+                <Box
+                    sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        width: '100%',
+                        borderRadius: '8px',
+                        border: `1px solid ${panelStroke}`,
+                        background: panelBg,
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        px: 0,
+                        pt: '8px',
+                        pb: '6px',
+                    }}
+                >
+                    <Box
+                        sx={{
+                            position: 'relative',
+                            width: '74%',
+                            height: '9px',
+                            background: panelBg,
+                            borderRadius: '1px',
+                            borderTop: `1px solid ${panelStroke}`,
+                            borderRight: `1px solid ${panelStroke}`,
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                height: '1px',
+                                width: '132%',
+                                background: panelStroke,
+                                transform: 'translateY(-50%)',
+                                bottom: '-2px',
+                                left: 0,
+                            }}
+                        />
                     </Box>
-                    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', gap: '2px' }}>
-                        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0 }} />
-                        <Box sx={{ width: `${matrixAreaWidthPercent}%`, maxWidth: `${matrixAreaWidthPercent}%`, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'stretch', gap: '2px' }}>
-                            <Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${screenCount}, minmax(0,1fr))`, gap: '2px' }}>
-                                {Array.from({ length: screenCount }).map((__, screenIdx) => (
-                                    <Box key={screenIdx} sx={{ minHeight: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', py: 0 }}>
-                                        <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${matrixCols}, .5fr)`, gap: `${matrixDotGapPx}px`, width: `${matrixScreenWidthPercent}%` }}>
-                                            {Array.from({ length: matrixRows * matrixCols }).map((_, i) => (
-                                                <Box key={`${screenIdx}-${i}`} sx={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '2px', background: 'rgba(255,255,255,0.75)', border: '0.5px solid rgba(181,187,196,0.35)', boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,0.95)' }} />
-                                            ))}
-                                        </Box>
-                                    </Box>
-                                ))}
-                            </Box>
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexShrink: 0, pr: '1px' }}>
-                                {Array.from({ length: bottomButtonCount }).map((_, i) => (
-                                    <Box key={i} sx={{ width: '14px', height: '4px', borderRadius: '999px', border: '1px solid rgba(181,187,196,1)', background: 'rgba(252,252,253,0.95)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9)' }} />
-                                ))}
-                            </Box>
+
+                    <Box
+                        sx={{
+                            borderRadius: '0 6px 6px 0',
+                            border: `1px solid ${panelStroke}`,
+                            background: panelBg,
+                            display: 'flex',
+                            width: '94%',
+                            marginRight: '8%',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            alignSelf: 'flex-end',
+                            height: '56%',
+                            marginTop: '4px',
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: `repeat(${matrixCols}, 1fr)`,
+                                gap: `${matrixDotGapPx}px`,
+                                width: 'fit-content',
+                                mr: '-10px',
+                            }}
+                        >
+                            {Array.from({ length: matrixRows * matrixCols }).map((_, i) => (
+                                <Box
+                                    key={i}
+                                    sx={{
+                                        width: '100%',
+                                        maxWidth: '5px',
+                                        minWidth: '5px',
+                                        aspectRatio: '1 / 1',
+                                        height: '5px',
+                                        borderRadius: '2px',
+                                        background: 'rgba(255, 255, 255, 0.6)',
+                                    }}
+                                />
+                            ))}
                         </Box>
+                    </Box>
+
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'flex-end',
+                            mr: '6px',
+                            mt: 'auto',
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                width: '21px',
+                                height: '8px',
+                                borderRadius: '4px',
+                                background: panelBg,
+                                border: `1px solid ${panelStroke}`,
+                            }}
+                        />
                     </Box>
                 </Box>
             </Box>
+            
         );
     }
 

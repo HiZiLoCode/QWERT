@@ -414,32 +414,34 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   }
 
   return (
-    <Box
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.25rem',
-        minHeight: 0,
-        margin: '0 auto',
-      }}
-    >
-      <Box sx={{ height: '50%', minHeight: 0, display: 'flex', flexDirection: 'column', width: '100%' }}>
-        <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
-          <TravelVirtualKeyboard
-            layoutKeys={layoutKeys}
-            travelKeys={travelKeys}
-            selectedKeys={selectedKeys}
-            travelValue={1.5}
-            onToggleKey={toggleKey}
-            colorMode={canCustomPaint}
-            keyColors={keyColors}
-            patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
-          />
+    <>
+      <Box
+        sx={{
+          height: '50%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.25rem',
+          minHeight: 0,
+          margin: '0 auto',
+          justifyContent: "center"
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+          <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
+            <TravelVirtualKeyboard
+              layoutKeys={layoutKeys}
+              travelKeys={travelKeys}
+              selectedKeys={selectedKeys}
+              travelValue={1.5}
+              onToggleKey={toggleKey}
+              colorMode={canCustomPaint}
+              keyColors={keyColors}
+              patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+            />
+          </Box>
         </Box>
       </Box>
-
-      <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem' }}>
+      <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem', mx: 167, width: '80%' }}>
         <Box
           sx={{
             borderRadius: '0.875rem',
@@ -451,7 +453,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
         >
           {effectGroups.map((group) => (
             <Box key={group.title} sx={{ mb: 10 }}>
-              <Typography sx={{ fontSize: '1.125rem',fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
+              <Typography sx={{ fontSize: '1.125rem', fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
                 {group.title}
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
@@ -487,6 +489,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
         <Box
           sx={{
+            minWidth: 0,
             borderRadius: '0.875rem',
             border: '0.0625rem solid rgba(153,169,191,0.22)',
             background: 'rgba(255,255,255,0.42)',
@@ -647,6 +650,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
         <Box
           sx={{
+            minWidth: 0,
             borderRadius: '0.875rem',
             border: '0.0625rem solid rgba(153,169,191,0.22)',
             background: 'rgba(255,255,255,0.42)',
@@ -663,6 +667,6 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           />
         </Box>
       </Box>
-    </Box>
+    </>
   );
 }

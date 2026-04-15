@@ -155,7 +155,7 @@ export default function FirmwareChangelogSection({
                             fontSize: '0.875rem',
                             fontWeight: 500,
                             color: '#64748b',
-                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+                            background: ' rgba(255, 255, 255, 1)',
                             border: '0.0625rem solid rgba(148, 163, 184, 0.55)',
                             borderRadius: '0.5rem',
                             boxShadow: 'none',

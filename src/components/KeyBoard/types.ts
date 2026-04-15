@@ -20,6 +20,8 @@ export type PatternKey = {
         circlesOutside?: boolean;
         panelCircleSizeRem?: number;
         panelCircleGapRem?: number;
+        panelCircleBorderColor?: string;
+        panelCircleBorderColors?: string[];
         topBarWidthPercent?: number;
         matrixRows?: number;
         matrixCols?: number;
@@ -48,6 +50,11 @@ export type TravelVirtualKeyboardProps = {
     onMouseEnter?: (keyIndex: number) => void;
     onMouseUp?: () => void;
     fitToContainer?: boolean;
+    /**
+     * 可选：横向分母改为 `max(键区外卡宽, fitWidthReferencePx)` 再参与 ticktype 式 `min(budgetW/denom, budgetH/naturalH, scaleMax)`。
+     * 默认不传，与 ticktype 完全一致。
+     */
+    fitWidthReferencePx?: number;
     scalePaddingLeft?: number;
     scalePaddingRight?: number;
     scaleMax?: number;
