@@ -61,11 +61,11 @@ const GifEditor = ({
 
   // 绘画工具状态
   const [drawingTool, setDrawingTool] = useState<DrawingTool>('brush');
-  const [brushColor, setBrushColor] = useState('linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)');
+  const [brushColor, setBrushColor] = useState('#ffffff');
   const [brushSize, setBrushSize] = useState(3);
 
   // 文字编辑状态
-  const [textColor, setTextColor] = useState('linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)');
+  const [textColor, setTextColor] = useState('#ffffff');
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState('Arial');
   const [textDirection, setTextDirection] = useState<'horizontal' | 'vertical'>('horizontal');

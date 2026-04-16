@@ -8,8 +8,8 @@ const eventWaitBuffer: {
   [path: string]: ((a: Uint8Array) => void)[];
 } = {};
 
-// 发送后，等待500毫秒，如果没有数据，则不再等待
-const promisify = (cb: Function) => () => {
+// 发送后等待设备应答；超过超时时间视为失败（由上层决定重试/断连）
+const promisify = (cb: Function) => (...args: any[]) => {
   return Promise.race([
     new Promise((res, rej) => {
       cb((e: any, d: any) => {
@@ -17,10 +17,12 @@ const promisify = (cb: Function) => () => {
           rej(e);
         else 
           res(d);
-      });
+      }, ...args);
     }),
-    new Promise((resolve, reject) => {
-      setTimeout(() => {resolve([])}, 1000)
+    new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("HID read timeout"));
+      }, 10000);
     })
   ])
 };
@@ -173,9 +175,9 @@ export class HidDeivce {
     }
   }
 
-  read(fn: (err?: Error, data?: ArrayBuffer) => void) {
+  read(fn: (err?: Error, data?: ArrayBuffer) => void, sinceTime = 0) {
     eventWaitBuffer[this.address] = [];
-    this.fastForwardGlobalBuffer(Date.now());
+    if (sinceTime > 0) this.fastForwardGlobalBuffer(sinceTime);
     if (globalBuffer[this.address].length > 0) {
       // this should be a noop normally
       fn(undefined, globalBuffer[this.address].shift()?.message as any);
@@ -184,7 +186,7 @@ export class HidDeivce {
     }
   }
 
-  readP = promisify((arg: any) => this.read(arg));
+  readP = promisify((arg: any, sinceTime?: number) => this.read(arg, sinceTime ?? 0));
 
   fastForwardGlobalBuffer(time: number) {
     let messagesLeft = globalBuffer[this.address].length;

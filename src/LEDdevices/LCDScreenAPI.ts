@@ -151,8 +151,8 @@ export class LCDScreenAPI {
     return cache[this.address].hid;
   }
 
-  async webhid_read_command(): Promise<Uint8Array> {
-    return this.getHID().readP();
+  async webhid_read_command(sinceTime = 0): Promise<Uint8Array> {
+    return this.getHID().readP(sinceTime);
   }
   // 通过WebHID发送数据到键盘
   async webhid_write_command(
@@ -164,6 +164,7 @@ export class LCDScreenAPI {
       paddedArray[idx] = val;
     });
 
+    const commandTime = Date.now();
     try {
       await this.getHID().hid_write(paddedArray);
     } catch (error) {
@@ -171,7 +172,7 @@ export class LCDScreenAPI {
     }
 
     // console.log("webhid_write_command", paddedArray);
-    const buffer = Array.from(await this.webhid_read_command());
+    const buffer = Array.from(await this.webhid_read_command(commandTime));
     // console.log("webhid_read_command", buffer);
     
     console.debug(

@@ -105,11 +105,11 @@ export default function Sidebar() {
                 >
                     <Box
                         component="img"
-                        src="/qk-logo.svg"
+                        src="/QKlogo.png.svg"
                         alt="Logo"
                         sx={{
                             width: 'auto',
-                            height: '48px',
+                            height: '36px',
                             maxWidth: '100%',
                             display: 'block',
                             objectFit: 'contain',

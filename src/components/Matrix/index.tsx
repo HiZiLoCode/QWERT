@@ -30,7 +30,6 @@ const Matrix = () => {
         setBrightnessValue,
         speedValue,
         setSpeedValue,
-        maxLightSpeed,
     } = matrixData;
 
     const deviceBaseInfo = keyboard?.deviceBaseInfo;
@@ -39,6 +38,7 @@ const Matrix = () => {
     const layoutKeys = keyboard?.layoutKeys ?? [];
     const travelKeys = keyboard?.travelKeys ?? [];
     const [brightnessInput, setBrightnessInput] = useState('0');
+    const matrixSpeedMax = Math.max(deviceBaseInfo?.matrixScreenLightMaxSpeed || 4, 1);
 
     useEffect(() => {
         if (!deviceBaseInfo || !deviceFuncInfo) return;
@@ -48,8 +48,9 @@ const Matrix = () => {
         setLightMode(deviceFuncInfo.matrixScreenLightMode);
 
         const maxBrightness = Math.max(deviceBaseInfo.matrixScreenLightMaxBrightness || 1, 1);
-        setBrightnessValue(Math.round((deviceFuncInfo.matrixScreenLightBrightness / maxBrightness) * 100));
-        setSpeedValue(deviceFuncInfo.matrixScreenLightSpeed);
+        setBrightnessValue(Math.max(5, Math.round((deviceFuncInfo.matrixScreenLightBrightness / maxBrightness) * 100)));
+        // 固件速度值越大越慢；UI 侧约定“越往右越快”，因此做反向映射。
+        setSpeedValue(Math.max(0, Math.min(matrixSpeedMax, matrixSpeedMax - (deviceFuncInfo.matrixScreenLightSpeed || 0))));
         setSelectedColor(
             rgbToHex(
                 deviceFuncInfo.matrixScreenLightRValue,
@@ -57,7 +58,7 @@ const Matrix = () => {
                 deviceFuncInfo.matrixScreenLightBValue
             )
         );
-    }, [deviceBaseInfo, deviceFuncInfo]);
+    }, [deviceBaseInfo, deviceFuncInfo, matrixSpeedMax]);
 
     useEffect(() => {
         setBrightnessInput(String(brightnessValue || 0));
@@ -102,9 +103,11 @@ const Matrix = () => {
     };
 
     const debouncedUpdateLightSpeed = useRef(
-        debounce(async (speed: number, info: FunInfo) => {
+        debounce(async (uiSpeed: number, info: FunInfo) => {
             if (!connectedKeyboard || !deviceBaseInfo) return;
-            const lightInfo = { ...info, matrixScreenLightSpeed: speed };
+            const speedMax = Math.max(deviceBaseInfo.matrixScreenLightMaxSpeed || 4, 1);
+            const firmwareSpeed = Math.max(0, Math.min(speedMax, speedMax - uiSpeed));
+            const lightInfo = { ...info, matrixScreenLightSpeed: firmwareSpeed };
             connectedKeyboard.setFuncInfo(lightInfo, deviceBaseInfo.protocolVer);
             keyboard?.setDeviceFuncInfo(lightInfo);
         }, 200)
@@ -113,10 +116,11 @@ const Matrix = () => {
     const debouncedUpdateLightBrightness = useRef(
         debounce(async (brightness: number, info: FunInfo) => {
             if (!connectedKeyboard || !deviceBaseInfo) return;
+            const normalizedBrightness = Math.max(5, Math.min(100, brightness));
             const lightInfo = {
                 ...info,
                 matrixScreenLightBrightness: Math.round(
-                    (deviceBaseInfo.matrixScreenLightMaxBrightness || 100) * (brightness / 100)
+                    (deviceBaseInfo.matrixScreenLightMaxBrightness || 100) * (normalizedBrightness / 100)
                 ),
             };
             connectedKeyboard.setFuncInfo(lightInfo, deviceBaseInfo.protocolVer);
@@ -126,14 +130,16 @@ const Matrix = () => {
 
     const handleSpeedChange = (newValue: number) => {
         if (!deviceFuncInfo) return;
-        setSpeedValue(newValue);
-        debouncedUpdateLightSpeed(newValue, { ...deviceFuncInfo });
+        const normalized = Math.max(0, Math.min(matrixSpeedMax, newValue));
+        setSpeedValue(normalized);
+        debouncedUpdateLightSpeed(normalized, { ...deviceFuncInfo });
     };
 
     const handleBrightnessChange = (newValue: number) => {
         if (!deviceFuncInfo) return;
-        setBrightnessValue(newValue);
-        debouncedUpdateLightBrightness(newValue, { ...deviceFuncInfo });
+        const normalized = Math.max(5, Math.min(100, newValue));
+        setBrightnessValue(normalized);
+        debouncedUpdateLightBrightness(normalized, { ...deviceFuncInfo });
     };
 
     const commitBrightnessInput = () => {
@@ -142,7 +148,7 @@ const Matrix = () => {
             setBrightnessInput(String(brightnessValue || 0));
             return;
         }
-        const normalized = Math.max(0, Math.min(100, parsed));
+        const normalized = Math.max(5, Math.min(100, parsed));
         setBrightnessInput(String(normalized));
         handleBrightnessChange(normalized);
     };
@@ -236,7 +242,7 @@ const Matrix = () => {
                         <SliderBlock>
                             <SliderRem
                                 value={brightnessValue}
-                                min={0}
+                                min={5}
                                 max={100}
                                 step={1}
                                 onChange={(_, newValue) => handleBrightnessChange(newValue as number)}
@@ -275,7 +281,7 @@ const Matrix = () => {
                         <SliderRem
                             value={speedValue}
                             min={0}
-                            max={maxLightSpeed || 4}
+                            max={matrixSpeedMax}
                             step={1}
                             onChange={(_, newValue) => handleSpeedChange(newValue as number)}
                             sx={{

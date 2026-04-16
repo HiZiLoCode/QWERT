@@ -23,4 +23,5 @@ export const VIDEO_SPEED_OPTIONS: { value: string; labelKey: string }[] = [
   { value: "15", labelKey: "1638" },
   { value: "30", labelKey: "1639" },
   { value: "60", labelKey: "1640" },
+  { value: "typing", labelKey: "1641" },
 ];

@@ -186,8 +186,9 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       justifyContent: 'center',
                       px: 0.5,
                       overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
+                      whiteSpace: 'normal',
+                      wordBreak: 'keep-all',
+                      overflowWrap: 'normal',
                     }}
                   >
                     {keyLabel}

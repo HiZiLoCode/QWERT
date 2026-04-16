@@ -1,5 +1,5 @@
 import { Box, Button, Flex, Image } from "@chakra-ui/react";
-import { useContext, useState, useEffect } from "react";
+import { useCallback, useContext, useState, useEffect } from "react";
 import { MainContext } from "@/providers/MainProvider";
 import { useTranslation } from "@/app/i18n";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
@@ -15,33 +15,68 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
 
   // 用于控制屏幕动画效果
   const [, setScreenAnimation] = useState(0);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isOpeningDevice, setIsOpeningDevice] = useState(false);
+  const [openingDots, setOpeningDots] = useState(0);
 
-  // 屏幕动画效果自动切换
+  const ensureScreenOnline = useCallback(async (keyboard: any) => {
+    try {
+      // 不在线：保持“正在打开设备...”显示 2 秒，并在这段时间尝试点亮  延迟俩秒
+      const status = await keyboard.checkLightStatus();
+      if (status?.status) {
+        // 已在线：不等待，但仍立即点亮屏幕
+        await connectDevice([{ usagePage: 0x00ff, usage: 0x0001 }]);
+        return true;
+      }
+    } catch {
+      // 状态读取失败时，继续尝试亮屏流程
+    }
+    setIsOpeningDevice(true);
+    setOpeningDots(0);
+    try {
+      // 不在线：保持“正在打开设备...”显示 2 秒，并在这段时间尝试点亮
+      // 立刻下发点亮命令，不等待它完成；授权仍然在 2 秒后弹出
+      void keyboard.lightOn()
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setIsConnecting(true);
+      await connectDevice([{ usagePage: 0x00ff, usage: 0x0001 }]);
+      return true;
+    } finally {
+      setIsOpeningDevice(false);
+      setIsConnecting(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!connectedKeyboard) return;
-    void connectedKeyboard.lightOn();
-    onAuthorized?.();
-
     const timer = setInterval(() => {
       setScreenAnimation((prev: number) => (prev + 1) % 3);
     }, 3000);
-    const timer2 = setInterval(async () => {
-      const data = await connectedKeyboard.checkLightStatus()
-      if (!data.status) {
-        await connectedKeyboard.lightOn()
-      }
-    }, 1000)
     return () => {
       clearInterval(timer);
-      clearInterval(timer2);
     };
-  }, [connectedKeyboard, onAuthorized]);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpeningDevice) return;
+    const timer = setInterval(() => {
+      setOpeningDots((prev) => (prev + 1) % 3);
+    }, 500);
+    return () => clearInterval(timer);
+  }, [isOpeningDevice]);
+
   // 定义一个connect函数
   const connect = async () => {
-    // 调用connectDevice函数
-    await connectDevice([{ usagePage: 0x00ff, usage: 0x0001 }]);
+    if (isConnecting || isOpeningDevice) return;
+
     if (connectedKeyboard) {
-      onAuthorized?.();
+      const ok = await ensureScreenOnline(connectedKeyboard);
+      console.log(ok);
+      
+      if (ok) {
+        onAuthorized?.();
+      }
+      return;
     }
   };
   return (
@@ -266,6 +301,7 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
           <Button
             as="button"
             onClick={() => connect()}
+            isDisabled={isConnecting || isOpeningDevice}
             bg="rgba(0, 150, 255, 0.8)"
             color="white"
             _hover={{ bg: "rgba(0, 180, 255, 0.9)" }}
@@ -294,7 +330,13 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
               animation: 'textFlow 3s linear infinite',
             }}
           >
-            <span>{t("16") || "连接设备"}</span>
+            <span>
+              {isConnecting
+                  ? "连接中..."
+                : isOpeningDevice
+                  ? `正在打开设备${".".repeat(openingDots + 1)}`
+                  : t("16") || "连接设备"}
+            </span>
           </Button>
         </Flex>
       </Box>

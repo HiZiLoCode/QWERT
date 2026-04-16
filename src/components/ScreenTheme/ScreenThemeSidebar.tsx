@@ -49,7 +49,7 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
       <Typography
         component="h2"
         sx={{
-          fontSize: "1.25rem",
+          fontSize: "1rem",
           fontWeight: 400,
           color: "rgba(100, 116, 139, 1)",
           letterSpacing: "0.02em",

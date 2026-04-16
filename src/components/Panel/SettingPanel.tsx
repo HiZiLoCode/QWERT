@@ -49,7 +49,7 @@ export default function SettingPanel() {
 
     const [nkroEnabled, setNkroEnabled] = useState(false);
     const [winDisabled, setWinDisabled] = useState(false);
-    const [macMode, setMacMode] = useState(false);
+    const [platformIndicator, setPlatformIndicator] = useState<'win' | 'mac'>('win');
     const [keyWasd, setKeyWasd] = useState(false);
     const [snapTap, setSnapTap] = useState(false);
     const [, setFMode] = useState(false);
@@ -150,7 +150,7 @@ export default function SettingPanel() {
     useEffect(() => {
         setNkroEnabled((funcInfo?.sixKeysOrAllKeys ?? 0) === 1);
         setWinDisabled((funcInfo?.winLock ?? 0) === 1);
-        setMacMode((funcInfo?.maxOrWin ?? 0) === 1);
+        setPlatformIndicator((funcInfo?.maxOrWin ?? 0) === 1 ? 'mac' : 'win');
         setKeyWasd((funcInfo?.keyWasd ?? 0) === 1);
         setSnapTap((funcInfo?.snapTap ?? 0) === 1 || funcInfo?.snapTap === true);
         setFMode((funcInfo?.fSwitch ?? 0) === 1 || funcInfo?.fSwitch === true);
@@ -365,10 +365,26 @@ export default function SettingPanel() {
                                 right={
                                     <Switch
                                         checked={winDisabled}
-                                        disabled={macMode}
+                                        disabled={platformIndicator === 'mac'}
                                         onChange={(_, checked) => {
                                             setWinDisabled(checked);
                                             updateFuncInfo({ winLock: checked ? 1 : 0 });
+                                        }}
+                                        sx={switchSx}
+                                    />
+                                }
+                            />
+                        </SettingCard>
+                        <SettingCard>
+                            <Row
+                                title={t('774')}
+                                description={[`${t('775')}${t('2578')}`]}
+                                right={
+                                    <Switch
+                                    disabled={true} 
+                                        checked={platformIndicator === 'mac'}
+                                        onChange={(_, checked) => {
+                                            setPlatformIndicator(checked ? 'mac' : 'win');
                                         }}
                                         sx={switchSx}
                                     />

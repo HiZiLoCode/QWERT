@@ -1,26 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import { screenThemeColors } from "./theme";
 import { screenThemePillRadius } from "./screenThemeButtonSx";
 
-type LegendId = "theme" | "island";
+export type ScreenThemeKeyboardLegendVariant = "media" | "typing";
 
 const CIRCLE_REM = "1.125rem";
 
-export default function ScreenThemeKeyboardLegend() {
-  const { t } = useTranslation("common");
-  const [active, setActive] = useState<LegendId>("theme");
+type Props = {
+  variant?: ScreenThemeKeyboardLegendVariant;
+};
 
-  const row = (id: LegendId, labelKey: string, borderColor: string) => {
-    const on = active === id;
+export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) {
+  const { t } = useTranslation("common");
+  const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [variant]);
+
+  const secondLabelKey = variant === "typing" ? "2556" : "1628";
+
+  const row = (index: 0 | 1, labelKey: string, borderColor: string) => {
+    const on = activeIndex === index;
     return (
       <Box
         component="button"
         type="button"
-        onClick={() => setActive(id)}
+        onClick={() => setActiveIndex(index)}
         sx={{
           display: "inline-flex",
           alignItems: "center",
@@ -76,8 +86,8 @@ export default function ScreenThemeKeyboardLegend() {
         flexShrink: 0,
       }}
     >
-      {row("theme", "1627", "rgba(0, 102, 255, 1)")}
-      {row("island", "1628", "rgba(255, 0, 60, 1)")}
+      {row(0, "1627", "rgba(0, 102, 255, 1)")}
+      {row(1, secondLabelKey, "rgba(255, 0, 60, 1)")}
     </Box>
   );
 }

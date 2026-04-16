@@ -563,7 +563,7 @@ export class KeyboardDevice {
 
     // --- V2 协议：分包读取 ---
     const v2FuncTotalBytes =
-      this.productId === PID_FUNCINFO_V2_LAYOUT_71 ? 72 : 59;
+      this.productId === PID_FUNCINFO_V2_LAYOUT_71 ? 76 : 59;
     const bufferSize = [0x38, 0x18][this.deviceMode];  // 每次最大取 56 bytes
     let result: number[] = [];
 
@@ -659,7 +659,7 @@ export class KeyboardDevice {
       snapTap: result[58] === 1,
     };
 
-    if (this.productId === PID_FUNCINFO_V2_LAYOUT_71 && result.length >= 72) {
+    if (this.productId === PID_FUNCINFO_V2_LAYOUT_71 && result.length >= 76) {
       return {
         ...base,
         lcdScreenPage: result[59],
@@ -675,6 +675,10 @@ export class KeyboardDevice {
         lcdCustomIconBValue: result[69],
         lightEffectDirection: result[70],
         numLockMode: result[71],
+        pickupLightEffectSwitch: result[72],
+        pickupLightEffectDirection: result[73],
+        pickupLightFpsLevel: result[74],
+        pickupLightFpsDefine: result[75],
       };
     }
 
@@ -773,6 +777,10 @@ export class KeyboardDevice {
         buffer[69] = data.lcdCustomIconBValue ?? 0;
         buffer[70] = data.lightEffectDirection ?? 0;
         buffer[71] = data.numLockMode ?? 0;
+        buffer[72] = data.pickupLightEffectSwitch ?? 0;
+        buffer[73] = data.pickupLightEffectDirection ?? 0;
+        buffer[74] = data.pickupLightFpsLevel ?? 0;
+        buffer[75] = data.pickupLightFpsDefine ?? 0;
       }
 
       await this.startComm();
@@ -1458,6 +1466,50 @@ export class KeyboardDevice {
       g,
       b,
     ]);
+    // await this.stopComm();
+  }
+
+  // 设置用户灯光颜色(全量 128 键，按自定义灯效槽位)
+  async setUserAllKeyColorByLight(lightId: number, keyColors: string[]) {
+    let command: number = CMD.CMD_SET_USERLIGHT_1;
+    if (lightId == 1) {
+      command = CMD.CMD_SET_USERLIGHT_2;
+    } else if (lightId == 2) {
+      command = CMD.CMD_SET_USERLIGHT_3;
+    } else if (lightId == 3) {
+      command = CMD.CMD_SET_USERLIGHT_4;
+    } else if (lightId == 4) {
+      command = CMD.CMD_SET_USERLIGHT_5;
+    }
+
+    const totalKeyCount = 128;
+    const rgbData: number[] = new Array(totalKeyCount * 3).fill(0);
+    for (let index = 0; index < totalKeyCount; index += 1) {
+      const color = keyColors[index] || "#000000";
+      const { r, g, b } = hexToRgba(color);
+      const offset = index * 3;
+      rgbData[offset] = r;
+      rgbData[offset + 1] = g;
+      rgbData[offset + 2] = b;
+    }
+
+    await this.startComm();
+    const bufferSize = [0x38, 0x18][this.deviceMode];
+    for (let offset = 0; offset < rgbData.length; offset += bufferSize) {
+      const size = Math.min(rgbData.length - offset, bufferSize);
+      const chunk = rgbData.slice(offset, offset + size);
+      const [lo, hi] = shiftFrom16Bit(offset);
+      await this.api.sendDeviceData(CMD.REPORT_ID, [
+        command,
+        lo,
+        hi,
+        size,
+        0x00,
+        0x00,
+        0x00,
+        ...chunk,
+      ]);
+    }
     // await this.stopComm();
   }
 

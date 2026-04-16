@@ -117,6 +117,14 @@ export type FunInfo = {
   lightEffectDirection?: number;
   /** 字节 71：NumLock 模式（仅 0x3059 扩展布局） */
   numLockMode?: number;
+  /** 字节 72：拾音灯效开关（仅 0x3059 扩展布局） */
+  pickupLightEffectSwitch?: number;
+  /** 字节 73：拾音灯效方向（仅 0x3059 扩展布局） */
+  pickupLightEffectDirection?: number;
+  /** 字节 74：拾音灯频率档位（示例：1=15fps, 2=30fps, 3=60fps） */
+  pickupLightFpsLevel?: number;
+  /** 字节 75：拾音灯频率定义开关（0=正常, 1=自定义） */
+  pickupLightFpsDefine?: number;
 }
 
 // 按键信息

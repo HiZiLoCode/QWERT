@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Divider } from "@mui/material";
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, LinearProgress, Typography } from "@mui/material";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import { MainContext } from "@/providers/MainProvider";
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
@@ -13,10 +13,11 @@ import ScreenThemePreview from "./ScreenThemePreview";
 import ScreenThemeSettingsPanel from "./ScreenThemeSettingsPanel";
 import ScreenThemeImageSettingsPanel from "./ScreenThemeImageSettingsPanel";
 import ScreenThemeVideoSettingsPanel from "./ScreenThemeVideoSettingsPanel";
-import ScreenThemeTypingPanel from "./ScreenThemeTypingPanel";
+import ScreenThemeTypingPanel, { type TypingCharacterValue } from "./ScreenThemeTypingPanel";
 import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
 import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
 import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
+import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
 import type { LayoutKey } from "@/types/types_v1";
@@ -50,7 +51,11 @@ function formatScreenTime(d: Date) {
 type MediaAsset = {
   name: string;
   dataUrl: string;
+  /** GIF 上传超过阈值时，只保留前 N 帧用于预览/下载 */
+  frameLimit?: number;
 };
+
+type TransferStage = "convert" | "erase" | "download";
 
 /** 单套灵动岛（基础 / 个性化）在内存与 IDB 中的媒体草稿，两套 state 完全独立 */
 type IslandMediaDraft = {
@@ -98,6 +103,7 @@ const DEFAULT_PERSONAL_THEME_COLORS: PersonalThemePalette = {
 
 const MAX_GIF_FRAMES = 200;
 const MAX_ALBUM_FILES = 4;
+const DEFAULT_VIDEO_BG_STATIC_PATH = "/screen-theme/default-background.gif";
 
 function clampRgbByte(value: unknown): number | null {
   const n = Number(value);
@@ -144,6 +150,31 @@ function normalizeVideoSpeed(raw: string | undefined): string {
   return "native";
 }
 
+const TYPING_THEME_BIN_MAP: Record<TypingCharacterValue, string> = {
+  cat: "/typing-theme/bins/cat.bin",
+  "cat-glasses": "/typing-theme/bins/cat-glasses.bin",
+};
+const TYPING_THEME_BIN_FALLBACK = "/typing-theme/bins/cat.bin";
+const LCD_CMD_SUBJECT_FLASH_ERASE = 0x1d;
+const LCD_CMD_SUBJECT_FLASH_WRITE = 0x1e;
+
+function isLikelyTimeoutError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return /timeout|timed out|no response|did not return/i.test(msg);
+}
+
+async function sendLcdStopCommands(deviceComm: { setData: (data: number[]) => Promise<unknown> }) {
+  const resetBuffer = new Uint8Array(65);
+  resetBuffer[1] = 0xaa;
+  resetBuffer[2] = 0x1a;
+  await deviceComm.setData(Array.from(resetBuffer));
+
+  const endBuffer = new Uint8Array(65);
+  endBuffer[1] = 0xaa;
+  endBuffer[2] = 0x11;
+  await deviceComm.setData(Array.from(endBuffer));
+}
+
 async function loadIslandDraftFromIds(
   imageId: string,
   albumId: string,
@@ -180,7 +211,13 @@ async function loadIslandDraftFromIds(
   if (video?.content) {
     try {
       const parsed = JSON.parse(video.content) as MediaAsset & { speed?: string };
-      if (parsed?.dataUrl) draft.videoAsset = { name: parsed.name, dataUrl: parsed.dataUrl };
+      if (parsed?.dataUrl) {
+        draft.videoAsset = {
+          name: parsed.name,
+          dataUrl: parsed.dataUrl,
+          frameLimit: Number.isFinite(parsed.frameLimit) && (parsed.frameLimit ?? 0) > 0 ? Number(parsed.frameLimit) : undefined,
+        };
+      }
       if (parsed?.speed) draft.videoSpeed = normalizeVideoSpeed(parsed.speed);
     } catch {
       /* keep null */
@@ -192,7 +229,7 @@ async function loadIslandDraftFromIds(
 
 export default function ScreenThemePage() {
   const { keyboard, keyboardLayout, connectedKeyboard } = useContext(ConnectKbContext);
-  const { deviceComm, screenWidth, screenHeight, screenInfo, qgifModule, setDownLoad } = useContext(MainContext);
+  const { deviceComm, screenWidth, screenHeight, screenInfo, qgifModule, setDownLoad, disconnectDevice } = useContext(MainContext);
   const { showMessage } = useSnackbarDialog();
   const { t } = useTranslation("common");
 
@@ -205,10 +242,21 @@ export default function ScreenThemePage() {
   const [typingEditIsland, setTypingEditIsland] = useState<"basic" | "personal">("basic");
   const [intervalSec, setIntervalSec] = useState("5");
   const [transition, setTransition] = useState<TransitionKind>("btt");
+  const [typingChar1, setTypingChar1] = useState<TypingCharacterValue>("cat");
+  const [typingChar2, setTypingChar2] = useState<TypingCharacterValue>("cat-glasses");
   const [personalThemeColors, setPersonalThemeColors] = useState<PersonalThemePalette>(DEFAULT_PERSONAL_THEME_COLORS);
-  const [savingSource, setSavingSource] = useState<ImportSource | "image" | null>(null);
+  const [savingSource, setSavingSource] = useState<ImportSource | "typing" | null>(null);
   const [fileName] = useState("XXXX.png");
   const [restored, setRestored] = useState(false);
+  const [trimConfirmDialog, setTrimConfirmDialog] = useState<{ open: boolean; frameCount: number }>({
+    open: false,
+    frameCount: 0,
+  });
+  const [transferDialog, setTransferDialog] = useState<{ open: boolean; stage: TransferStage; progress: number }>({
+    open: false,
+    stage: "convert",
+    progress: 0,
+  });
 
   const layoutKeys = keyboard?.layoutKeys ?? [];
   const currentLayer = keyboard?.layer ?? 0;
@@ -232,9 +280,46 @@ export default function ScreenThemePage() {
   const albumRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const isSavingToKeyboardRef = useRef(false);
+  const trimConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
   /** 首次从 IDB 灌入两套草稿时跳过自动回写，避免无意义覆盖 */
   const mediaHydratingRef = useRef(false);
   const isTransferLocked = savingSource !== null;
+
+  const askGifTrimConfirm = useCallback((frameCount: number) => {
+    return new Promise<boolean>((resolve) => {
+      trimConfirmResolverRef.current = resolve;
+      setTrimConfirmDialog({ open: true, frameCount });
+    });
+  }, []);
+
+  const resolveGifTrimConfirm = useCallback((accepted: boolean) => {
+    trimConfirmResolverRef.current?.(accepted);
+    trimConfirmResolverRef.current = null;
+    setTrimConfirmDialog({ open: false, frameCount: 0 });
+  }, []);
+
+  const openTransferDialog = useCallback(() => {
+    setTransferDialog({ open: true, stage: "convert", progress: 0 });
+  }, []);
+
+  const closeTransferDialog = useCallback(() => {
+    setTransferDialog((prev) => ({ ...prev, open: false }));
+  }, []);
+
+  const updateTransferStage = useCallback((stage: TransferStage) => {
+    setTransferDialog((prev) => ({ ...prev, open: true, stage, progress: stage === "download" ? prev.progress : 0 }));
+  }, []);
+
+  const updateTransferProgress = useCallback((progress: number) => {
+    setTransferDialog((prev) => ({ ...prev, open: true, stage: "download", progress: Math.max(0, Math.min(100, progress)) }));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      trimConfirmResolverRef.current?.(false);
+      trimConfirmResolverRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab === "basic") setTypingEditIsland("basic");
@@ -319,6 +404,22 @@ export default function ScreenThemePage() {
     });
   }, []);
 
+  const readDefaultBgAsDataUrl = useCallback(async () => {
+    const resp = await fetch(DEFAULT_VIDEO_BG_STATIC_PATH, { cache: "no-store" });
+    if (!resp.ok) throw new Error(t("2574"));
+    const blob = await resp.blob();
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+    return {
+      name: DEFAULT_VIDEO_BG_STATIC_PATH.split("/").pop() || "default-background.gif",
+      dataUrl,
+    };
+  }, [t]);
+
   const onImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -348,29 +449,36 @@ export default function ScreenThemePage() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    let frameLimit: number | undefined;
     if (isGifFile(file)) {
       const buf = await file.arrayBuffer();
       const frameCount = countGifFrames(buf);
       if (frameCount > MAX_GIF_FRAMES) {
-        showMessage({ type: "warning", message: t("1644") });
-        return;
+        const shouldTrim = await askGifTrimConfirm(frameCount);
+        if (!shouldTrim) return;
+        frameLimit = MAX_GIF_FRAMES;
+        showMessage({ type: "info", message: t("2564") });
       }
     }
     const dataUrl = await readAsDataUrl(file);
-    patchDraft(mediaEditIsland, { videoAsset: { name: file.name, dataUrl } });
+    patchDraft(mediaEditIsland, { videoAsset: { name: file.name, dataUrl, frameLimit } });
   };
+
+  const restoreVideoBackground = useCallback(async () => {
+    try {
+      const asset = await readDefaultBgAsDataUrl();
+      patchDraft(mediaEditIsland, { videoAsset: { ...asset, frameLimit: undefined } });
+      showMessage({ type: "success", message: t("2573") });
+    } catch {
+      showMessage({ type: "error", message: t("2574") });
+    }
+  }, [mediaEditIsland, patchDraft, readDefaultBgAsDataUrl, showMessage, t]);
 
   const onImport = (source: ImportSource) => {
     if (isTransferLocked) return;
     if (source === "theme" && activeTab !== "personal") return;
     setActiveSource(source);
   };
-
-  useEffect(() => {
-    if (activeTab === "typing") {
-      setActiveSource("video");
-    }
-  }, [activeTab]);
 
   const pickCurrentSourceFile = () => {
     if (isTransferLocked) return;
@@ -509,14 +617,17 @@ export default function ScreenThemePage() {
       targetWidth: number,
       targetHeight: number,
       rotate: number,
+      frameLimit?: number,
     ): Promise<{ frames: Uint8Array[]; fpsFromGif: number }> => {
       const gifData = dataUrlToUint8Array(dataUrl);
       const gifBuffer = gifData.buffer.slice(gifData.byteOffset, gifData.byteOffset + gifData.byteLength) as ArrayBuffer;
       const gif = parseGIF(gifBuffer);
       const frames = decompressFrames(gif, true) as ParsedFrame[];
-      if (!frames.length) throw new Error(t("1657"));
+      const effectiveFrames =
+        frameLimit && frameLimit > 0 ? frames.slice(0, Math.min(frameLimit, frames.length)) : frames;
+      if (!effectiveFrames.length) throw new Error(t("1657"));
 
-      const firstDelay = Math.max(frames[0]?.delay ?? 100, 1);
+      const firstDelay = Math.max(effectiveFrames[0]?.delay ?? 100, 1);
       const fpsFromGif = Math.max(2, Math.min(120, Math.round(1000 / firstDelay)));
       const gifW = gif.lsd.width;
       const gifH = gif.lsd.height;
@@ -536,10 +647,10 @@ export default function ScreenThemePage() {
       if (!outCtx) throw new Error(t("1654"));
 
       const pngFrames: Uint8Array[] = [];
-      for (let i = 0; i < frames.length; i++) {
-        const frame = frames[i];
+      for (let i = 0; i < effectiveFrames.length; i++) {
+        const frame = effectiveFrames[i];
         if (i > 0) {
-          const prev = frames[i - 1];
+          const prev = effectiveFrames[i - 1];
           if (prev.disposalType === 2) {
             accCtx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
           }
@@ -584,6 +695,7 @@ export default function ScreenThemePage() {
     async (qgifData: Uint8Array[], lcdMeta: LcdScreenTransferMeta, payloadType: 0 | 1 = 0) => {
       if (!deviceComm) throw new Error(t("1660"));
       const totalSize = qgifData.reduce((sum, data) => sum + data.length, 0);
+      updateTransferProgress(0);
       const read14 = await readLcdWorkParam14(deviceComm);
       if (!read14) throw new Error(t("1662"));
 
@@ -602,28 +714,96 @@ export default function ScreenThemePage() {
           `QGIF 0x15 功能区超限：${logical15.length} 字节（上限 ${W15_LOGICAL_MAX}），请减少张数`,
         );
       }
-      await sendScreenWorkParam15Packets(deviceComm, logical15);
+      try {
+        await sendScreenWorkParam15Packets(deviceComm, logical15);
 
-      const completeBuffer = new Uint8Array(65);
-      completeBuffer[1] = 0xaa;
-      completeBuffer[2] = 0x16;
-      completeBuffer[6] = 0x38;
-      await deviceComm.setData(Array.from(completeBuffer));
+        const completeBuffer = new Uint8Array(65);
+        completeBuffer[1] = 0xaa;
+        completeBuffer[2] = 0x16;
+        completeBuffer[6] = 0x38;
+        await deviceComm.setData(Array.from(completeBuffer));
 
-      const eraseBlocks = Math.max(
-        1,
-        qgifData.reduce((sum, data) => sum + Math.ceil(data.length / (64 * 1024)), 0),
-      );
-      await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
+        const eraseBlocks = Math.max(
+          1,
+          qgifData.reduce((sum, data) => sum + Math.ceil(data.length / (64 * 1024)), 0),
+        );
+        updateTransferStage("erase");
+        await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
 
-      let totalBytesTransferred = 0;
-      const step = 56;
-      for (let screenIndex = 0; screenIndex < qgifData.length; screenIndex++) {
-        const data = qgifData[screenIndex];
-        let currentAddress = 0;
-        for (let i = 0; i < screenIndex; i++) {
-          currentAddress += Math.ceil(qgifData[i].length / (64 * 1024)) * (64 * 1024);
+        let totalBytesTransferred = 0;
+        const step = 56;
+        updateTransferStage("download");
+        for (let screenIndex = 0; screenIndex < qgifData.length; screenIndex++) {
+          const data = qgifData[screenIndex];
+          let currentAddress = 0;
+          for (let i = 0; i < screenIndex; i++) {
+            currentAddress += Math.ceil(qgifData[i].length / (64 * 1024)) * (64 * 1024);
+          }
+          for (let i = 0; i < data.length; i += step) {
+            const writeBuffer = new Uint8Array(65);
+            writeBuffer[1] = 0xaa;
+            writeBuffer[2] = 0x19;
+            writeBuffer[3] = currentAddress & 0xff;
+            writeBuffer[4] = (currentAddress >> 8) & 0xff;
+            writeBuffer[5] = (currentAddress >> 16) & 0xff;
+            const bytesToSend = Math.min(step, data.length - i);
+            writeBuffer[6] = bytesToSend;
+            writeBuffer[7] = lcdMeta.islandMode;
+            writeBuffer.set(data.slice(i, i + bytesToSend), 9);
+            await deviceComm.setData(Array.from(writeBuffer));
+            await settleBetweenLcd19Packets();
+            currentAddress += bytesToSend;
+            totalBytesTransferred += bytesToSend;
+            updateTransferProgress(Math.round((totalBytesTransferred / Math.max(totalSize, 1)) * 100));
+          }
         }
+        updateTransferProgress(100);
+      } finally {
+        try {
+          // 0x19 成功/失败都要尝试收尾。
+          await sendLcdStopCommands(deviceComm);
+          await deviceComm.syncTime();
+        } catch (closeError) {
+          // 收尾失败不覆盖主结果：是否成功只看 0x19 数据分包是否完整发送并收到回应。
+          console.warn("[ScreenTheme] QGIF 收尾(1A/11)失败，但不判定本次下载失败", closeError);
+        }
+      }
+    },
+    [deviceComm, t, updateTransferProgress, updateTransferStage],
+  );
+
+  /** 静态 RGB565：LVGL 4 字节头 + 像素；0x15 与擦写均跟 `lcdMeta.islandMode`（实际保存侧） */
+  const downloadStaticRgb565ToDevice = useCallback(
+    async (rgb565WithHeader: Uint8Array, lcdMeta: LcdScreenTransferMeta) => {
+      if (!deviceComm) throw new Error(t("1660"));
+      const data = rgb565WithHeader;
+      const totalSize = data.length;
+      updateTransferProgress(0);
+      const read14 = await readLcdWorkParam14(deviceComm);
+      if (!read14) throw new Error(t("1662"));
+
+      const newEntries = [{ metaByte: lcdMeta.metaByte, type: 1 as const, size: totalSize }];
+      const logical15 = buildDualIslandWorkLogical15FromReadPatch(read14.rawResponse, read14.parsed, {
+        islandBeingSaved: lcdMeta.islandMode,
+        newEntries,
+      });
+      try {
+        await sendScreenWorkParam15Packets(deviceComm, logical15);
+
+        const completeBuffer = new Uint8Array(65);
+        completeBuffer[1] = 0xaa;
+        completeBuffer[2] = 0x16;
+        completeBuffer[6] = 0x38;
+        await deviceComm.setData(Array.from(completeBuffer));
+
+        const eraseBlocks = Math.max(1, Math.ceil(totalSize / (64 * 1024)));
+        updateTransferStage("erase");
+        await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
+
+        const step = 56;
+        let currentAddress = 0;
+        let totalBytesTransferred = 0;
+        updateTransferStage("download");
         for (let i = 0; i < data.length; i += step) {
           const writeBuffer = new Uint8Array(65);
           writeBuffer[1] = 0xaa;
@@ -639,81 +819,45 @@ export default function ScreenThemePage() {
           await settleBetweenLcd19Packets();
           currentAddress += bytesToSend;
           totalBytesTransferred += bytesToSend;
-          if (totalBytesTransferred >= totalSize) await Promise.resolve();
+          updateTransferProgress(Math.round((totalBytesTransferred / Math.max(totalSize, 1)) * 100));
+        }
+        updateTransferProgress(100);
+      } finally {
+        try {
+          await sendLcdStopCommands(deviceComm);
+          await deviceComm.syncTime();
+        } catch (closeError) {
+          // 收尾失败不覆盖主结果：是否成功只看 0x19 数据分包是否完整发送并收到回应。
+          console.warn("[ScreenTheme] RGB565 收尾(1A/11)失败，但不判定本次下载失败", closeError);
         }
       }
-
-      // 必须等所有 0x19 分包循环发送完成后，再下发 0x1A
-      const resetBuffer = new Uint8Array(65);
-      resetBuffer[1] = 0xaa;
-      resetBuffer[2] = 0x1a;
-      await deviceComm.setData(Array.from(resetBuffer));
-      await deviceComm.syncTime();
-      const endBuffer = new Uint8Array(65);
-      endBuffer[1] = 0xaa;
-      endBuffer[2] = 0x11;
-      await deviceComm.setData(Array.from(endBuffer));
     },
-    [deviceComm, t],
+    [deviceComm, t, updateTransferProgress, updateTransferStage],
   );
 
-  /** 静态 RGB565：LVGL 4 字节头 + 像素；0x15 与擦写均跟 `lcdMeta.islandMode`（实际保存侧） */
-  const downloadStaticRgb565ToDevice = useCallback(
-    async (rgb565WithHeader: Uint8Array, lcdMeta: LcdScreenTransferMeta) => {
-      if (!deviceComm) throw new Error(t("1660"));
-      const data = rgb565WithHeader;
-      const totalSize = data.length;
-      const read14 = await readLcdWorkParam14(deviceComm);
-      if (!read14) throw new Error(t("1662"));
-
-      const newEntries = [{ metaByte: lcdMeta.metaByte, type: 1 as const, size: totalSize }];
-      const logical15 = buildDualIslandWorkLogical15FromReadPatch(read14.rawResponse, read14.parsed, {
-        islandBeingSaved: lcdMeta.islandMode,
-        newEntries,
-      });
-      await sendScreenWorkParam15Packets(deviceComm, logical15);
-
-      const completeBuffer = new Uint8Array(65);
-      completeBuffer[1] = 0xaa;
-      completeBuffer[2] = 0x16;
-      completeBuffer[6] = 0x38;
-      await deviceComm.setData(Array.from(completeBuffer));
-
-      const eraseBlocks = Math.max(1, Math.ceil(totalSize / (64 * 1024)));
-      await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
-
-      const step = 56;
-      let currentAddress = 0;
-      let totalBytesTransferred = 0;
-      for (let i = 0; i < data.length; i += step) {
-        const writeBuffer = new Uint8Array(65);
-        writeBuffer[1] = 0xaa;
-        writeBuffer[2] = 0x19;
-        writeBuffer[3] = currentAddress & 0xff;
-        writeBuffer[4] = (currentAddress >> 8) & 0xff;
-        writeBuffer[5] = (currentAddress >> 16) & 0xff;
-        const bytesToSend = Math.min(step, data.length - i);
-        writeBuffer[6] = bytesToSend;
-        writeBuffer[7] = lcdMeta.islandMode;
-        writeBuffer.set(data.slice(i, i + bytesToSend), 9);
-        await deviceComm.setData(Array.from(writeBuffer));
-        await settleBetweenLcd19Packets();
-        currentAddress += bytesToSend;
-        totalBytesTransferred += bytesToSend;
-        if (totalBytesTransferred >= totalSize) await Promise.resolve();
+  const syncVideoSpeedFuncBytes = useCallback(
+    async (mode: "video" | "clear"): Promise<boolean> => {
+      const protocolVer = keyboard?.deviceBaseInfo?.protocolVer;
+      const currentFuncInfo = keyboard?.deviceFuncInfo;
+      if (!connectedKeyboard || protocolVer == null || !currentFuncInfo) {
+        showMessage({ type: "error", message: t("1660") });
+        return false;
       }
 
-      const resetBuffer = new Uint8Array(65);
-      resetBuffer[1] = 0xaa;
-      resetBuffer[2] = 0x1a;
-      await deviceComm.setData(Array.from(resetBuffer));
-      await deviceComm.syncTime();
-      const endBuffer = new Uint8Array(65);
-      endBuffer[1] = 0xaa;
-      endBuffer[2] = 0x11;
-      await deviceComm.setData(Array.from(endBuffer));
+      const speedIndex = VIDEO_SPEED_OPTIONS.findIndex((o) => o.value === videoSpeed);
+      const indexValue = speedIndex >= 0 ? speedIndex : 0;
+      const byteValue = mode === "video" ? indexValue : 0;
+      const patch =
+        mediaEditIsland === "personal"
+          ? { pickupLightFpsDefine: byteValue }
+          : { pickupLightFpsLevel: byteValue };
+
+      const next = { ...currentFuncInfo, ...patch };
+      keyboard?.setDeviceFuncInfo?.(next);
+      await connectedKeyboard.setFuncInfo(next, protocolVer);
+      return true;
     },
-    [deviceComm, t],
+    [connectedKeyboard, keyboard, mediaEditIsland, showMessage, t, videoSpeed],
   );
 
   const saveAlbumToKeyboard = useCallback(async () => {
@@ -728,6 +872,10 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("album");
       setDownLoad(true);
+      const synced = await syncVideoSpeedFuncBytes("clear");
+      if (!synced) return;
+      openTransferDialog();
+      updateTransferStage("convert");
       const targetW = Math.max(1, Number(screenWidth) || 240);
       const targetH = Math.max(1, Number(screenHeight) || 136);
       const rotate = Number((screenInfo as unknown as { rotate?: number } | undefined)?.rotate ?? 0);
@@ -771,12 +919,16 @@ export default function ScreenThemePage() {
     } catch {
       showMessage({ type: "error", message: t("1648") });
     } finally {
+      closeTransferDialog();
       setDownLoad(false);
       setSavingSource(null);
     }
   }, [
     albumAssets,
     compressPngFramesToQgif,
+    closeTransferDialog,
+    openTransferDialog,
+    updateTransferStage,
     deviceComm,
     downloadQgifToDevice,
     setDownLoad,
@@ -786,6 +938,7 @@ export default function ScreenThemePage() {
     screenInfo,
     screenWidth,
     showMessage,
+    syncVideoSpeedFuncBytes,
     t,
     transition,
     mediaEditIsland,
@@ -809,6 +962,10 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("video");
       setDownLoad(true);
+      const synced = await syncVideoSpeedFuncBytes("video");
+      if (!synced) return;
+      openTransferDialog();
+      updateTransferStage("convert");
       const targetW = Math.max(1, Number(screenWidth) || 240);
       const targetH = Math.max(1, Number(screenHeight) || 136);
       const rotate = Number((screenInfo as unknown as { rotate?: number } | undefined)?.rotate ?? 0);
@@ -820,7 +977,14 @@ export default function ScreenThemePage() {
       startBuffer[6] = 0x38;
       await deviceComm.setData(Array.from(startBuffer));
 
-      const { frames, fpsFromGif } = await decomposeGifDataUrlToPngFrames(videoAsset.dataUrl, targetW, targetH, rotate);
+      const { frames, fpsFromGif } = await decomposeGifDataUrlToPngFrames(
+        videoAsset.dataUrl,
+        targetW,
+        targetH,
+        rotate,
+        videoAsset.frameLimit,
+      );
+      console.info(`[ScreenTheme] 本次下载 GIF 帧数: ${frames.length}`);
       const fps = isNativeGifPlaybackSpeed(videoSpeed) ? fpsFromGif : getScreenThemeGifPlaybackFps(videoSpeed);
       const qgifBin = await compressPngFramesToQgif(frames, fps);
       const metaByte = encodeLcdImageMetaByte({
@@ -837,11 +1001,16 @@ export default function ScreenThemePage() {
       console.error("[ScreenTheme] 保存视频到键盘失败", err);
       showMessage({ type: "error", message: t("1651") });
     } finally {
+      closeTransferDialog();
       setDownLoad(false);
       setSavingSource(null);
     }
   }, [
     videoAsset?.dataUrl,
+    videoAsset?.frameLimit,
+    closeTransferDialog,
+    openTransferDialog,
+    updateTransferStage,
     deviceComm,
     qgifModule,
     setDownLoad,
@@ -851,6 +1020,7 @@ export default function ScreenThemePage() {
     screenInfo,
     decomposeGifDataUrlToPngFrames,
     videoSpeed,
+    syncVideoSpeedFuncBytes,
     compressPngFramesToQgif,
     downloadQgifToDevice,
     showMessage,
@@ -941,7 +1111,91 @@ export default function ScreenThemePage() {
     [t],
   );
 
-  
+  const loadTypingThemeBinByChar = useCallback(
+    async (char: TypingCharacterValue): Promise<Uint8Array> => {
+      const candidates = [TYPING_THEME_BIN_MAP[char], TYPING_THEME_BIN_FALLBACK];
+      for (const url of candidates) {
+        try {
+          const resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) continue;
+          const ab = await resp.arrayBuffer();
+          const out = new Uint8Array(ab);
+          if (out.length > 0) return out;
+        } catch {
+          // try next candidate
+        }
+      }
+      throw new Error(t("2558"));
+    },
+    [t],
+  );
+
+  const tryStopLcdTransfer = useCallback(async (): Promise<boolean> => {
+    if (!deviceComm) return false;
+    try {
+      const resetBuffer = new Uint8Array(65);
+      resetBuffer[1] = 0xaa;
+      resetBuffer[2] = 0x1a;
+      await deviceComm.setData(Array.from(resetBuffer));
+
+      const endBuffer = new Uint8Array(65);
+      endBuffer[1] = 0xaa;
+      endBuffer[2] = 0x11;
+      await deviceComm.setData(Array.from(endBuffer));
+      return true;
+    } catch {
+      return false;
+    }
+  }, [deviceComm]);
+
+  /**
+   * 打字主题专用：按固件 subject 区协议下发（0x1D 擦除、0x1E 写入），
+   * 不走 0x14/0x15 功能区，也不走 0x18/0x19 灵动岛资源区。
+   */
+  const downloadTypingSubjectBinToDevice = useCallback(
+    async (payload: Uint8Array, subjectSlot: 0 | 1) => {
+      if (!deviceComm) throw new Error(t("1660"));
+      const eraseBlocks = Math.max(1, Math.ceil(payload.length / (64 * 1024)));
+
+      const eraseBuffer = new Uint8Array(65);
+      eraseBuffer[1] = 0xaa;
+      eraseBuffer[2] = LCD_CMD_SUBJECT_FLASH_ERASE;
+      eraseBuffer[6] = 0x38;
+      eraseBuffer[7] = subjectSlot;
+      eraseBuffer[9] = eraseBlocks & 0xff;
+      try {
+        await deviceComm.setData(Array.from(eraseBuffer));
+      } catch (e) {
+        throw new Error(`Subject erase timeout (cmd=0x1D, slot=${subjectSlot}, blocks=${eraseBlocks})`);
+      }
+
+      const step = 56;
+      let addr = 0;
+      for (let i = 0; i < payload.length; i += step) {
+        const writeBuffer = new Uint8Array(65);
+        writeBuffer[1] = 0xaa;
+        writeBuffer[2] = LCD_CMD_SUBJECT_FLASH_WRITE;
+        writeBuffer[3] = addr & 0xff;
+        writeBuffer[4] = (addr >> 8) & 0xff;
+        writeBuffer[5] = (addr >> 16) & 0xff;
+        const bytesToSend = Math.min(step, payload.length - i);
+        writeBuffer[6] = bytesToSend;
+        writeBuffer[7] = subjectSlot;
+        writeBuffer.set(payload.slice(i, i + bytesToSend), 9);
+        try {
+          await deviceComm.setData(Array.from(writeBuffer));
+        } catch {
+          throw new Error(
+            `Subject write timeout (cmd=0x1E, slot=${subjectSlot}, addr=${addr}, len=${bytesToSend})`,
+          );
+        }
+        await settleBetweenLcd19Packets();
+        addr += bytesToSend;
+      }
+    },
+    [deviceComm, t],
+  );
+
   const saveThemeColorsToKeyboard = useCallback(async (): Promise<boolean> => {
     const protocolVer = keyboard?.deviceBaseInfo?.protocolVer;
     
@@ -995,6 +1249,70 @@ export default function ScreenThemePage() {
     t,
   ]);
 
+  const saveTypingThemeToKeyboard = useCallback(async () => {
+    if (!deviceComm) {
+      showMessage({ type: "error", message: t("1660") });
+      return;
+    }
+    try {
+      setSavingSource("typing");
+      setDownLoad(true);
+      const synced = await syncVideoSpeedFuncBytes("clear");
+      if (!synced) return;
+
+      // AP_START
+      const startBuffer = new Uint8Array(65);
+      startBuffer[1] = 0xaa;
+      startBuffer[2] = 0x1b;
+      startBuffer[6] = 0x38;
+      await deviceComm.setData(Array.from(startBuffer));
+
+      // 两个下拉对应两份 bin（当前可走 cat.bin 兜底）。
+      const [bin1, bin2] = await Promise.all([
+        loadTypingThemeBinByChar(typingChar1),
+        loadTypingThemeBinByChar(typingChar2),
+      ]);
+
+      // 打字主题：专用 subject 擦写链路，不写功能区。
+      await downloadTypingSubjectBinToDevice(bin1, 0);
+      await downloadTypingSubjectBinToDevice(bin2, 1);
+
+      // 正常完成也必须发送 1A + 11 结束流程。
+      const stopped = await tryStopLcdTransfer();
+      if (!stopped) {
+        await disconnectDevice?.();
+        showMessage({ type: "error", message: t("2559") });
+        return;
+      }
+      showMessage({ type: "success", message: t("2555") });
+    } catch (error) {
+      if (isLikelyTimeoutError(error)) {
+        const stopped = await tryStopLcdTransfer();
+        if (!stopped) {
+          await disconnectDevice?.();
+          showMessage({ type: "error", message: t("2559") });
+          return;
+        }
+      }
+      showMessage({ type: "error", message: error instanceof Error ? error.message : t("1662") });
+    } finally {
+      setDownLoad(false);
+      setSavingSource(null);
+    }
+  }, [
+    deviceComm,
+    disconnectDevice,
+    downloadTypingSubjectBinToDevice,
+    loadTypingThemeBinByChar,
+    setDownLoad,
+    showMessage,
+    syncVideoSpeedFuncBytes,
+    t,
+    tryStopLcdTransfer,
+    typingChar1,
+    typingChar2,
+  ]);
+
   const saveImageToKeyboard = useCallback(async () => {
     if (!imageAsset?.dataUrl) {
       showMessage({ type: "warning", message: t("404") });
@@ -1013,6 +1331,10 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("image");
       setDownLoad(true);
+      const synced = await syncVideoSpeedFuncBytes("clear");
+      if (!synced) return;
+      openTransferDialog();
+      updateTransferStage("convert");
       const rgb565Bin = await convertImageDataUrlToRgb565Swap(imageAsset.dataUrl, targetW, targetH, rotate);
 
       const startBuffer = new Uint8Array(65).fill(0);
@@ -1034,21 +1356,26 @@ export default function ScreenThemePage() {
     } catch {
       showMessage({ type: "error", message: t("1662") });
     } finally {
+      closeTransferDialog();
       setDownLoad(false);
       isSavingToKeyboardRef.current = false;
       setSavingSource(null);
     }
   }, [
+    closeTransferDialog,
     convertImageDataUrlToRgb565Swap,
     deviceComm,
     downloadStaticRgb565ToDevice,
+    openTransferDialog,
     setDownLoad,
     imageAsset?.dataUrl,
     screenHeight,
     screenInfo,
     screenWidth,
     showMessage,
+    syncVideoSpeedFuncBytes,
     t,
+    updateTransferStage,
     mediaEditIsland,
   ]);
 
@@ -1373,6 +1700,7 @@ export default function ScreenThemePage() {
           previewUrl={previewUrl}
           albumCarousel={albumCarousel}
           gifPlaybackSpeed={activeSource === "video" ? videoSpeed : undefined}
+          gifFrameLimit={activeSource === "video" ? videoAsset?.frameLimit : undefined}
         />
       )}
       {isPersonalIsland && activeSource === "theme" ? (
@@ -1403,6 +1731,9 @@ export default function ScreenThemePage() {
           isLocked={isTransferLocked}
           onSpeedChange={setVideoSpeed}
           onSelectFile={pickCurrentSourceFile}
+          onRestoreBackground={() => {
+            void restoreVideoBackground();
+          }}
           onSaveToKeyboard={() => {
             void saveVideoToKeyboard();
           }}
@@ -1432,10 +1763,17 @@ export default function ScreenThemePage() {
     }
     return (
       <ScreenThemeTypingPanel
-        activeSource={activeSource}
-        previewUrl={previewUrl}
-        gifPlaybackSpeed={activeSource === "video" ? videoSpeed : undefined}
-        onImport={onImport}
+        screenWidth={screenWidth}
+        screenHeight={screenHeight}
+        char1={typingChar1}
+        char2={typingChar2}
+        onChar1Change={setTypingChar1}
+        onChar2Change={setTypingChar2}
+        isSaving={savingSource === "typing"}
+        isLocked={isTransferLocked}
+        onSaveToKeyboard={() => {
+          void saveTypingThemeToKeyboard();
+        }}
       />
     );
   };
@@ -1459,6 +1797,13 @@ export default function ScreenThemePage() {
     }
   }, [deviceComm, showMessage, t]);
 
+  const transferStageText =
+    transferDialog.stage === "convert"
+      ? t("2566")
+      : transferDialog.stage === "erase"
+        ? t("2567")
+        : `${t("2568")} ${transferDialog.progress}%`;
+
   return (
     <Box
       sx={{
@@ -1475,6 +1820,39 @@ export default function ScreenThemePage() {
       <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg,.webp" hidden onChange={onImageFileChange} />
       <input ref={albumRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple hidden onChange={onAlbumFileChange} />
       <input ref={videoRef} type="file" accept=".gif" hidden onChange={onVideoFileChange} />
+      <Dialog open={trimConfirmDialog.open} onClose={() => resolveGifTrimConfirm(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t("2565")}</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: "0.9375rem", color: "#334155", lineHeight: 1.6 }}>
+            {`${t("2563")} (${trimConfirmDialog.frameCount} -> ${MAX_GIF_FRAMES})`}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => resolveGifTrimConfirm(false)} color="inherit">
+            {t("2570")}
+          </Button>
+          <Button onClick={() => resolveGifTrimConfirm(true)} variant="contained">
+            {t("2569")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={transferDialog.open}
+        onClose={() => {}}
+        disableEscapeKeyDown
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>{t("2565")}</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1, color: "#334155", fontSize: "0.9375rem" }}>{transferStageText}</Typography>
+          <LinearProgress
+            variant={transferDialog.stage === "download" ? "determinate" : "indeterminate"}
+            value={transferDialog.progress}
+            sx={{ height: "0.5rem", borderRadius: "0.375rem" }}
+          />
+        </DialogContent>
+      </Dialog>
 
       <Box
         sx={{
@@ -1492,22 +1870,22 @@ export default function ScreenThemePage() {
         }}
       >
         <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", display: "flex", flexDirection: "column" }}>
-        <TravelVirtualKeyboard
-          layoutKeys={mappedLayoutKeys}
-          patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
-          travelKeys={[]}
-          selectedKeys={[]}
-          travelValue={0}
-          showActuation={false}
-          alignTop
-          showLayerOverlay={false}
-          onToggleKey={() => { }}
-          demoHighlightKeyIndex={lShiftDemoIndex >= 0 ? lShiftDemoIndex : undefined}
-          demoHighlightTitle={lShiftDemoIndex >= 0 ? t("1665") : undefined}
-        />
+          <TravelVirtualKeyboard
+            layoutKeys={mappedLayoutKeys}
+            patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+            travelKeys={[]}
+            selectedKeys={[]}
+            travelValue={0}
+            showActuation={false}
+            alignTop
+            showLayerOverlay={false}
+            onToggleKey={() => {}}
+            demoHighlightKeyIndex={lShiftDemoIndex >= 0 ? lShiftDemoIndex : undefined}
+            demoHighlightTitle={lShiftDemoIndex >= 0 ? t("1665") : undefined}
+          />
         </Box>
       </Box>
-      <ScreenThemeKeyboardLegend />
+      <ScreenThemeKeyboardLegend variant={activeTab === "typing" ? "typing" : "media"} />
 
       <Box
         sx={{

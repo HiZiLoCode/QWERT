@@ -27,6 +27,8 @@ type Props = {
   albumCarousel?: AlbumCarouselProps | null;
   /** 有值且预览为 GIF 时用 canvas 按该速度播放（与右侧「播放速度」联动） */
   gifPlaybackSpeed?: string | null;
+  /** 上传超限 GIF 时，仅预览前 N 帧（与下发到设备一致） */
+  gifFrameLimit?: number;
 };
 
 const pxToRem = (px: number) => `${px * 0.0625}rem`;
@@ -35,7 +37,7 @@ const PLACEHOLDER_BG =
   "linear-gradient(135deg, #ff8a4a 0%, #4a7cff 45%, #ff3c5c 78%, #9aa3ad 100%)";
 
 /** 中间预览区：GIF 在「视频」源下用 canvas 按所选 fps 播放，否则用 img；虚线框表示设备裁切区域 */
-export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlaybackSpeed }: Props) {
+export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlaybackSpeed, gifFrameLimit }: Props) {
   const { screenWidth, screenHeight } = useContext(MainContext);
   const { t } = useTranslation("common");
   const [gifEngineFallback, setGifEngineFallback] = useState(false);
@@ -51,7 +53,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
   // 「正常播放」保持浏览器原生 GIF 渲染，避免 canvas 解码差异导致预览形变。
   const useCanvasGif =
     Boolean(gifPlaybackSpeed) &&
-    gifPlaybackSpeed !== "native" &&
+    (gifPlaybackSpeed !== "native" || Boolean(gifFrameLimit && gifFrameLimit > 0)) &&
     isGifDataUrl(previewUrl) &&
     !gifEngineFallback;
   const safeW = Math.max(1, Number(screenWidth) || 240);
@@ -116,6 +118,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
           <ScreenThemeGifCanvasPlayer
             dataUrl={previewUrl}
             playbackSpeed={gifPlaybackSpeed}
+            maxFrames={gifFrameLimit}
             onEngineError={onGifEngineError}
           />
         ) : (

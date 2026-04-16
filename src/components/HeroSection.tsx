@@ -1,13 +1,19 @@
 'use client';
 
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
-import { Box, Typography, Button, createSvgIcon } from '@mui/material';
+import { useTranslation } from '@/app/i18n';
+import { Box, Typography, createSvgIcon } from '@mui/material';
 import { CSSProperties, useContext } from 'react';
+import { ButtonRem } from '@/styled/ReconstructionRem';
+
+/** 原设计稿按 16px = 1rem 换算，与整页 Rem 缩放一致 */
+const HERO_GLOW_VIEWBOX = 498;
+const HERO_GLOW_SIZE_REM = `${HERO_GLOW_VIEWBOX / 16}rem`;
 
 const HERO = {
-    bgOffsetLeft: -240,
-    bgOffsetTop: -463,
-    bgOriginBottom: 37,
+    bgOffsetLeft: '-15rem',
+    bgOffsetTop: '-28.9375rem',
+    bgOriginBottom: '2.3125rem',
 } as const;
 
 const PlusIcon = createSvgIcon(
@@ -19,6 +25,7 @@ const PlusIcon = createSvgIcon(
 
 export default function HeroSection() {
     const { connectKeyboard } = useContext(ConnectKbContext);
+    const { t } = useTranslation('common');
 
     const wrapperStyles: CSSProperties = {
         width: '31rem',
@@ -27,11 +34,13 @@ export default function HeroSection() {
         position: 'relative',
     };
 
-    const bgStyles: CSSProperties = {
+    const glowLayerBase: CSSProperties = {
         position: 'absolute',
-        left: `${HERO.bgOffsetLeft}px`,
-        top: `${HERO.bgOffsetTop}px`,
-        transformOrigin: `center calc(100% - ${HERO.bgOriginBottom}px)`,
+        left: HERO.bgOffsetLeft,
+        top: HERO.bgOffsetTop,
+        width: HERO_GLOW_SIZE_REM,
+        height: HERO_GLOW_SIZE_REM,
+        transformOrigin: `center calc(100% - ${HERO.bgOriginBottom})`,
     };
 
     const ringsStyles: CSSProperties = {
@@ -109,12 +118,49 @@ export default function HeroSection() {
                             fontSize: '1rem',
                         }}
                     >
-                        在这里，您可以随心所欲地配置和自定义键盘，并按您的喜好个性化定制您的设备，
-                        保存后更改立即生效。
+                        {t('2560')}
                     </Typography>
                     <Box sx={{ gap: '1rem', display: 'flex', mt: '2rem' }}>
-                        <Button variant="contained" size="large" startIcon={<PlusIcon />} sx={{ width: "10rem", height: "3rem", fontSize: "1rem", fontWeight: "bold" }} onClick={() => connectKeyboard("tryConnect")}>新键盘</Button>
-                        <Button size="large" variant="outlined" sx={{ width: "10rem", height: "3rem", fontSize: "1rem", fontWeight: "bold" }} onClick={() => connectKeyboard("demo",false)}>演示模式</Button>
+                        <ButtonRem
+                            variant="contained"
+                            size="large"
+                            startIcon={<PlusIcon />}
+                            sx={{
+                                width: '10rem',
+                                height: '3rem',
+                                minWidth: 0,
+                                px: '0.75rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap',
+                                '& .MuiButton-startIcon': {
+                                    mr: '0.375rem',
+                                    ml: 0,
+                                },
+                                '& .MuiButton-startIcon > *:nth-of-type(1)': {
+                                    fontSize: '1rem',
+                                },
+                            }}
+                            onClick={() => connectKeyboard('tryConnect')}
+                        >
+                            {t('2561')}
+                        </ButtonRem>
+                        <ButtonRem
+                            size="large"
+                            variant="outlined"
+                            sx={{
+                                width: '10rem',
+                                height: '3rem',
+                                minWidth: 0,
+                                px: '0.75rem',
+                                fontSize: '0.875rem',
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap',
+                            }}
+                            onClick={() => connectKeyboard('demo', false)}
+                        >
+                            {t('2562')}
+                        </ButtonRem>
                     </Box>
                 </Box>
                 <Box sx={{ position: "absolute", left: "70%", display: "flex", alignItems: "center", height: "100%" }}>
@@ -125,22 +171,136 @@ export default function HeroSection() {
                             top: "16rem",
                             left: "15rem",
                         }}>
-                            <Box style={bgStyles} sx={{
-                                color: " rgb(254, 254, 179)",
-                            }}>
-                                <svg width="498" height="498" viewBox="0 0 498 498" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.35" filter="url(#filter_#ff9000_#ffc300)"><path d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z" fill="url(#paint_#ff9000_#ffc300)"></path></g><defs><filter id="filter_#ff9000_#ffc300" x="-57.4303" y="-57.4303" width="612.8" height="612.8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend><feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401"></feGaussianBlur></filter><radialGradient id="paint_#ff9000_#ffc300" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"><stop stop-color="#ff9000"></stop><stop offset="0.4" stop-color="#ffc300"></stop><stop offset="0.7" stop-opacity="0"></stop></radialGradient></defs></svg></Box>
-                            <Box style={bgStyles} sx={{
-                                color: " rgb(121, 178, 255)",
-                                rotate: "120deg",
-                            }}>
-                                <svg width="498" height="498" viewBox="0 0 498 498" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.35" filter="url(#filter_#0072FF_#3B82F6)"><path d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z" fill="url(#paint_#0072FF_#3B82F6)"></path></g><defs><filter id="filter_#0072FF_#3B82F6" x="-57.4303" y="-57.4303" width="612.8" height="612.8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend><feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401"></feGaussianBlur></filter><radialGradient id="paint_#0072FF_#3B82F6" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"><stop stop-color="#0072FF"></stop><stop offset="0.4" stop-color="#3B82F6"></stop><stop offset="0.7" stop-opacity="0"></stop></radialGradient></defs>
+                            <Box style={glowLayerBase} sx={{ color: ' rgb(254, 254, 179)' }}>
+                                <svg
+                                    width="100%"
+                                    height="100%"
+                                    viewBox={`0 0 ${HERO_GLOW_VIEWBOX} ${HERO_GLOW_VIEWBOX}`}
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ display: 'block' }}
+                                >
+                                    <g opacity="0.35" filter="url(#filter_#ff9000_#ffc300)">
+                                        <path
+                                            d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z"
+                                            fill="url(#paint_#ff9000_#ffc300)"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <filter
+                                            id="filter_#ff9000_#ffc300"
+                                            x="-57.4303"
+                                            y="-57.4303"
+                                            width="612.8"
+                                            height="612.8"
+                                            filterUnits="userSpaceOnUse"
+                                            colorInterpolationFilters="sRGB"
+                                        >
+                                            <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                                            <feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401" />
+                                        </filter>
+                                        <radialGradient
+                                            id="paint_#ff9000_#ffc300"
+                                            cx="0"
+                                            cy="0"
+                                            r="1"
+                                            gradientUnits="userSpaceOnUse"
+                                            gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"
+                                        >
+                                            <stop stopColor="#ff9000" />
+                                            <stop offset="0.4" stopColor="#ffc300" />
+                                            <stop offset="0.7" stopOpacity="0" />
+                                        </radialGradient>
+                                    </defs>
                                 </svg>
                             </Box>
-                            <Box style={bgStyles} sx={{
-                                color: " rgb(254, 254, 179)",
-                                rotate: "240deg",
-                            }}>
-                                <svg width="498" height="498" viewBox="0 0 498 498" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.35" filter="url(#filter_#F6FF00_#FFFB00)"><path d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z" fill="url(#paint_#F6FF00_#FFFB00)"></path></g><defs><filter id="filter_#F6FF00_#FFFB00" x="-57.4303" y="-57.4303" width="612.8" height="612.8" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood><feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"></feBlend><feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401"></feGaussianBlur></filter><radialGradient id="paint_#F6FF00_#FFFB00" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"><stop stop-color="#F6FF00"></stop><stop offset="0.4" stop-color="#FFFB00"></stop><stop offset="0.7" stop-opacity="0"></stop></radialGradient></defs>
+                            <Box style={glowLayerBase} sx={{ color: ' rgb(121, 178, 255)', rotate: '120deg' }}>
+                                <svg
+                                    width="100%"
+                                    height="100%"
+                                    viewBox={`0 0 ${HERO_GLOW_VIEWBOX} ${HERO_GLOW_VIEWBOX}`}
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ display: 'block' }}
+                                >
+                                    <g opacity="0.35" filter="url(#filter_#0072FF_#3B82F6)">
+                                        <path
+                                            d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z"
+                                            fill="url(#paint_#0072FF_#3B82F6)"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <filter
+                                            id="filter_#0072FF_#3B82F6"
+                                            x="-57.4303"
+                                            y="-57.4303"
+                                            width="612.8"
+                                            height="612.8"
+                                            filterUnits="userSpaceOnUse"
+                                            colorInterpolationFilters="sRGB"
+                                        >
+                                            <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                                            <feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401" />
+                                        </filter>
+                                        <radialGradient
+                                            id="paint_#0072FF_#3B82F6"
+                                            cx="0"
+                                            cy="0"
+                                            r="1"
+                                            gradientUnits="userSpaceOnUse"
+                                            gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"
+                                        >
+                                            <stop stopColor="#0072FF" />
+                                            <stop offset="0.4" stopColor="#3B82F6" />
+                                            <stop offset="0.7" stopOpacity="0" />
+                                        </radialGradient>
+                                    </defs>
+                                </svg>
+                            </Box>
+                            <Box style={glowLayerBase} sx={{ color: ' rgb(254, 254, 179)', rotate: '240deg' }}>
+                                <svg
+                                    width="100%"
+                                    height="100%"
+                                    viewBox={`0 0 ${HERO_GLOW_VIEWBOX} ${HERO_GLOW_VIEWBOX}`}
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    style={{ display: 'block' }}
+                                >
+                                    <g opacity="0.35" filter="url(#filter_#F6FF00_#FFFB00)">
+                                        <path
+                                            d="M404.589 174.674C445.622 260.62 409.212 363.557 323.266 404.59C237.319 445.622 134.382 409.212 93.3499 323.266C52.3174 237.319 88.7273 134.382 174.674 93.3499C260.62 52.3173 363.557 88.7273 404.589 174.674Z"
+                                            fill="url(#paint_#F6FF00_#FFFB00)"
+                                        />
+                                    </g>
+                                    <defs>
+                                        <filter
+                                            id="filter_#F6FF00_#FFFB00"
+                                            x="-57.4303"
+                                            y="-57.4303"
+                                            width="612.8"
+                                            height="612.8"
+                                            filterUnits="userSpaceOnUse"
+                                            colorInterpolationFilters="sRGB"
+                                        >
+                                            <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                                            <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
+                                            <feGaussianBlur stdDeviation="38.2421" result="effect1_foregroundBlur_228_17401" />
+                                        </filter>
+                                        <radialGradient
+                                            id="paint_#F6FF00_#FFFB00"
+                                            cx="0"
+                                            cy="0"
+                                            r="1"
+                                            gradientUnits="userSpaceOnUse"
+                                            gradientTransform="translate(267.613 271.956) rotate(-124.171) scale(340.939 340.939)"
+                                        >
+                                            <stop stopColor="#F6FF00" />
+                                            <stop offset="0.4" stopColor="#FFFB00" />
+                                            <stop offset="0.7" stopOpacity="0" />
+                                        </radialGradient>
+                                    </defs>
                                 </svg>
                             </Box>
                         </Box>

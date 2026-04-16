@@ -8,6 +8,7 @@ import { getScreenThemeGifPlaybackFps, isNativeGifPlaybackSpeed } from "./screen
 type Props = {
   dataUrl: string;
   playbackSpeed: string;
+  maxFrames?: number;
   /** 解析或绘制失败时由父级改回 <img> */
   onEngineError?: () => void;
 };
@@ -52,7 +53,7 @@ function layoutContainCss(cssW: number, cssH: number, gifW: number, gifH: number
   return { ox, oy, dw, dh };
 }
 
-export default function ScreenThemeGifCanvasPlayer({ dataUrl, playbackSpeed, onEngineError }: Props) {
+export default function ScreenThemeGifCanvasPlayer({ dataUrl, playbackSpeed, maxFrames, onEngineError }: Props) {
   const onEngineErrorRef = useRef(onEngineError);
   onEngineErrorRef.current = onEngineError;
 
@@ -82,7 +83,9 @@ export default function ScreenThemeGifCanvasPlayer({ dataUrl, playbackSpeed, onE
       try {
         const buf = dataUrlToArrayBuffer(dataUrl);
         const gif = parseGIF(buf);
-        const frames = decompressFrames(gif, true) as ParsedFrame[];
+        const decoded = decompressFrames(gif, true) as ParsedFrame[];
+        const frames =
+          maxFrames && maxFrames > 0 ? decoded.slice(0, Math.min(decoded.length, maxFrames)) : decoded;
         if (!frames.length) {
           if (!cancelled) {
             setPhase("error");
@@ -121,7 +124,7 @@ export default function ScreenThemeGifCanvasPlayer({ dataUrl, playbackSpeed, onE
     return () => {
       cancelled = true;
     };
-  }, [dataUrl]);
+  }, [dataUrl, maxFrames]);
 
   useEffect(() => {
     if (phase !== "ready") return;

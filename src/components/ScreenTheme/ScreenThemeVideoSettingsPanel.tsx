@@ -16,6 +16,7 @@ type Props = {
   speed: string;
   onSpeedChange: (v: string) => void;
   onSelectFile: () => void;
+  onRestoreBackground: () => void;
   onSaveToKeyboard: () => void;
   isSaving?: boolean;
   isLocked?: boolean;
@@ -26,6 +27,7 @@ export default function ScreenThemeVideoSettingsPanel({
   speed,
   onSpeedChange,
   onSelectFile,
+  onRestoreBackground,
   onSaveToKeyboard,
   isSaving = false,
   isLocked = false,
@@ -135,6 +137,27 @@ export default function ScreenThemeVideoSettingsPanel({
               ))}
             </Select>
           </FormControl>
+        </Box>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between", mt: 61 }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "5.5rem", fontSize: "0.875rem" }}>
+            {t("2571")}
+          </Typography>
+          <Button
+            variant="text"
+            disableElevation
+            disabled={isLocked || isSaving}
+            onClick={onRestoreBackground}
+            sx={{
+              ...screenThemeOutlinedPillButtonSx,
+              flexShrink: 0,
+              minHeight: "2.25rem",
+              width: "10.75rem",
+              minWidth: "10.75rem",
+            }}
+          >
+            {t("2572")}
+          </Button>
         </Box>
       </Box>
     </Box>

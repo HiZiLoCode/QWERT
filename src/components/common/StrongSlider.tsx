@@ -38,7 +38,7 @@ export default function StrongSlider({
             width: 20,
             opacity: 0,
             marginLeft: -7,
-            backgroundColor: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
+            backgroundColor: '#FFFFFF',
           },
           track: {
             borderTopLeftRadius: 6,

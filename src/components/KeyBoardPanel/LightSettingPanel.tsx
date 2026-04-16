@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { Box, Switch, Typography } from '@mui/material';
 import { useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { useTranslation } from '@/app/i18n';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
@@ -92,8 +92,10 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const [speed, setSpeed] = useState(40);
   const [singleColorMode, setSingleColorMode] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#FF0000');
+  const [playDirection, setPlayDirection] = useState<0 | 1>(0);
 
   const lightType = forcedLightType ?? keyboard?.lightType ?? 'backlight';
+  const isPickupLightingModule = forcedLightType === 'logolight';
   const legacyPrefix = lightType === 'logolight' ? 'logoLight' : lightType === 'sidelight' ? 'sideLight' : 'light';
   const qmkGroupType = lightType === 'backlight' ? 'backlight' : 'logo';
 
@@ -141,11 +143,25 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
   const canAdjustBrightness = openLight && Boolean(currentLightInfo?.brightness);
   const canAdjustSpeed = openLight && Boolean(currentLightInfo?.speed);
+  const canAdjustDirection = openLight && Boolean(currentLightInfo?.direction);
   const canEnableColorful = openLight && Boolean(currentLightInfo?.color);
   const isCustomEffect = selectedEffect >= 253;
   const canCustomPaint = !isQMK && lightType === 'backlight' && openLight && isCustomEffect;
+  const switchingCustomEffectRef = useRef(false);
+  const customPaintDragRef = useRef(false);
+  const customPaintDragColorRef = useRef<string | null>(null);
+  const paintBatchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyColors: string[] = keyboard?.keysColor ?? [];
+  const latestKeyColorsRef = useRef<string[]>(keyColors);
   const lightMatrix: number[] = keyboard?.lightMatrix ?? [];
+  const directionLabels = useMemo<[string, string]>(() => {
+    const raw = currentLightInfo?.directionDescription;
+    if (Array.isArray(raw) && raw.length >= 2) {
+      return [String(raw[0]), String(raw[1])];
+    }
+    return ['1617', '1618'];
+  }, [currentLightInfo?.directionDescription]);
 
   const effectGroups = useMemo<EffectGroup[]>(() => {
     if (!lightEffects.length) {
@@ -176,7 +192,12 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     const info = keyboard?.deviceFuncInfo;
     if (!info) return;
 
-    setOpenLight((info[`${legacyPrefix}Switch`] ?? 0) === 0);
+    const lightSwitchRaw = Number(
+      isPickupLightingModule
+        ? info.pickupLightEffectSwitch ?? 0
+        : info[`${legacyPrefix}Switch`] ?? 0
+    );
+    setOpenLight(lightSwitchRaw === 0);
 
     const rawBrightness = info[`${legacyPrefix}Brightness`] ?? 0;
     const nextBrightness = Math.round((rawBrightness / (maxBrightness || 1)) * 100);
@@ -192,7 +213,17 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     const g = info[`${legacyPrefix}GValue`] ?? 0;
     const b = info[`${legacyPrefix}BValue`] ?? 0;
     setSelectedColor(`#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase());
-  }, [keyboard?.deviceFuncInfo, legacyPrefix, maxBrightness]);
+
+    // 普通灯效方向来源：功能区第 71 位；拾音灯方向来源：功能区第 73 位
+    const dirRaw = Number(
+      isPickupLightingModule
+        ? info.pickupLightEffectDirection ?? 0
+        : info.lightEffectDirection ?? 0
+    );
+    const normalizedDir = dirRaw === 1 ? 1 : 0;
+    // 拾音灯固件方向位与 UI 方向按钮相反，这里做一次映射修正。
+    setPlayDirection(isPickupLightingModule ? (normalizedDir === 1 ? 0 : 1) : normalizedDir);
+  }, [keyboard?.deviceFuncInfo, isPickupLightingModule, legacyPrefix, maxBrightness]);
 
   useEffect(() => {
     if (isQMK) return;
@@ -205,15 +236,46 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
   useEffect(() => {
     if (!canCustomPaint) return;
+    if (switchingCustomEffectRef.current) return;
     void syncCustomKeyColors(selectedEffect);
   }, [canCustomPaint, selectedEffect]);
 
   useEffect(() => {
+    latestKeyColorsRef.current = keyColors;
+  }, [keyColors]);
+
+  useEffect(() => {
+    if (!paintBatchDebounceRef.current) return;
+    clearTimeout(paintBatchDebounceRef.current);
+    paintBatchDebounceRef.current = null;
+  }, [selectedEffect, canCustomPaint]);
+
+  useEffect(() => {
     return () => {
-      paintKeyColorDebounceRef.current.forEach((timer) => clearTimeout(timer));
-      paintKeyColorDebounceRef.current.clear();
+      if (effectChangeDebounceRef.current) {
+        clearTimeout(effectChangeDebounceRef.current);
+        effectChangeDebounceRef.current = null;
+      }
+      if (paintBatchDebounceRef.current) {
+        clearTimeout(paintBatchDebounceRef.current);
+        paintBatchDebounceRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (!canCustomPaint) return;
+    const endDrag = () => {
+      customPaintDragRef.current = false;
+      customPaintDragColorRef.current = null;
+    };
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('blur', endDrag);
+    return () => {
+      window.removeEventListener('mouseup', endDrag);
+      window.removeEventListener('blur', endDrag);
+    };
+  }, [canCustomPaint]);
 
   const toggleKey = (keyIndex: number) => {
     if (canCustomPaint) {
@@ -226,14 +288,34 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     );
   };
 
-  const paintKeyColorDebounceRef = useRef(
-    new Map<number, ReturnType<typeof setTimeout>>()
-  );
-
   const updateFuncInfo = (patch: Record<string, unknown>) => {
     const next = { ...(keyboard?.deviceFuncInfo ?? {}), ...patch };
     keyboard?.setDeviceFuncInfo?.(next);
     connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
+  };
+
+  const flushCustomColorsToDevice = (nextKeyColors: string[]) => {
+    if (!canCustomPaint) return;
+    const customIndex = selectedEffect - 253;
+    if (customIndex < 0) return;
+
+    const fullLightColors = new Array(128).fill('#000000');
+    for (let keyIndex = 0; keyIndex < 128; keyIndex += 1) {
+      const lightIndex = lightMatrix[keyIndex];
+      if (lightIndex == null || lightIndex < 0 || lightIndex >= 128) continue;
+      fullLightColors[lightIndex] = nextKeyColors[keyIndex] || '#000000';
+    }
+    void connectedKeyboard?.setUserAllKeyColorByLight?.(customIndex, fullLightColors);
+  };
+
+  const scheduleCustomColorFlush = (nextKeyColors: string[]) => {
+    if (paintBatchDebounceRef.current) {
+      clearTimeout(paintBatchDebounceRef.current);
+    }
+    paintBatchDebounceRef.current = setTimeout(() => {
+      flushCustomColorsToDevice(nextKeyColors);
+      paintBatchDebounceRef.current = null;
+    }, 120);
   };
 
   const syncCustomKeyColors = async (effectId: number) => {
@@ -281,27 +363,21 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     const lightIndex = lightMatrix[keyIndex];
     if (lightIndex == null || lightIndex < 0) return;
 
-    const customIndex = selectedEffect - 253;
-    const currentColor = keyColors[keyIndex] || '';
+    const currentColor = latestKeyColorsRef.current[keyIndex] || '';
     const color = currentColor.toUpperCase() === hex.toUpperCase() ? '#000000' : hex;
+    paintCustomKeyWithColor(keyIndex, color);
+  };
 
-    keyboard?.setKeysColor?.((prev: string[]) => {
-      const next = [...(Array.isArray(prev) ? prev : [])];
-      next[keyIndex] = color;
-      return next;
-    });
+  const paintCustomKeyWithColor = (keyIndex: number, color: string) => {
+    if (!canCustomPaint) return;
+    const resolvedLightIndex = lightMatrix[keyIndex];
+    if (resolvedLightIndex == null || resolvedLightIndex < 0) return;
 
-    const pending = paintKeyColorDebounceRef.current.get(keyIndex);
-    if (pending) {
-      clearTimeout(pending);
-    }
-
-    const timer = setTimeout(() => {
-      void connectedKeyboard?.setUserKeyColor?.(customIndex, lightIndex, color);
-      paintKeyColorDebounceRef.current.delete(keyIndex);
-    }, 180);
-
-    paintKeyColorDebounceRef.current.set(keyIndex, timer);
+    const next = [...latestKeyColorsRef.current];
+    next[keyIndex] = color;
+    latestKeyColorsRef.current = next;
+    keyboard?.setKeysColor?.(next);
+    scheduleCustomColorFlush(next);
   };
 
   const handleBrightnessCommit = async (_: Event | SyntheticEvent, value: number | number[]) => {
@@ -359,24 +435,31 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     keyboard?.setDeviceFuncInfo?.(next);
 
     if (lightType === 'backlight' && effectId >= 253) {
-      const rgbData = await connectedKeyboard?.setUserLightInfo?.(
-        next,
-        effectId - 253,
-        keyboard?.deviceBaseInfo?.protocolVer
-      );
-      if (Array.isArray(rgbData)) {
-        const mapped = new Array(128).fill('#000000').map((_, index) => {
-          const li = lightMatrix[index];
-          return li != null && li < rgbData.length ? rgbData[li] || '#000000' : '#000000';
-        });
-        keyboard?.setKeysColor?.(mapped);
-      } else {
+      switchingCustomEffectRef.current = true;
+      try {
+        // 自定义灯光切换时也必须下发“功能区”完整长度（布局 71 需要 128 字节）
+        // 颜色表会在拖拽/涂色或 syncCustomKeyColors() 中按自定义槽位读取/下发。
+        await connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
+
+        // 同步当前自定义槽位的 128 键颜色到界面
         await syncCustomKeyColors(effectId);
+      } finally {
+        switchingCustomEffectRef.current = false;
       }
       return;
     }
 
     connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
+  };
+
+  const debouncedHandleEffectChange = (effectId: number) => {
+    if (effectChangeDebounceRef.current) {
+      clearTimeout(effectChangeDebounceRef.current);
+    }
+    effectChangeDebounceRef.current = setTimeout(() => {
+      void handleEffectChange(effectId);
+      effectChangeDebounceRef.current = null;
+    }, 180);
   };
 
   const handleColorChange = async (hex: string) => {
@@ -409,6 +492,30 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     });
   };
 
+  const handleDirectionChange = async (dir: 0 | 1) => {
+    if (!canAdjustDirection) return;
+    setPlayDirection(dir);
+    if (isQMK) return;
+    const firmwareDir = isPickupLightingModule ? (dir === 1 ? 0 : 1) : dir;
+    updateFuncInfo({
+      ...(isPickupLightingModule
+        ? { pickupLightEffectDirection: firmwareDir }
+        : { lightEffectDirection: firmwareDir }),
+    });
+  };
+
+  const handlePickupAudioSwitch = async (checked: boolean) => {
+    setOpenLight(checked);
+    if (isQMK) return;
+    // 固件语义：0=开，1=关
+    const switchByte = checked ? 0 : 1;
+    updateFuncInfo({
+      ...(isPickupLightingModule
+        ? { pickupLightEffectSwitch: switchByte }
+        : { [`${legacyPrefix}Switch`]: switchByte }),
+    });
+  };
+
   if (isMatrixOnly) {
     return <Matrix />;
   }
@@ -437,6 +544,38 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
               colorMode={canCustomPaint}
               keyColors={keyColors}
               patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+              onMouseDown={
+                canCustomPaint
+                  ? (keyIndex) => {
+                      const currentColor = keyColors[keyIndex] || '';
+                      const dragColor =
+                        currentColor.toUpperCase() === selectedColor.toUpperCase() ? '#000000' : selectedColor;
+                      customPaintDragRef.current = true;
+                      customPaintDragColorRef.current = dragColor;
+                      paintCustomKeyWithColor(keyIndex, dragColor);
+                    }
+                  : undefined
+              }
+              onMouseEnter={
+                canCustomPaint
+                  ? (keyIndex) => {
+                      if (customPaintDragRef.current) {
+                        const dragColor = customPaintDragColorRef.current;
+                        if (dragColor) {
+                          paintCustomKeyWithColor(keyIndex, dragColor);
+                        }
+                      }
+                    }
+                  : undefined
+              }
+              onMouseUp={
+                canCustomPaint
+                  ? () => {
+                      customPaintDragRef.current = false;
+                      customPaintDragColorRef.current = null;
+                    }
+                  : undefined
+              }
             />
           </Box>
         </Box>
@@ -462,7 +601,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
                   return (
                     <ButtonRem
                       key={item.value}
-                      onClick={() => handleEffectChange(item.value)}
+                      onClick={() => debouncedHandleEffectChange(item.value)}
                       variant="text"
 
                       sx={{
@@ -497,6 +636,20 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
             p: 20,
           }}
         >
+
+          {isPickupLightingModule ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 12 }}>
+              <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700 }}>
+                {t('1305')}
+              </Typography>
+              <Switch
+                checked={openLight}
+                onChange={(_, checked) => {
+                  void handlePickupAudioSwitch(checked);
+                }}
+              />
+            </Box>
+          ) : null}
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1676')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
             <SliderRem
@@ -549,6 +702,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
             <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
           </Box>
 
+
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1677')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3.5 }}>
             <SliderRem
@@ -574,36 +728,43 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
             <Typography sx={{ color: 'transparent', fontSize: '1.25rem', fontWeight: 600, userSelect: 'none' }}>%</Typography>
           </Box>
 
-          <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1678')}</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <ButtonRem
-              variant="text"
-              sx={{
-                height: '2.25rem',
-                borderRadius: '0.55rem',
-                fontSize: '.95rem',
-                textTransform: 'none',
-                color: '#fff',
-                backgroundColor: '#3B82F6',
-                '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
-              }}
-            >
-              {t('1617')}
-            </ButtonRem>
-            <ButtonRem
-              variant="text"
-              sx={{
-                height: '2.25rem',
-                borderRadius: '0.55rem',
-                fontSize: '.95rem',
-                textTransform: 'none',
-                color: '#5f7089',
-                '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
-              }}
-            >
-              {t('1615')}
-            </ButtonRem>
-          </Box>
+          {canAdjustDirection ? (
+            <>
+              <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1678')}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <ButtonRem
+                  variant="text"
+                  onClick={() => void handleDirectionChange(0)}
+                  sx={{
+                    height: '2.25rem',
+                    borderRadius: '0.55rem',
+                    fontSize: '.95rem',
+                    textTransform: 'none',
+                    color: playDirection === 0 ? '#fff' : '#5f7089',
+                    backgroundColor: playDirection === 0 ? '#3B82F6' : 'rgba(255,255,255,.35)',
+                    '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
+                  }}
+                >
+                  {t(directionLabels[0])}
+                </ButtonRem>
+                <ButtonRem
+                  variant="text"
+                  onClick={() => void handleDirectionChange(1)}
+                  sx={{
+                    height: '2.25rem',
+                    borderRadius: '0.55rem',
+                    fontSize: '.95rem',
+                    textTransform: 'none',
+                    color: playDirection === 1 ? '#fff' : '#5f7089',
+                    backgroundColor: playDirection === 1 ? '#3B82F6' : 'rgba(255,255,255,.35)',
+                    '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
+                  }}
+                >
+                  {t(directionLabels[1])}
+                </ButtonRem>
+              </Box>
+            </>
+          ) : null}
 
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>

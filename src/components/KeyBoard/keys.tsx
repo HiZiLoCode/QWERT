@@ -69,8 +69,13 @@ export default function KeyboardKeys({
 
                 const keyEl = (
                     <Box
-                        onClick={() => onToggleKey(keyIndex)}
+                        onClick={colorMode ? undefined : () => onToggleKey(keyIndex)}
                         onMouseDown={(e) => {
+                            if (colorMode && e.button === 0) {
+                                e.preventDefault();
+                                onMouseDown?.(keyIndex);
+                                return;
+                            }
                             if (e.button === 2) {
                                 e.preventDefault();
                                 onMouseDown?.(keyIndex);
@@ -103,7 +108,21 @@ export default function KeyboardKeys({
                                 : {}),
                         }}
                     >
-                        <Typography sx={{ fontSize: '11px', fontWeight: 400, lineHeight: 1, mb: showActuation ? '4px' : 0, color: nameColor }}>
+                        <Typography
+                            sx={{
+                                fontSize: '11px',
+                                fontWeight: 400,
+                                lineHeight: 1,
+                                mb: showActuation ? '4px' : 0,
+                                color: nameColor,
+                                textAlign: 'center',
+                                maxWidth: '100%',
+                                px: '2px',
+                                whiteSpace: 'normal',
+                                wordBreak: 'keep-all',
+                                overflowWrap: 'normal',
+                            }}
+                        >
                             {key.name || keyIndex + 1}
                         </Typography>
                         {showActuation && (

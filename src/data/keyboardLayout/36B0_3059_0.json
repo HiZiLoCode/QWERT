@@ -8,7 +8,11 @@
                 "value": 1,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+                "direction": true,
+                "directionDescription": [
+                    "1617",
+                    "1618"
+                ],
                 "color": true,
                 "palette": true
             },
@@ -68,7 +72,11 @@
                 "value": 7,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+                "direction": true,
+                "directionDescription": [
+                    "1617",
+                    "1618"
+                ],
                 "color": true,
                 "palette": true
             },
@@ -78,7 +86,11 @@
                 "value": 8,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+                "direction": true,
+                "directionDescription": [
+                    "1615",
+                    "1616"
+                ],
                 "color": true,
                 "palette": true
             },
@@ -98,7 +110,11 @@
                 "value": 10,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+                "direction": true,
+                "directionDescription": [
+                    "1707",
+                    "1708"
+                ],
                 "color": true,
                 "palette": true
             },
@@ -230,7 +246,7 @@
                 "value": 5,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+           
                 "color": false,
                 "palette": true
             },
@@ -260,7 +276,11 @@
                 "value": 1,
                 "brightness": true,
                 "speed": true,
-                "direction": false,
+                "direction": true,
+                "directionDescription": [
+                    "1617",
+                    "1618"
+                ],
                 "color": true,
                 "palette": true
             }
