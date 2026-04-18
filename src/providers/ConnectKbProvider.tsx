@@ -1,7 +1,7 @@
 // @ts-nocheck
 "use client";
 
-import { createContext, useState, useCallback, useEffect } from "react";
+import { createContext, useState, useCallback, useEffect, useRef } from "react";
 import {
   connectHID,
   KeyboardDevice,
@@ -47,6 +47,8 @@ import {
 } from "@mui/material";
 import useMatrix from "@/hooks/useMatrix";
 import { DEFAULT_KEYBOARD_CONFIG, type KeyboardConfig } from '../types/leyout'
+import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
+import { useTranslation } from "@/app/i18n";
 // import { getBasicKeyToByte } from "@/utils/fileConversion";
 import { buildMatrixKeyInfo, setCustomKeycodes } from "@/utils/keyLabelUtils";
 import { getDefinitionByVendorProductId, saveDefinition, type KeyboardDefinition } from '../utils/definition-storage';
@@ -232,6 +234,15 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   const [encoderPosition, setEncoderPosition] = useState({});
   // 升级窗口状态 - 用于控制设备事件监听
   const [isUpgradeWindowOpen, setIsUpgradeWindowOpen] = useState(false);
+  const isUpgradeWindowOpenRef = useRef(false);
+  useEffect(() => {
+    isUpgradeWindowOpenRef.current = isUpgradeWindowOpen;
+  }, [isUpgradeWindowOpen]);
+
+  /** 已授权键盘：轮询 / 热插拔检测「发现设备」用（与历史会话 7f903078 一致） */
+  const hidAuthorizedKnownRef = useRef(new Set<string>());
+  const hidAuthorizedInitRef = useRef(false);
+  const initStateRef = useRef<() => Promise<void>>(async () => {});
 
   // QMK 配置文件管理器状态
   const [showQMKFileManager, setShowQMKFileManager] = useState(false);
@@ -250,8 +261,80 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   });
 
   const keyboard = useKeyboard();
+  const { showMessage } = useSnackbarDialog();
+  const { t } = useTranslation("common");
 
   const macroList = useMacro();
+
+  /** 连接成功：2581 / 2582（右上角设备卡片） */
+  const notifyKeyboardConnected = useCallback(
+    (deviceDisplayName: string) => {
+      const name = (deviceDisplayName || "").trim() || "Keyboard";
+      showMessage({
+        title: t("2581"),
+        message: t("2582", { name }),
+        type: "success",
+        duration: 4200,
+        presentation: "deviceCard",
+      });
+    },
+    [showMessage, t]
+  );
+
+  /** 已授权设备插入：轮询 + hid connect，持续 initState；新 address 弹「发现设备」 */
+  useEffect(() => {
+    if (typeof window === "undefined" || !("hid" in navigator)) {
+      return;
+    }
+
+    const reconcile = async () => {
+      if (isUpgradeWindowOpenRef.current) return;
+      try {
+        const list = (await getAccreditDevice()) || [];
+        const nextKnown = new Set(list.map((d) => d.address));
+
+        if (!hidAuthorizedInitRef.current) {
+          hidAuthorizedKnownRef.current = nextKnown;
+          hidAuthorizedInitRef.current = true;
+          await initStateRef.current();
+          return;
+        }
+
+        for (const d of list) {
+          if (!hidAuthorizedKnownRef.current.has(d.address)) {
+            const name = (d.productName || "").trim();
+            if (name) {
+              showMessage({
+                title: t("2579"),
+                message: t("2580", { name }),
+                type: "success",
+                duration: 4500,
+                presentation: "deviceCard",
+              });
+            }
+          }
+        }
+
+        hidAuthorizedKnownRef.current = nextKnown;
+        await initStateRef.current();
+      } catch (e) {
+        console.warn("[HID] reconcile authorized devices failed", e);
+      }
+    };
+
+    const intervalId = window.setInterval(() => void reconcile(), 2500);
+    void reconcile();
+
+    const onHidConnect = () => {
+      window.setTimeout(() => void reconcile(), 450);
+    };
+    navigator.hid.addEventListener("connect", onHidConnect);
+
+    return () => {
+      window.clearInterval(intervalId);
+      navigator.hid.removeEventListener("connect", onHidConnect);
+    };
+  }, [showMessage, t]);
 
   const [showWebHIDError, setShowWebHIDError] = useState(false);
   const matrixData = useMatrix(keyboard);
@@ -430,6 +513,8 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     // initState 只负责刷新设备列表，不控制 loading
     // loading 的关闭由 setConnectKeyboardStauts 在成功获取配置后负责
   }
+  initStateRef.current = initState;
+
   async function applyDeviceInfo(connectedKeyboard, isCustom) {
     let devVID, devPID;
 
@@ -634,6 +719,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           keyboard.setDevicePID?.(demoDeviceBaseInfo.productId);
           setLoading(false);
           setConnectState(false);
+          notifyKeyboardConnected(keyboard.deviceName || "Demo Keyboard");
         }
         return success;
       }
@@ -670,6 +756,13 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           }
         }
         await initState();
+        try {
+          const acc = await getAccreditDevice();
+          hidAuthorizedKnownRef.current = new Set(acc.map((d) => d.address));
+          hidAuthorizedInitRef.current = true;
+        } catch (_) {
+          /* ignore */
+        }
         if (mode === "tryConnect") {
           // setConnectKeyboardStauts 内部会根据是否有配置决定是否 setLoading(false) 和切换界面
           await setConnectKeyboardStauts(device, undefined, type);
@@ -682,7 +775,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         throw e;
       }
     },
-    [keyboard]
+    [keyboard, notifyKeyboardConnected]
   );
   // 设置连接键盘状态
   const setConnectKeyboardStauts = async (connectedKeyboard, item?, kbType?: string) => {
@@ -728,6 +821,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       // 设置设备选择界面
       setConnectState(false);
       setInitDataLoaded(true);
+      notifyKeyboardConnected(connectedKeyboard.productName || keyboard.deviceName || "");
     }
     // 如果 success 为 false（无配置），不赋值 connectedKeyboard，不关闭 loading，保持在选择界面
 
@@ -1068,6 +1162,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         if (success) {
           setConnectState(false);
           setInitDataLoaded(true);
+          notifyKeyboardConnected(config?.name || keyboard.deviceName || "");
         }
       }
     }, 1000);
@@ -1076,7 +1171,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       console.log('[QMK自动检测] 停止监听');
       clearInterval(checkInterval);
     };
-  }, [showQMKFileManager, pendingQMKDevice]);
+  }, [showQMKFileManager, pendingQMKDevice, notifyKeyboardConnected]);
   const getDeviceData = async (
     deviceComm,
     profile: number
