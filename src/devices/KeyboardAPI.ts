@@ -3,6 +3,7 @@ import _ from "lodash";
 import { hexToRgba } from "@uiw/color-convert";
 // 定义命令类型和队列参数类型
 type Command = number;
+type CommandLike = number | number[];
 type CommandQueueArgs = [number, Array<number>] | (() => Promise<void>);
 type CommandQueueEntry = {
   res: (val?: any) => void;
@@ -16,6 +17,7 @@ const cache: { [addr: string]: { hid: any } } = {};
 const globalCommandQueue: {
   [address: string]: { isFlushing: boolean; commandQueue: CommandQueue };
 } = {};
+const MAX_READ_ATTEMPTS = 20;
 // 16位转换工具函数
 export const shiftTo16Bit = ([lo, hi]: [number, number]): number =>
   (hi << 8) | lo;
@@ -245,15 +247,16 @@ export class KeyboardAPI {
   }
   // 发送设备数据
   async sendDeviceData(
-    command: Command,
+    command: CommandLike,
     bytes: Array<number> = [],
   ): Promise<number[]> {
     if (this.test) return new Array(64).fill(0);
+    const normalizedArgs = this.normalizeCommand(command, bytes);
     return new Promise((res, rej) => {
       this.commandQueueWrapper.commandQueue.push({
         res,
         rej,
-        args: [command, bytes],
+        args: normalizedArgs,
       });
       if (!this.commandQueueWrapper.isFlushing) {
         this.flushQueue();
@@ -267,12 +270,7 @@ export class KeyboardAPI {
     bytes: Array<number> = [],
   ): Promise<void> {
     const commandBytes = [0, command, ...bytes];
-    const paddedArray = new Array([65, 33][this.deviceMode]).fill(0);
-    commandBytes.forEach((val, idx) => {
-      paddedArray[idx] = val;
-    });
-
-    await this.getHID().write(paddedArray);
+    await this.writeCommandPackets(commandBytes);
     console.debug(
       `Command (NoWait) for ${this.address}`,
       commandBytes
@@ -281,15 +279,16 @@ export class KeyboardAPI {
 
   // 获取设备数据
   async getDeviceData(
-    command: Command,
+    command: CommandLike,
     bytes: Array<number> = [],
   ): Promise<number[]> {
     if (this.test) return new Array(64).fill(0);
+    const normalizedArgs = this.normalizeCommand(command, bytes);
     return new Promise((res, rej) => {
       this.commandQueueWrapper.commandQueue.push({
         res,
         rej,
-        args: [command, bytes],
+        args: normalizedArgs,
       });
       if (!this.commandQueueWrapper.isFlushing) {
         this.flushQueue();
@@ -337,13 +336,19 @@ export class KeyboardAPI {
     bytes: Array<number> = [],
   ): Promise<any> {
     const commandBytes = [0, command, ...bytes];
-    const paddedArray = new Array([65, 33][this.deviceMode]).fill(0);
-    commandBytes.forEach((val, idx) => {
-      paddedArray[idx] = val;
-    });
-
-    await this.getHID().write(paddedArray);
-    const buffer = Array.from(await this.webhid_read_command());
+    await this.writeCommandPackets(commandBytes);
+    let buffer: number[] = [];
+    for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt++) {
+      buffer = Array.from(await this.webhid_read_command());
+      if (buffer[0] === command) {
+        break;
+      }
+    }
+    if (buffer[0] !== command) {
+      throw new Error(
+        `Timed out waiting for command response: 0x${command.toString(16)}`,
+      );
+    }
     console.debug(
       `Command for ${this.address}`,
       // commandBytes.map((e) => e.toString(16)),
@@ -353,5 +358,66 @@ export class KeyboardAPI {
       buffer
     );
     return buffer;
+  }
+
+  normalizeCommand(
+    command: CommandLike,
+    bytes: Array<number> = [],
+  ): [number, Array<number>] {
+    if (Array.isArray(command)) {
+      if (command.length === 0) {
+        throw new Error("Invalid command packet: empty array");
+      }
+      const [cmd, ...payload] = command;
+      return [cmd, [...payload, ...bytes]];
+    }
+    return [command, bytes];
+  }
+
+  private getRuntimePlatform(): "win" | "mac" | "other" {
+    if (typeof navigator === "undefined") {
+      return "other";
+    }
+    const uaPlatform = (navigator as any).userAgentData?.platform;
+    const platform = `${uaPlatform || navigator.platform || ""}`.toLowerCase();
+    if (platform.includes("win")) {
+      return "win";
+    }
+    if (platform.includes("mac")) {
+      return "mac";
+    }
+    return "other";
+  }
+
+  private getReportByteLength(): number {
+    // 有线默认 64 字节（数组长度 65，含 reportId 位）
+    if (this.deviceMode === 0) {
+      return 65;
+    }
+    // 2.4G/蓝牙固定单包 32 字节（数组长度 33）
+    return 33;
+  }
+
+  private isMacDual32PacketMode(): boolean {
+    return this.deviceMode !== 0 && this.getRuntimePlatform() === "mac";
+  }
+
+  private async writeCommandPackets(commandBytes: number[]): Promise<void> {
+    if (this.isMacDual32PacketMode()) {
+      const firstPacket = this.buildPaddedCommand(commandBytes, 33);
+      const secondPacket = new Array(33).fill(0);
+      await this.getHID().writeMany([firstPacket, secondPacket]);
+      return;
+    }
+    const packet = this.buildPaddedCommand(commandBytes, this.getReportByteLength());
+    await this.getHID().write(packet);
+  }
+
+  private buildPaddedCommand(commandBytes: number[], packetLength: number): number[] {
+    const paddedArray = new Array(packetLength).fill(0);
+    commandBytes.forEach((val, idx) => {
+      paddedArray[idx] = val;
+    });
+    return paddedArray;
   }
 }

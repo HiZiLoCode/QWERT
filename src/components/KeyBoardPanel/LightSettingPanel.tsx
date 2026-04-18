@@ -197,7 +197,8 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
         ? info.pickupLightEffectSwitch ?? 0
         : info[`${legacyPrefix}Switch`] ?? 0
     );
-    setOpenLight(lightSwitchRaw === 0);
+    // 拾音/音频响应（FUNCINFO 字节 63）：固件为 1=开、0=关；普通灯带仍为 0=开、1=关。
+    setOpenLight(isPickupLightingModule ? lightSwitchRaw === 1 : lightSwitchRaw === 0);
 
     const rawBrightness = info[`${legacyPrefix}Brightness`] ?? 0;
     const nextBrightness = Math.round((rawBrightness / (maxBrightness || 1)) * 100);
@@ -291,7 +292,9 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const updateFuncInfo = (patch: Record<string, unknown>) => {
     const next = { ...(keyboard?.deviceFuncInfo ?? {}), ...patch };
     keyboard?.setDeviceFuncInfo?.(next);
-    connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
+    if (!connectedKeyboard?.test) {
+      void connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
+    }
   };
 
   const flushCustomColorsToDevice = (nextKeyColors: string[]) => {
@@ -305,7 +308,9 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
       if (lightIndex == null || lightIndex < 0 || lightIndex >= 128) continue;
       fullLightColors[lightIndex] = nextKeyColors[keyIndex] || '#000000';
     }
-    void connectedKeyboard?.setUserAllKeyColorByLight?.(customIndex, fullLightColors);
+    if (!connectedKeyboard?.test) {
+      void connectedKeyboard?.setUserAllKeyColorByLight?.(customIndex, fullLightColors);
+    }
   };
 
   const scheduleCustomColorFlush = (nextKeyColors: string[]) => {
@@ -507,8 +512,11 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const handlePickupAudioSwitch = async (checked: boolean) => {
     setOpenLight(checked);
     if (isQMK) return;
-    // 固件语义：0=开，1=关
-    const switchByte = checked ? 0 : 1;
+    const switchByte = isPickupLightingModule
+      ? (checked ? 1 : 0) // 拾音：1=开，0=关
+      : checked
+        ? 0
+        : 1; // 普通灯带：0=开，1=关
     updateFuncInfo({
       ...(isPickupLightingModule
         ? { pickupLightEffectSwitch: switchByte }

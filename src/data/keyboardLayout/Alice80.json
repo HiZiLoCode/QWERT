@@ -8,7 +8,11 @@
         "value": 1,
         "brightness": true,
         "speed": true,
-        "direction": false,
+        "direction": true,
+        "directionDescription": [
+          "1617",
+          "1618"
+        ],
         "color": true,
         "palette": true
       },
@@ -19,7 +23,7 @@
         "brightness": true,
         "speed": true,
         "direction": false,
-        "color": true,
+        "color": false,
         "palette": true
       },
       {
@@ -68,18 +72,25 @@
         "value": 7,
         "brightness": true,
         "speed": true,
-        "direction": false,
+        "direction": true,
+        "directionDescription": [
+          "1617",
+          "1618"
+        ],
         "color": true,
         "palette": true
       },
-
       {
         "name": "流星赶月",
         "lang": "228",
         "value": 8,
         "brightness": true,
         "speed": true,
-        "direction": false,
+        "direction": true,
+        "directionDescription": [
+          "1615",
+          "1616"
+        ],
         "color": true,
         "palette": true
       },
@@ -99,7 +110,11 @@
         "value": 10,
         "brightness": true,
         "speed": true,
-        "direction": false,
+        "direction": true,
+        "directionDescription": [
+          "1707",
+          "1708"
+        ],
         "color": true,
         "palette": true
       },
@@ -120,7 +135,7 @@
         "brightness": true,
         "speed": true,
         "direction": false,
-        "color": true,
+        "color": false,
         "palette": true
       },
       {
@@ -204,49 +219,9 @@
         "palette": true
       },
       {
-        "name": "自定义1",
+        "name": "自定义灯效",
         "lang": "241",
         "value": 253,
-        "brightness": true,
-        "speed": false,
-        "direction": false,
-        "color": false,
-        "palette": true
-      },
-      {
-        "name": "自定义2",
-        "lang": "242",
-        "value": 254,
-        "brightness": true,
-        "speed": false,
-        "direction": false,
-        "color": false,
-        "palette": true
-      },
-      {
-        "name": "自定义3",
-        "lang": "243",
-        "value": 255,
-        "brightness": true,
-        "speed": false,
-        "direction": false,
-        "color": false,
-        "palette": true
-      },
-      {
-        "name": "自定义4",
-        "lang": "244",
-        "value": 256,
-        "brightness": true,
-        "speed": false,
-        "direction": false,
-        "color": false,
-        "palette": true
-      },
-      {
-        "name": "自定义5",
-        "lang": "245",
-        "value": 257,
         "brightness": true,
         "speed": false,
         "direction": false,
@@ -256,28 +231,27 @@
     ],
     "logolight": [
       {
-        "name": "LOGO灯1",
-        "lang": "261",
-        "value": 1,
+        "name": "单色",
+        "lang": "1690",
+        "value": 4,
         "brightness": true,
         "speed": true,
         "direction": false,
-        "color": true,
+        "color": false,
         "palette": true
       },
       {
-        "name": "LOGO灯2",
-        "lang": "262",
-        "value": 2,
+        "name": "色阶",
+        "lang": "2690",
+        "value": 5,
         "brightness": true,
         "speed": true,
-        "direction": false,
-        "color": true,
+        "color": false,
         "palette": true
       },
       {
-        "name": "LOGO灯3",
-        "lang": "263",
+        "name": "呼吸",
+        "lang": "223",
         "value": 3,
         "brightness": true,
         "speed": true,
@@ -286,9 +260,9 @@
         "palette": true
       },
       {
-        "name": "LOGO灯4",
-        "lang": "264",
-        "value": 4,
+        "name": "光谱",
+        "lang": "2691",
+        "value": 2,
         "brightness": true,
         "speed": false,
         "direction": false,
@@ -296,23 +270,17 @@
         "palette": true
       },
       {
-        "name": "LOGO灯5",
-        "lang": "265",
-        "value": 5,
+        "name": "彩虹",
+        "lang": "2692",
+        "value": 1,
         "brightness": true,
         "speed": true,
-        "direction": false,
+        "direction": true,
+        "directionDescription": [
+          "1617",
+          "1618"
+        ],
         "color": true,
-        "palette": true
-      },
-      {
-        "name": "LOGO灯6",
-        "lang": "266",
-        "value": 6,
-        "brightness": true,
-        "speed": false,
-        "direction": false,
-        "color": false,
         "palette": true
       }
     ],
@@ -356,11 +324,13 @@
         "direction": false,
         "color": true,
         "palette": true
-      },
+      }
+    ],
+    "matrixlight": [
       {
-        "name": "侧边灯5",
-        "lang": "285",
-        "value": 5,
+        "name": "打字机",
+        "lang": "803",
+        "value": 0,
         "brightness": true,
         "speed": true,
         "direction": false,
@@ -368,13 +338,23 @@
         "palette": true
       },
       {
-        "name": "侧边灯6",
-        "lang": "286",
-        "value": 6,
+        "name": "流星雨打字速度",
+        "lang": "804",
+        "value": 1,
         "brightness": true,
-        "speed": false,
+        "speed": true,
         "direction": false,
-        "color": false,
+        "color": true,
+        "palette": true
+      },
+      {
+        "name": "代码模式",
+        "lang": "805",
+        "value": 2,
+        "brightness": true,
+        "speed": true,
+        "direction": false,
+        "color": true,
         "palette": true
       }
     ],
@@ -1605,5 +1585,8 @@
       }
     ]
   },
-  "matrix": { "rows": 6, "cols": 21 }
+  "matrix": {
+    "rows": 6,
+    "cols": 21
+  }
 }

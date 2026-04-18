@@ -41,7 +41,7 @@ export const shiftFrom24Bit = (value: number): [number, number, number] => [
   (value >> 16) & 255, // 高 8 位
 ];
 
-/** V2 功能区：0x3059 为 72 字节有效载荷（含 NumLockMode 等），与标准 59 字节 V2 区分 */
+/** V2 功能区：0x3059 为 76 字节有效载荷（含 LCD tail + NumLockMode 等），与标准 59 字节 V2 区分 */
 const PID_FUNCINFO_V2_LAYOUT_71 = 0x3059;
 
 // WebHID 支持检测接口
@@ -101,7 +101,6 @@ export const connectHID = async (
 
   try {
     const devices = selectedDevices ?? await WebHid.devices(requestAuthorize);
-    console.log(devices);
     
     // devices.
     if (devices?.length > 0) {
@@ -117,7 +116,6 @@ export const getAccreditDevice = async () => {
   const devices = await WebHid.getFilteredDevices();
   const pidStart = 0x2000; // 起始 PID
   const pidEnd = 0x352f; // 结束 PID
-  console.log(devices);
 
   const devicesList = devices
     .filter(
@@ -475,19 +473,53 @@ export class KeyboardDevice {
     return data
   }
 
-  // 获取功能区信息
-  async getFuncInfo(isProtocolVer2 = 2): Promise<FunInfo | {}> {
+  /**
+   * V2 FUNCINFO 分包读回的原始连续字节（59 或 76）。
+   * 0x3059 扩展尾段（FUNCINFO 65–75 等）由固件/屏幕 0x14/0x15 镜像维护，不在 `FunInfo` 中解析；全量下发时从设备回读保留。
+   */
+  private async readV2FuncInfoRawConcat(): Promise<number[] | null> {
     const fetchChunk = async (offset: number, size: number): Promise<number[]> => {
       const [lo, hi] = shiftFrom16Bit(offset);
-      const resp = await this.api.sendDeviceData(CMD.REPORT_ID, [
+      return this.api.sendDeviceData(CMD.REPORT_ID, [
         CMD.CMD_GET_FUNCINFO,
         lo,
         hi,
         size,
       ]);
-      return resp;
     };
+    const v2FuncTotalBytes =
+      this.productId === PID_FUNCINFO_V2_LAYOUT_71 ? 76 : 59;
+    const bufferSize = [0x38, 0x18][this.deviceMode];
+    let result: number[] = [];
 
+    for (let offset = 0; offset < v2FuncTotalBytes; offset += bufferSize) {
+      const size = Math.min(v2FuncTotalBytes - offset, bufferSize);
+      let resp = await fetchChunk(offset, size);
+
+      if (
+        resp[0] !== CMD.REPORT_ID ||
+        resp[1] !== CMD.CMD_GET_FUNCINFO ||
+        resp[7] !== 0x55
+      ) {
+        await this.api.timeout(100);
+        resp = await fetchChunk(offset, size);
+      }
+
+      if (
+        resp[0] === CMD.REPORT_ID &&
+        resp[1] === CMD.CMD_GET_FUNCINFO &&
+        resp[7] === 0x55
+      ) {
+        result = result.concat(resp.slice(8));
+      }
+    }
+
+    if (result.length < v2FuncTotalBytes) return null;
+    return result;
+  }
+
+  // 获取功能区信息
+  async getFuncInfo(isProtocolVer2 = 2): Promise<FunInfo | {}> {
     if (isProtocolVer2 === 1) {
       // --- V1 协议，直接一次性取 ---
       let data = await this.api.sendDeviceData(CMD.REPORT_ID, [
@@ -562,34 +594,8 @@ export class KeyboardDevice {
     }
 
     // --- V2 协议：分包读取 ---
-    const v2FuncTotalBytes =
-      this.productId === PID_FUNCINFO_V2_LAYOUT_71 ? 76 : 59;
-    const bufferSize = [0x38, 0x18][this.deviceMode];  // 每次最大取 56 bytes
-    let result: number[] = [];
-
-    for (let offset = 0; offset < v2FuncTotalBytes; offset += bufferSize) {
-      const size = Math.min(v2FuncTotalBytes - offset, bufferSize);
-      let resp = await fetchChunk(offset, size);
-
-      if (
-        resp[0] !== CMD.REPORT_ID ||
-        resp[1] !== CMD.CMD_GET_FUNCINFO ||
-        resp[7] !== 0x55
-      ) {
-        await this.api.timeout(100);
-        resp = await fetchChunk(offset, size);
-      }
-
-      if (
-        resp[0] === CMD.REPORT_ID &&
-        resp[1] === CMD.CMD_GET_FUNCINFO &&
-        resp[7] === 0x55
-      ) {
-        result = result.concat(resp.slice(8));
-      }
-    }
-
-    if (result.length < v2FuncTotalBytes) {
+    const result = await this.readV2FuncInfoRawConcat();
+    if (!result) {
       return {};
     }
 
@@ -664,21 +670,10 @@ export class KeyboardDevice {
         ...base,
         lcdScreenPage: result[59],
         lcdDynamicIsland: result[60],
-        lcdCustomTimeRValue: result[61],
-        lcdCustomTimeGValue: result[62],
-        lcdCustomTimeBValue: result[63],
-        lcdCustomBatteryRValue: result[64],
-        lcdCustomBatteryGValue: result[65],
-        lcdCustomBatteryBValue: result[66],
-        lcdCustomIconRValue: result[67],
-        lcdCustomIconGValue: result[68],
-        lcdCustomIconBValue: result[69],
-        lightEffectDirection: result[70],
-        numLockMode: result[71],
-        pickupLightEffectSwitch: result[72],
-        pickupLightEffectDirection: result[73],
-        pickupLightFpsLevel: result[74],
-        pickupLightFpsDefine: result[75],
+        lightEffectDirection: result[61],
+        numLockMode: result[62],
+        pickupLightEffectSwitch: result[63],
+        pickupLightEffectDirection: result[64],
       };
     }
 
@@ -686,11 +681,11 @@ export class KeyboardDevice {
   }
   // 设置功能区信息
   async setFuncInfo(data: FunInfo, isProtocolVer2 = 2) {
+    if (this.test) return;
     if ([2, 3].includes(isProtocolVer2)) {
       // --- V2：仅 0x3059 下发满 128 字节（尾部补 0），其余设备仍为 64 字节 ---
       const isFuncLayout71 = this.productId === PID_FUNCINFO_V2_LAYOUT_71;
-      console.log(isFuncLayout71,data,'isFuncLayout71');
-      
+
       const buffer: number[] = new Array(isFuncLayout71 ? 128 : 64).fill(0);
       buffer[0] = data.profile || 0;
       buffer[1] = data.lightSwitch || 0;
@@ -766,21 +761,16 @@ export class KeyboardDevice {
       if (isFuncLayout71) {
         buffer[59] = data.lcdScreenPage ?? 0;
         buffer[60] = data.lcdDynamicIsland ?? 0;
-        buffer[61] = data.lcdCustomTimeRValue ?? 0;
-        buffer[62] = data.lcdCustomTimeGValue ?? 0;
-        buffer[63] = data.lcdCustomTimeBValue ?? 0;
-        buffer[64] = data.lcdCustomBatteryRValue ?? 0;
-        buffer[65] = data.lcdCustomBatteryGValue ?? 0;
-        buffer[66] = data.lcdCustomBatteryBValue ?? 0;
-        buffer[67] = data.lcdCustomIconRValue ?? 0;
-        buffer[68] = data.lcdCustomIconGValue ?? 0;
-        buffer[69] = data.lcdCustomIconBValue ?? 0;
-        buffer[70] = data.lightEffectDirection ?? 0;
-        buffer[71] = data.numLockMode ?? 0;
-        buffer[72] = data.pickupLightEffectSwitch ?? 0;
-        buffer[73] = data.pickupLightEffectDirection ?? 0;
-        buffer[74] = data.pickupLightFpsLevel ?? 0;
-        buffer[75] = data.pickupLightFpsDefine ?? 0;
+        // 61–64：与 getFuncInfo / 固件 INIT 表一致（灯效方向、NumLock、拾音灯效等）。
+        buffer[61] = data.lightEffectDirection ?? 0;
+        buffer[62] = data.numLockMode ?? 0;
+        buffer[63] = data.pickupLightEffectSwitch ?? 0;
+        buffer[64] = data.pickupLightEffectDirection ?? 0;
+        // 65–75：固件扩展区；全量 FUNCINFO 下发前从设备回读保留，避免被 0 覆盖。
+        const rawPrior = await this.readV2FuncInfoRawConcat();
+        if (rawPrior && rawPrior.length >= 76) {
+          for (let i = 65; i <= 75; i++) buffer[i] = rawPrior[i] ?? 0;
+        }
       }
 
       await this.startComm();
@@ -1471,6 +1461,7 @@ export class KeyboardDevice {
 
   // 设置用户灯光颜色(全量 128 键，按自定义灯效槽位)
   async setUserAllKeyColorByLight(lightId: number, keyColors: string[]) {
+    if (this.test) return;
     let command: number = CMD.CMD_SET_USERLIGHT_1;
     if (lightId == 1) {
       command = CMD.CMD_SET_USERLIGHT_2;

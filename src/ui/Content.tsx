@@ -25,6 +25,7 @@ export default function Content() {
   const upgradeWindowRef = useRef<boolean>(false);
   // 当前已连接键盘地址（仅此设备断开时回到首页）
   const connectedKeyboardAddressRef = useRef<string | null>(null);
+  const demoKeyboardRef = useRef(false);
   // 避免不必要的触发
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -73,14 +74,14 @@ export default function Content() {
           const newData = [...prevData];
           console.log(newData, removedAddress, prevData[index]?.address);
 
-          if (isCurrentKeyboardRemoved) {
+          if (isCurrentKeyboardRemoved && !demoKeyboardRef.current) {
             setConnectState(true);
             setConnectedKeyboard(null);
           }
           newData.splice(index, 1);
 
           // 仅“当前连接键盘”断开时才回 HeroSection；屏幕设备断开不影响 loading。
-          if (isCurrentKeyboardRemoved) {
+          if (isCurrentKeyboardRemoved && !demoKeyboardRef.current) {
             setLoading(true);
             setConnectedKeyboard(null);
           }
@@ -102,6 +103,10 @@ export default function Content() {
   updateRef.current = updateMode;
   upgradeWindowRef.current = isUpgradeWindowOpen;
   connectedKeyboardAddressRef.current = connectedKeyboard?.api?.address ?? null;
+  demoKeyboardRef.current = !!(
+    connectedKeyboard?.test ||
+    connectedKeyboard?.api?.address === 'demo'
+  );
   useEffect(() => {
     if (loading) onChangeTab("keyboard");
   }, [loading]);

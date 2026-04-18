@@ -824,5 +824,15 @@
   "2575": "Win / Mac switch",
   "2576": "Win",
   "2577": "Mac",
-  "2578": "Status indicator only"
+  "2578": "Status indicator only",
+  "2579": "Device discovered",
+  "2580": "Found device {{name}}",
+  "2581": "Device connected",
+  "2582": "{{name}} loaded successfully",
+  "2583": "This GIF was over 3 MB and has been compressed to 3 MB or less (frames or resolution may be reduced).",
+  "2584": "This GIF is too large and could not be compressed enough. Try a smaller or simpler animation.",
+  "2586": "Video saved to the keyboard. After conversion it still exceeded 3 MB, so frames were reduced to fit the reserved flash and avoid display corruption.",
+  "2587": "Even a single converted frame exceeds 3 MB and cannot be written. Lower the resolution or simplify the image and try again.",
+  "2590": "This GIF is over 3 MB. It will be compressed before importing (frames or resolution may be reduced). Continue?",
+  "2591": "The converted animation is too large; fewer frames must be written to avoid display corruption. Continue saving?"
 }

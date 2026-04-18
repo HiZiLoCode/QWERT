@@ -377,18 +377,8 @@ export default function SettingPanel() {
                         </SettingCard>
                         <SettingCard>
                             <Row
-                                title={t('774')}
-                                description={[`${t('775')}${t('2578')}`]}
-                                right={
-                                    <Switch
-                                    disabled={true} 
-                                        checked={platformIndicator === 'mac'}
-                                        onChange={(_, checked) => {
-                                            setPlatformIndicator(checked ? 'mac' : 'win');
-                                        }}
-                                        sx={switchSx}
-                                    />
-                                }
+                                title={`当前模式：${platformIndicator === 'mac' ? 'MAC' : 'WIN'}`}
+                                description={[t('2578')]}
                             />
                         </SettingCard>
 
@@ -786,7 +776,7 @@ function Row({
 }: {
     title: string;
     description: string[];
-    right: React.ReactNode;
+    right?: React.ReactNode;
 }) {
     return (
         <Box
@@ -810,7 +800,9 @@ function Row({
                     </Typography>
                 ))}
             </Box>
-            <Box sx={{ minWidth: '8rem', display: 'flex', justifyContent: 'flex-end', pt: '0.15rem' }}>{right}</Box>
+            {right ? (
+                <Box sx={{ minWidth: '8rem', display: 'flex', justifyContent: 'flex-end', pt: '0.15rem' }}>{right}</Box>
+            ) : null}
         </Box>
     );
 }

@@ -70,7 +70,7 @@ export const QMK_connectHID = async (
         // devices.
         if (devices?.length > 0) {
             const keyboard = new QMK_KeyboardDevice(new KeyboardAPI(devices[0].address, 1));
-            const version = await keyboard.getProtocolVersion()
+            const version = await keyboard.getProtocolVersion();
             if (version !== -1 && version !== 0) {
                 console.log(`当前键盘为QMK键盘,协议版本为V${version}`);
                 keyboard.version = version;
@@ -352,7 +352,7 @@ export class QMK_KeyboardDevice {
     // 获取协议版本
     async getProtocolVersion() {
         try {
-            const [, hi, lo] = await this.sendDeviceDataV2([APICommand.GET_PROTOCOL_VERSION]);
+            const [, hi, lo] = await this.sendDeviceDataV2(APICommand.GET_PROTOCOL_VERSION);
             this.version = shiftTo16Bit([hi, lo]); // 将高低字节转换为16位协议版本
             return shiftTo16Bit([hi, lo]); // 将高低字节转换为16位协议版本
         } catch (e) {
@@ -492,12 +492,14 @@ export class QMK_KeyboardDevice {
         const bufferSize = 28; // 每次写入28个字节
         for (let offset = 0; offset < shiftedData.length; offset += bufferSize) {
             const buffer = shiftedData.slice(offset, offset + bufferSize);
-            await this.sendDeviceDataV2([
+            await this.sendDeviceDataV2(
                 APICommand.DYNAMIC_KEYMAP_SET_BUFFER,
-                ...shiftFrom16Bit(offset),
-                buffer.length,
-                ...buffer,
-            ]); // 逐步写入数据
+                [
+                    ...shiftFrom16Bit(offset),
+                    buffer.length,
+                    ...buffer,
+                ],
+            ); // 逐步写入数据
         }
     }
 

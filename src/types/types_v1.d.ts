@@ -101,30 +101,14 @@ export type FunInfo = {
   lcdScreenPage?: number;
   /** 灵动岛状态 */
   lcdDynamicIsland?: number;
-  /** 屏幕自定义模式 - 时间显示 RGB */
-  lcdCustomTimeRValue?: number;
-  lcdCustomTimeGValue?: number;
-  lcdCustomTimeBValue?: number;
-  /** 电池指示 RGB */
-  lcdCustomBatteryRValue?: number;
-  lcdCustomBatteryGValue?: number;
-  lcdCustomBatteryBValue?: number;
-  /** 指示图标 RGB */
-  lcdCustomIconRValue?: number;
-  lcdCustomIconGValue?: number;
-  lcdCustomIconBValue?: number;
-  /** 主灯灯效方向（如正向/反向） */
+  /** 字节 61：主灯灯效方向（如正向/反向，仅 0x3059 扩展布局） */
   lightEffectDirection?: number;
-  /** 字节 71：NumLock 模式（仅 0x3059 扩展布局） */
+  /** 字节 62：NumLock 模式（仅 0x3059 扩展布局） */
   numLockMode?: number;
-  /** 字节 72：拾音灯效开关（仅 0x3059 扩展布局） */
+  /** 字节 63：拾音/音频响应开关（仅 0x3059；固件 1=开、0=关） */
   pickupLightEffectSwitch?: number;
-  /** 字节 73：拾音灯效方向（仅 0x3059 扩展布局） */
+  /** 字节 64：拾音灯效方向（仅 0x3059 扩展布局） */
   pickupLightEffectDirection?: number;
-  /** 字节 74：拾音灯频率档位（示例：1=15fps, 2=30fps, 3=60fps） */
-  pickupLightFpsLevel?: number;
-  /** 字节 75：拾音灯频率定义开关（0=正常, 1=自定义） */
-  pickupLightFpsDefine?: number;
 }
 
 // 按键信息

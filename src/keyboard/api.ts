@@ -121,6 +121,7 @@ type CommandQueue = Array<CommandQueueEntry>;
 const globalCommandQueue: {
   [kbAddr: string]: { isFlushing: boolean; commandQueue: CommandQueue };
 } = {};
+const MAX_READ_ATTEMPTS = 20;
 
 export const canConnect = (device: Device) => {
   try {
@@ -710,9 +711,17 @@ export class KeyboardAPI {
 
     await this.getHID().write(paddedArray);
 
-    const buffer = Array.from(await this.getByteBuffer());
-    const bufferCommandBytes = buffer.slice(0, commandBytes.length - 1);
-    if (!eqArr(commandBytes.slice(1), bufferCommandBytes)) {
+    let buffer: number[] = [];
+    let matched = false;
+    for (let attempt = 0; attempt < MAX_READ_ATTEMPTS; attempt++) {
+      buffer = Array.from(await this.getByteBuffer());
+      const bufferCommandBytes = buffer.slice(0, commandBytes.length - 1);
+      if (eqArr(commandBytes.slice(1), bufferCommandBytes)) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
       console.error(
         `Command for ${this.kbAddr}:`,
         commandBytes,

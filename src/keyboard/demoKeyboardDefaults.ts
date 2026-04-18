@@ -1,0 +1,117 @@
+import type { DeviceBaseInfo, FunInfo } from '@/types/types_v1';
+
+/** 演示模式：与 K98 / 0x3059 能力接近的虚拟设备信息（仅本地 UI，不下发） */
+export const demoDeviceBaseInfo: DeviceBaseInfo = {
+  vendorId: 0x36b0,
+  productId: 0x3059,
+  firmwareVer: 0x0101,
+  protocolVer: 2,
+  profile: 0,
+  keyboardID: 0,
+  keyboardType: 0,
+  keyMatrixSize: 128,
+  macroSize: 128,
+  showLight: true,
+  lightSize: 128,
+  lightMaxBrightness: 255,
+  lightMaxSpeed: 6,
+  lightKeySize: 128,
+  showLogoLight: true,
+  logoLightModeSize: 24,
+  logoLigthSize: 24,
+  logoLightMaxBrightness: 255,
+  logoLightMaxSpeed: 6,
+  logoLightSupportMusic: true,
+  showLightSideLight: true,
+  sideLightModeSize: 24,
+  sideLightSize: 24,
+  sideLightMaxBrightness: 255,
+  sideLightMaxSpeed: 6,
+  sideLightSupportMusic: true,
+  matrixScreen: true,
+  /** 固件里「全灭」使用的模式号，须与 `lighting.matrixlight[].value` 互不重叠（K98/3059 灯效为 0–2） */
+  matrixScreenLightSize: 3,
+  matrixScreenLightRows: 0,
+  matrixScreenLightColumns: 0,
+  matrixScreenLightMaxBrightness: 255,
+  matrixScreenLightMaxSpeed: 6,
+  encoder: false,
+  isLed: true,
+};
+
+/**
+ * 演示模式功能区：主灯处于「自定义」灯效（253），灯开，便于自定义填色 UI。
+ * lightMode(253) + lightCustomIndex(0) 与 LightSettingPanel 中 selectedEffect 算法一致。
+ */
+export const demoDeviceFuncInfo: FunInfo = {
+  profile: 0,
+  lightSwitch: 0,
+  lightMode: 253,
+  lightBrightness: 255,
+  lightSpeed: 3,
+  lightMixColor: 1,
+  lightColorIndex: 0,
+  lightRValue: 255,
+  lightGValue: 0,
+  lightBValue: 0,
+  lightCustomIndex: 0,
+
+  logoLightSwitch: 0,
+  logoLightMode: 0,
+  logoLightBrightness: 255,
+  logoLightSpeed: 3,
+  logoLightMixColor: 1,
+  logoLightColorIndex: 0,
+  logoLightRValue: 255,
+  logoLightGValue: 0,
+  logoLightBValue: 0,
+
+  sideLightSwitch: 0,
+  sideLightMode: 0,
+  sideLightBrightness: 255,
+  sideLightSpeed: 3,
+  sideLightMixColor: 1,
+  sideLightColorIndex: 0,
+  sideLightRValue: 255,
+  sideLightGValue: 0,
+  sideLightBValue: 0,
+
+  matrixScreenLightSwitch: false,
+  matrixScreenLightMode: 0,
+  matrixScreenLightBrightness: 255,
+  matrixScreenLightSpeed: 3,
+  matrixScreenLightMixColor: 0,
+  matrixScreenLightColorIndex: 0,
+  matrixScreenLightRValue: 0,
+  matrixScreenLightGValue: 0,
+  matrixScreenLightBValue: 0,
+
+  sixKeysOrAllKeys: 0,
+  maxOrWin: 0,
+  winLock: 0,
+  keyWasd: 0,
+  scanDelay: 0,
+  layerDefault: 0,
+  fSwitch: false,
+  wheelDefaultMode: 0,
+  sleepTime: 0,
+  deepSleepTime: 0,
+
+  lcdScreenLightSwitch: true,
+  lcdScreenLightMode: 0,
+  lcdScreenLightBrightness: 255,
+  lcdScreenMaxGif: 0,
+  lcdScreenLanguage: 0,
+  lcdScreenUsbEnum: false,
+  snapTap: false,
+
+  lcdScreenPage: 0,
+  lcdDynamicIsland: 0,
+  lightEffectDirection: 0,
+  numLockMode: 0,
+  pickupLightEffectSwitch: 1,
+  pickupLightEffectDirection: 0,
+};
+
+/** keyIndex → 灯位索引：演示用 1:1，避免 getLightMatrix 全 0 导致无法填色 */
+export const DEMO_LIGHT_MATRIX: number[] = Array.from({ length: 128 }, (_, i) => i);

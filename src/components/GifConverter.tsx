@@ -6,6 +6,7 @@ import {
   encodeLcdImageMetaByte,
   LCD_ERASE_ISLAND_PERSONAL,
   sendLcdEraseAndWait,
+  sendLcdScreenWorkAreaSave16,
   sendScreenWorkParam15Packets,
   settleBetweenLcd19Packets,
 } from "@/components/ScreenTheme/lcdIslandProtocol";
@@ -516,12 +517,7 @@ async function downloadQgifToDevice(
     qgifData.map((d) => ({ metaByte, type: 0 as const, size: d.length })),
   );
   await sendScreenWorkParam15Packets(deviceComm, logical15);
-
-  const completeBuffer = new Uint8Array(65);
-  completeBuffer[1] = 0xAA;
-  completeBuffer[2] = 0x16;
-  completeBuffer[6] = 0x38;
-  await deviceComm.setData(Array.from(completeBuffer));
+  await sendLcdScreenWorkAreaSave16(deviceComm);
 
   onProgress({
     status: TransferStatus.ERASING,

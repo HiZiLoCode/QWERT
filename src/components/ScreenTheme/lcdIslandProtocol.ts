@@ -1,9 +1,10 @@
 /**
- * 灵动岛 / LCD：0x14 读功能区、0x15 写功能区、0x18 擦除（与协议表一致）
+ * 灵动岛 / LCD：0x14 读功能区、0x15 写功能区、**0x16 保存功能区**、0x18 擦除（与协议表一致）
  *
  * 基础 / 个性化灵动岛在网页侧共用同一套上传 UI；固件侧为两套资源（展示与存储互相独立）。
  * 协议表固定 2 张：第 1 条=基础（逻辑区 0-based 下标 3–7），第 2 条=个性化（8–12）。
- * 下发 0x15：从 0x14 按 `logicalStartIndex` 原样拷贝 13 字节；只改正在保存的一侧 5 字节（岛0→3–7，岛1→8–12），另一侧保持读回字节不变；然后 [0] 情景=0、[1] 张数固定 0x02、[2] 使用大小按两岛 size 重算（线序：profile、张数、64K 使用大小、再两条 5 字节）。
+ * 下发 0x15：从 0x14 按 `logicalStartIndex` 原样拷贝首包完整逻辑区（至少覆盖 23–33 的屏幕主题字段）；
+ * 只改正在保存的一侧 5 字节（岛0→3–7，岛1→8–12），另一侧保持读回字节不变；然后 [0] 情景=0、[1] 张数固定 0x02、[2] 使用大小按两岛 size 重算（线序：profile、张数、64K 使用大小、再两条 5 字节）。
  * 相册多图合并为一条 size（总长），meta 里张数不变。
  * 通过 0x18[7] islandMode 与侧栏 tab 选择擦除「基础」或「个性化」存储区。
  * 0x19 写 FLASH 分包 `buffer[7]`：与 0x18[7] 相同，仅 `0x00`=基础灵动岛、`0x01`=个性化（当前写入哪一侧就填哪个值）。
@@ -35,6 +36,9 @@ export type LcdScreenTransferMeta = {
   metaByte: number;
   /** 0=基础 1=个性：0x15 `islandBeingSaved`、0x18/0x19 buffer[7] */
   islandMode: 0 | 1;
+  /** 若设置，则写入本次 0x15 逻辑区（与 0x14 拷贝同布局下标 32/33），避免保存前再单发一帧功能区 */
+  fpsSimple?: number;
+  fpsDefine?: number;
 };
 
 /** 协议表：切换间隔 0–5 → 秒 */
@@ -48,6 +52,9 @@ export const LCD_REPORT_WORK_LOGICAL_OFFSET = 9;
 const W15_FUN_FIRST = LCD_REPORT_WORK_LOGICAL_OFFSET;
 const W15_FUN_LAST = 64;
 const W15_BYTES_FIRST = W15_FUN_LAST - W15_FUN_FIRST + 1;
+
+/** 0x15 首包内承载的「功能区逻辑」最大连续长度（与 `sendScreenWorkParam15Packets` 首包一致） */
+export const LCD_W15_FIRST_CHUNK_LOGICAL = W15_BYTES_FIRST;
 const W15_ENTRY_START = 12;
 const W15_TAIL_NEXT = W15_FUN_LAST - W15_ENTRY_START + 1;
 const W15_TAIL_LAST = 16;
@@ -157,8 +164,10 @@ export function lcdWorkFlashUsageByteFromTwoEntries(e0: LcdImageWorkEntry, e1: L
 }
 
 /**
- * 从 0x14 原始应答按 `parsed.logicalStartIndex` 拷贝 13 字节，只改「正在保存」那一侧 5 字节，其余与读回一致；
+ * 从 0x14 原始应答按 `parsed.logicalStartIndex` 拷贝首包完整逻辑区，只改「正在保存」那一侧 5 字节，其余与读回一致；
+ * 这样在媒体保存链路（导入图片/相册/视频）里，23–33（时间/电量/图标 RGB + GIF 帧率）会随 0x15 一并带上。
  * 再写头：[0] 情景、[1] 张数 0x02、[2] 使用大小（两岛 64K 块累计）。
+ * 可选 `fpsSimple` / `fpsDefine`：覆盖逻辑区下标 32、33（与 `readMergeSendLcdWorkAreaScreenTail` 一致），与媒体 0x15 合并为一次下发。
  */
 export function buildDualIslandWorkLogical15FromReadPatch(
   rawResponse: readonly number[],
@@ -166,11 +175,14 @@ export function buildDualIslandWorkLogical15FromReadPatch(
   opts: {
     islandBeingSaved: 0 | 1;
     newEntries: LcdImageWorkEntry[];
+    fpsSimple?: number;
+    fpsDefine?: number;
   },
 ): Uint8Array {
   const start = parsed.logicalStartIndex;
-  const out = new Uint8Array(LCD_DUAL_ISLAND_WORK_LOGICAL_LEN);
-  const copyLen = Math.min(LCD_DUAL_ISLAND_WORK_LOGICAL_LEN, Math.max(0, rawResponse.length - start));
+  const outLen = Math.max(LCD_DUAL_ISLAND_WORK_LOGICAL_LEN, LCD_W15_FIRST_CHUNK_LOGICAL);
+  const out = new Uint8Array(outLen);
+  const copyLen = Math.min(outLen, Math.max(0, rawResponse.length - start));
   for (let i = 0; i < copyLen; i++) {
     out[i] = rawResponse[start + i] ?? 0;
   }
@@ -187,6 +199,15 @@ export function buildDualIslandWorkLogical15FromReadPatch(
   out[1] = LCD_WORK_PARAM_IMAGE_COUNT_SEND;
   const [e0, e1] = parseTwoIslandWorkEntriesFromWorkLogical(out);
   out[2] = lcdWorkFlashUsageByteFromTwoEntries(e0, e1);
+
+  if (opts.fpsSimple !== undefined) {
+    const n = Math.round(Number(opts.fpsSimple));
+    out[32] = Math.min(4, Math.max(0, Number.isFinite(n) ? n : 0));
+  }
+  if (opts.fpsDefine !== undefined) {
+    const n = Math.round(Number(opts.fpsDefine));
+    out[33] = Math.min(4, Math.max(0, Number.isFinite(n) ? n : 0));
+  }
   return out;
 }
 
@@ -391,4 +412,105 @@ export async function sendScreenWorkParam15Packets(
   const n2 = Math.min(W15_TAIL_LAST, logical.length - after1);
   b2.set(logical.subarray(after1, after1 + n2), W15_ENTRY_START);
   await deviceComm.setData(Array.from(b2));
+}
+
+/**
+ * 0x15 写入屏幕功能区后发送 **0x16**，将设定保存到固件（与实机流程一致）。
+ * HID：`[1]=0xaa`、`[2]=0x16`、`[6]=0x38`，其余填 0。
+ */
+export async function sendLcdScreenWorkAreaSave16(deviceComm: {
+  setData: (data: number[]) => Promise<unknown>;
+}): Promise<void> {
+  const buf = new Uint8Array(65);
+  buf[1] = 0xaa;
+  buf[2] = 0x16;
+  buf[6] = 0x38;
+  await deviceComm.setData(Array.from(buf));
+}
+
+/**
+ * 协议表（屏幕功能区逻辑区，相对「逻辑区起点」的下标）：
+ * - 时间 RGB：23–25
+ * - 电量 RGB：26–28
+ * - 指示图标 RGB：29–31
+ * - 简单模式 GIF 帧率：32（0 正常 / 1 15fps / 2 30fps / 3 60fps / 4 打字模式）
+ * - 自定义模式 GIF 帧率：33（0 正常 / 1 15fps / 2 30fps / 3 60fps / 4 打字模式）
+ *
+ * 通过 0x14 读回首包逻辑区 → 合并补丁 → 0x15 下发 → **0x16 保存**；不走键盘 `CMD_SET_FUNCINFO`。
+ */
+const LCD_WORK_TIME_R = 23;
+const LCD_WORK_BATTERY_R = 26;
+const LCD_WORK_ICON_R = 29;
+const LCD_WORK_FPS_SIMPLE = 32;
+const LCD_WORK_FPS_DEFINE = 33;
+
+function clampLcdFpsByte(v: number): number {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(4, Math.max(0, n));
+}
+
+/** 从 0x14 应答中取出时间/电量/图标 RGB（相对 `parsed.logicalStartIndex` 的逻辑下标 23–31） */
+export function extractLcdWorkTailThemeRgbFrom14Read(read: LcdWorkParam14ReadResult): {
+  timeRgb: [number, number, number];
+  batteryRgb: [number, number, number];
+  iconRgb: [number, number, number];
+} | null {
+  const s = read.parsed.logicalStartIndex;
+  const r = read.rawResponse;
+  if (s < 0 || r.length < s + LCD_WORK_ICON_R + 3) return null;
+  return {
+    timeRgb: [r[s + LCD_WORK_TIME_R]!, r[s + LCD_WORK_TIME_R + 1]!, r[s + LCD_WORK_TIME_R + 2]!],
+    batteryRgb: [r[s + LCD_WORK_BATTERY_R]!, r[s + LCD_WORK_BATTERY_R + 1]!, r[s + LCD_WORK_BATTERY_R + 2]!],
+    iconRgb: [r[s + LCD_WORK_ICON_R]!, r[s + LCD_WORK_ICON_R + 1]!, r[s + LCD_WORK_ICON_R + 2]!],
+  };
+}
+
+export type LcdScreenWorkTailPatch = {
+  timeRgb?: readonly [number, number, number];
+  batteryRgb?: readonly [number, number, number];
+  iconRgb?: readonly [number, number, number];
+  /** 简单模式 GIF 帧率：0–4（含 4 打字模式） */
+  fpsSimple?: number;
+  /** 自定义模式 GIF 帧率：0–4（含 4 打字模式） */
+  fpsDefine?: number;
+};
+
+export async function readMergeSendLcdWorkAreaScreenTail(
+  deviceComm: { setData: (data: number[]) => Promise<unknown> },
+  patch: LcdScreenWorkTailPatch,
+): Promise<void> {
+  const read = await readLcdWorkParam14(deviceComm);
+  if (!read) {
+    throw new Error("LCD 0x14 read failed");
+  }
+  const start = read.parsed.logicalStartIndex;
+  const logical = new Uint8Array(LCD_W15_FIRST_CHUNK_LOGICAL);
+  const maxCopy = Math.min(LCD_W15_FIRST_CHUNK_LOGICAL, Math.max(0, read.rawResponse.length - start));
+  for (let i = 0; i < maxCopy; i++) {
+    logical[i] = read.rawResponse[start + i] ?? 0;
+  }
+  if (patch.timeRgb) {
+    logical[LCD_WORK_TIME_R] = patch.timeRgb[0] & 0xff;
+    logical[LCD_WORK_TIME_R + 1] = patch.timeRgb[1] & 0xff;
+    logical[LCD_WORK_TIME_R + 2] = patch.timeRgb[2] & 0xff;
+  }
+  if (patch.batteryRgb) {
+    logical[LCD_WORK_BATTERY_R] = patch.batteryRgb[0] & 0xff;
+    logical[LCD_WORK_BATTERY_R + 1] = patch.batteryRgb[1] & 0xff;
+    logical[LCD_WORK_BATTERY_R + 2] = patch.batteryRgb[2] & 0xff;
+  }
+  if (patch.iconRgb) {
+    logical[LCD_WORK_ICON_R] = patch.iconRgb[0] & 0xff;
+    logical[LCD_WORK_ICON_R + 1] = patch.iconRgb[1] & 0xff;
+    logical[LCD_WORK_ICON_R + 2] = patch.iconRgb[2] & 0xff;
+  }
+  if (patch.fpsSimple !== undefined) {
+    logical[LCD_WORK_FPS_SIMPLE] = clampLcdFpsByte(patch.fpsSimple);
+  }
+  if (patch.fpsDefine !== undefined) {
+    logical[LCD_WORK_FPS_DEFINE] = clampLcdFpsByte(patch.fpsDefine);
+  }
+  await sendScreenWorkParam15Packets(deviceComm, logical);
+  await sendLcdScreenWorkAreaSave16(deviceComm);
 }

@@ -18,6 +18,7 @@ import HomePage from '@/components/GIFHome/HomePage';
 import { EditorContext } from '@/providers/EditorProvider';
 import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
 import { MainContext } from '@/providers/MainProvider';
+import KeyboardAltOutlinedIcon from '@mui/icons-material/KeyboardAltOutlined';
 
 /** 对齐 ticktype0407CodeNew `keyboard.tsx` + `common/layout` SidePanel + `common/menu` Submenu（本文件使用 px） */
 const KP = {
@@ -46,7 +47,7 @@ const KP = {
     cardPadding: 20,
     cardInnerGap: 15,
     previewMinHeight: 42,
-    popoverWidth: 280,
+    popoverWidth: 320,
     dotSize: 8,
 } as const;
 
@@ -142,6 +143,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
 
                     if (item.devMode === 0 && item.productId === 12290) return;
                     let device: any = new QMK_KeyboardDevice(new KeyboardAPI(item.address, 1));
+                    // await device.getProtocolVersion();
                     const version = await device.getProtocolVersion();
                     if (version !== -1 && version) {
                         await keyboard.setKeyboardType('QMK');

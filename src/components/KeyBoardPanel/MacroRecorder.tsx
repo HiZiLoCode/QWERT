@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useContext } from 'react';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import {
@@ -349,11 +349,12 @@ const MacroRecorder: React.FC = () => {
         };
     }, [isRecording, selectedMacroIndex, standardDelay, delayValue]);
 
-    useEffect(() => {
-        if (isRecording && scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-    }, [selectedMacro?.actions, isRecording]);
+    useLayoutEffect(() => {
+        if (!isRecording || !selectedMacro) return;
+        const el = scrollContainerRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+    }, [selectedMacro, selectedMacro?.actions, isRecording]);
 
     const handleExport = () => {
         const v1 = toV1Profiles(macros);

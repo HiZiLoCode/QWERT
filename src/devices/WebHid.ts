@@ -196,6 +196,7 @@ export class HidDeivce {
   notifyOpenPromise: Promise<void> = Promise.resolve();  // 通知设备打开 Promise
   constructor(address: string) {
     if (address == "demo") {
+      this.address = "demo";
       this.vendorId = 0x9a9a;
       this.productId = 0xbaba;
       this.productName = "Test";
@@ -315,5 +316,15 @@ export class HidDeivce {
     this.fastForwardGlobalBuffer(Date.now());
     eventWaitBuffer[this.address] = [];
     await this._hidDevice?._device.sendReport(0, data);
+  }
+
+  async writeMany(packets: number[][]) {
+    await this.openPromise;
+    this.fastForwardGlobalBuffer(Date.now());
+    eventWaitBuffer[this.address] = [];
+    for (const packet of packets) {
+      const data = new Uint8Array(packet.slice(1));
+      await this._hidDevice?._device.sendReport(0, data);
+    }
   }
 }

@@ -23,20 +23,27 @@ import { findLeftShiftKeyIndex } from "./screenThemeLayout";
 import type { LayoutKey } from "@/types/types_v1";
 import { getFileById, saveFile } from "@/utils/indexeddb-storage";
 import { countGifFrames, isGifFile } from "@/utils/gifFrameCount";
+import { compressPngFramesToQgifWithinPayloadLimit } from "@/utils/compressQgifUnderByteLimit";
+import { tryExtendQgifWasmMemory } from "@/utils/qgifWasmMemory";
+import { GIF_UPLOAD_MAX_BYTES, shrinkGifArrayBufferToLimit } from "@/utils/shrinkGifToMaxBytes";
 import { useTranslation } from "@/app/i18n";
 import { decompressFrames, parseGIF, type ParsedFrame } from "gifuct-js";
 import { getScreenThemeGifPlaybackFps, isNativeGifPlaybackSpeed } from "./screenThemeGifPlaybackFps";
 import {
   buildDualIslandWorkLogical15FromReadPatch,
   encodeLcdImageMetaByte,
+  extractLcdWorkTailThemeRgbFrom14Read,
   lcdEraseIslandModeFromMediaIsland,
   readLcdWorkParam14,
+  readMergeSendLcdWorkAreaScreenTail,
   sendLcdEraseAndWait,
+  sendLcdScreenWorkAreaSave16,
   settleBetweenLcd19Packets,
   type LcdScreenTransferMeta,
   secondsToLcdIntervalCode,
   sendScreenWorkParam15Packets,
   transitionKindToLcdAnimType,
+  type LcdWorkParam14ReadResult,
   W15_LOGICAL_MAX,
 } from "./lcdIslandProtocol";
 
@@ -103,7 +110,43 @@ const DEFAULT_PERSONAL_THEME_COLORS: PersonalThemePalette = {
 
 const MAX_GIF_FRAMES = 200;
 const MAX_ALBUM_FILES = 4;
+/** `public/image.png`：基础灵动岛默认「图片」/「相册」占位（视频见 DEFAULT_VIDEO_BG_STATIC_PATH） */
+const DEFAULT_BASIC_MEDIA_PATH = "/image.png";
+/** `public/image1.png`：个性化灵动岛默认图 / 相册占位 */
+const DEFAULT_PERSONAL_MEDIA_PATH = "/image1.png";
+/** `public/screen-theme/default-background.gif`：导入「视频」槽位默认 / 恢复默认视频（两岛共用） */
 const DEFAULT_VIDEO_BG_STATIC_PATH = "/screen-theme/default-background.gif";
+
+/**
+ * 从 `public/` 拉取静态资源并转为 data URL。静态导出且 `assetPrefix` 为相对路径时，
+ * 仅用 `fetch("/x")` 可能失败，故优先使用 `origin + path`。
+ */
+async function fetchPublicFileAsMediaAsset(absolutePath: string, displayName: string): Promise<MediaAsset> {
+  const attempts: string[] = [];
+  if (typeof window !== "undefined" && absolutePath.startsWith("/")) {
+    attempts.push(`${window.location.origin}${absolutePath}`);
+  }
+  attempts.push(absolutePath);
+
+  let lastError: unknown;
+  for (const url of [...new Set(attempts)]) {
+    try {
+      const resp = await fetch(url, { cache: "no-store" });
+      if (!resp.ok) continue;
+      const blob = await resp.blob();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+      if (dataUrl) return { name: displayName, dataUrl };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "fetch failed"));
+}
 
 function clampRgbByte(value: unknown): number | null {
   const n = Number(value);
@@ -228,7 +271,7 @@ async function loadIslandDraftFromIds(
 }
 
 export default function ScreenThemePage() {
-  const { keyboard, keyboardLayout, connectedKeyboard } = useContext(ConnectKbContext);
+  const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
   const { deviceComm, screenWidth, screenHeight, screenInfo, qgifModule, setDownLoad, disconnectDevice } = useContext(MainContext);
   const { showMessage } = useSnackbarDialog();
   const { t } = useTranslation("common");
@@ -251,6 +294,11 @@ export default function ScreenThemePage() {
   const [trimConfirmDialog, setTrimConfirmDialog] = useState<{ open: boolean; frameCount: number }>({
     open: false,
     frameCount: 0,
+  });
+  type MediaOversizeConfirmKind = "import-gif" | "save-qgif";
+  const [oversizeConfirmDialog, setOversizeConfirmDialog] = useState<{ open: boolean; kind: MediaOversizeConfirmKind }>({
+    open: false,
+    kind: "import-gif",
   });
   const [transferDialog, setTransferDialog] = useState<{ open: boolean; stage: TransferStage; progress: number }>({
     open: false,
@@ -281,6 +329,7 @@ export default function ScreenThemePage() {
   const videoRef = useRef<HTMLInputElement>(null);
   const isSavingToKeyboardRef = useRef(false);
   const trimConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
+  const oversizeConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
   /** 首次从 IDB 灌入两套草稿时跳过自动回写，避免无意义覆盖 */
   const mediaHydratingRef = useRef(false);
   const isTransferLocked = savingSource !== null;
@@ -296,6 +345,19 @@ export default function ScreenThemePage() {
     trimConfirmResolverRef.current?.(accepted);
     trimConfirmResolverRef.current = null;
     setTrimConfirmDialog({ open: false, frameCount: 0 });
+  }, []);
+
+  const askMediaOversizeConfirm = useCallback((kind: MediaOversizeConfirmKind) => {
+    return new Promise<boolean>((resolve) => {
+      oversizeConfirmResolverRef.current = resolve;
+      setOversizeConfirmDialog({ open: true, kind });
+    });
+  }, []);
+
+  const resolveMediaOversizeConfirm = useCallback((accepted: boolean) => {
+    oversizeConfirmResolverRef.current?.(accepted);
+    oversizeConfirmResolverRef.current = null;
+    setOversizeConfirmDialog((prev) => ({ ...prev, open: false }));
   }, []);
 
   const openTransferDialog = useCallback(() => {
@@ -318,6 +380,8 @@ export default function ScreenThemePage() {
     return () => {
       trimConfirmResolverRef.current?.(false);
       trimConfirmResolverRef.current = null;
+      oversizeConfirmResolverRef.current?.(false);
+      oversizeConfirmResolverRef.current = null;
     };
   }, []);
 
@@ -358,35 +422,34 @@ export default function ScreenThemePage() {
     [mediaEditIsland, updateDraft],
   );
 
-  const applyThemePaletteFromFuncInfo = useCallback((funcInfo: Record<string, unknown> | null | undefined) => {
-    if (!funcInfo) return;
+  const applyThemePaletteFromLcd14 = useCallback((read: LcdWorkParam14ReadResult) => {
+    if (!read) return;
+    const tail = extractLcdWorkTailThemeRgbFrom14Read(read);
+    if (!tail) return;
     setPersonalThemeColors((prev) => ({
       ...prev,
-      date: rgbToHexOrFallback(
-        funcInfo.lcdCustomTimeRValue,
-        funcInfo.lcdCustomTimeGValue,
-        funcInfo.lcdCustomTimeBValue,
-        prev.date,
-      ),
-      power: rgbToHexOrFallback(
-        funcInfo.lcdCustomBatteryRValue,
-        funcInfo.lcdCustomBatteryGValue,
-        funcInfo.lcdCustomBatteryBValue,
-        prev.power,
-      ),
-      status: rgbToHexOrFallback(
-        funcInfo.lcdCustomIconRValue,
-        funcInfo.lcdCustomIconGValue,
-        funcInfo.lcdCustomIconBValue,
-        prev.status,
-      ),
+      date: rgbToHexOrFallback(tail.timeRgb[0], tail.timeRgb[1], tail.timeRgb[2], prev.date),
+      power: rgbToHexOrFallback(tail.batteryRgb[0], tail.batteryRgb[1], tail.batteryRgb[2], prev.power),
+      status: rgbToHexOrFallback(tail.iconRgb[0], tail.iconRgb[1], tail.iconRgb[2], prev.status),
     }));
   }, []);
 
   useEffect(() => {
-    if (!keyboard?.deviceFuncInfo) return;
-    applyThemePaletteFromFuncInfo(keyboard.deviceFuncInfo as unknown as Record<string, unknown>);
-  }, [keyboard?.deviceFuncInfo, applyThemePaletteFromFuncInfo]);
+    if (!deviceComm) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const read = await readLcdWorkParam14(deviceComm);
+        if (cancelled || !read) return;
+        applyThemePaletteFromLcd14(read);
+      } catch {
+        // 无屏幕或未就绪时忽略
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceComm, applyThemePaletteFromLcd14]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -404,20 +467,15 @@ export default function ScreenThemePage() {
     });
   }, []);
 
-  const readDefaultBgAsDataUrl = useCallback(async () => {
-    const resp = await fetch(DEFAULT_VIDEO_BG_STATIC_PATH, { cache: "no-store" });
-    if (!resp.ok) throw new Error(t("2574"));
-    const blob = await resp.blob();
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    return {
-      name: DEFAULT_VIDEO_BG_STATIC_PATH.split("/").pop() || "default-background.gif",
-      dataUrl,
-    };
+  const readDefaultVideoBgAsDataUrl = useCallback(async () => {
+    try {
+      return await fetchPublicFileAsMediaAsset(
+        DEFAULT_VIDEO_BG_STATIC_PATH,
+        DEFAULT_VIDEO_BG_STATIC_PATH.split("/").pop() || "default-background.gif",
+      );
+    } catch {
+      throw new Error(t("2574"));
+    }
   }, [t]);
 
   const onImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -450,8 +508,9 @@ export default function ScreenThemePage() {
     e.target.value = "";
     if (!file) return;
     let frameLimit: number | undefined;
+    let uploadFile: File = file;
     if (isGifFile(file)) {
-      const buf = await file.arrayBuffer();
+      let buf = await file.arrayBuffer();
       const frameCount = countGifFrames(buf);
       if (frameCount > MAX_GIF_FRAMES) {
         const shouldTrim = await askGifTrimConfirm(frameCount);
@@ -459,20 +518,34 @@ export default function ScreenThemePage() {
         frameLimit = MAX_GIF_FRAMES;
         showMessage({ type: "info", message: t("2564") });
       }
+      const compositeCap = frameLimit ?? Math.min(frameCount, MAX_GIF_FRAMES);
+      if (file.size > GIF_UPLOAD_MAX_BYTES) {
+        const proceedImport = await askMediaOversizeConfirm("import-gif");
+        if (!proceedImport) return;
+        const shrunk = await shrinkGifArrayBufferToLimit(buf, GIF_UPLOAD_MAX_BYTES, compositeCap);
+        if (!shrunk) {
+          showMessage({ type: "error", message: t("2584") });
+          return;
+        }
+        buf = shrunk;
+        frameLimit = undefined;
+        uploadFile = new File([buf], file.name, { type: "image/gif" });
+        showMessage({ type: "info", message: t("2583") });
+      }
     }
-    const dataUrl = await readAsDataUrl(file);
+    const dataUrl = await readAsDataUrl(uploadFile);
     patchDraft(mediaEditIsland, { videoAsset: { name: file.name, dataUrl, frameLimit } });
   };
 
   const restoreVideoBackground = useCallback(async () => {
     try {
-      const asset = await readDefaultBgAsDataUrl();
+      const asset = await readDefaultVideoBgAsDataUrl();
       patchDraft(mediaEditIsland, { videoAsset: { ...asset, frameLimit: undefined } });
       showMessage({ type: "success", message: t("2573") });
     } catch {
       showMessage({ type: "error", message: t("2574") });
     }
-  }, [mediaEditIsland, patchDraft, readDefaultBgAsDataUrl, showMessage, t]);
+  }, [mediaEditIsland, patchDraft, readDefaultVideoBgAsDataUrl, showMessage, t]);
 
   const onImport = (source: ImportSource) => {
     if (isTransferLocked) return;
@@ -582,8 +655,15 @@ export default function ScreenThemePage() {
     async (pngFrames: Uint8Array[], fps: number): Promise<Uint8Array> => {
       if (!qgifModule?.FS || !qgifModule?.cwrap) throw new Error(t("1655"));
       await cleanupQgifFs();
+      await tryExtendQgifWasmMemory(qgifModule);
+      const chunk = 24;
       for (let i = 0; i < pngFrames.length; i++) {
         await qgifModule.FS.writeFile(`/input_${i}.png`, pngFrames[i]);
+        if (i > 0 && i % chunk === 0) {
+          await new Promise<void>((r) => {
+            requestAnimationFrame(() => r());
+          });
+        }
       }
 
       const compressVideo = qgifModule.cwrap("compress_video_wasm", "number", ["string", "string", "number", "number"]);
@@ -619,6 +699,52 @@ export default function ScreenThemePage() {
       rotate: number,
       frameLimit?: number,
     ): Promise<{ frames: Uint8Array[]; fpsFromGif: number }> => {
+      if (/^data:image\/(png|jpe?g|webp)/i.test(dataUrl)) {
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(t("1652")));
+          img.src = dataUrl;
+        });
+        const gifW = Math.max(1, image.naturalWidth);
+        const gifH = Math.max(1, image.naturalHeight);
+        const accCanvas = document.createElement("canvas");
+        accCanvas.width = gifW;
+        accCanvas.height = gifH;
+        const accCtx = accCanvas.getContext("2d");
+        if (!accCtx) throw new Error(t("1658"));
+        accCtx.drawImage(image, 0, 0, gifW, gifH);
+
+        const outCanvas = document.createElement("canvas");
+        const needsRotate = rotate === 1 || rotate === 3;
+        outCanvas.width = needsRotate ? targetHeight : targetWidth;
+        outCanvas.height = needsRotate ? targetWidth : targetHeight;
+        const outCtx = outCanvas.getContext("2d");
+        if (!outCtx) throw new Error(t("1654"));
+
+        const scale = Math.min(targetWidth / gifW, targetHeight / gifH);
+        const drawW = gifW * scale;
+        const drawH = gifH * scale;
+        const offsetX = (targetWidth - drawW) / 2;
+        const offsetY = (targetHeight - drawH) / 2;
+
+        outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
+        outCtx.save();
+        if (needsRotate) {
+          outCtx.translate(outCanvas.width / 2, outCanvas.height / 2);
+          const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
+          outCtx.rotate(rotationAngle);
+          outCtx.drawImage(accCanvas, -targetWidth / 2 + offsetX, -targetHeight / 2 + offsetY, drawW, drawH);
+        } else {
+          outCtx.drawImage(accCanvas, offsetX, offsetY, drawW, drawH);
+        }
+        outCtx.restore();
+
+        const b64 = outCanvas.toDataURL("image/png").split(",")[1] ?? "";
+        const png = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        return { frames: [png], fpsFromGif: 30 };
+      }
+
       const gifData = dataUrlToUint8Array(dataUrl);
       const gifBuffer = gifData.buffer.slice(gifData.byteOffset, gifData.byteOffset + gifData.byteLength) as ArrayBuffer;
       const gif = parseGIF(gifBuffer);
@@ -707,6 +833,8 @@ export default function ScreenThemePage() {
       const logical15 = buildDualIslandWorkLogical15FromReadPatch(read14.rawResponse, read14.parsed, {
         islandBeingSaved: lcdMeta.islandMode,
         newEntries,
+        fpsSimple: lcdMeta.fpsSimple,
+        fpsDefine: lcdMeta.fpsDefine,
       });
 
       if (logical15.length > W15_LOGICAL_MAX) {
@@ -716,12 +844,7 @@ export default function ScreenThemePage() {
       }
       try {
         await sendScreenWorkParam15Packets(deviceComm, logical15);
-
-        const completeBuffer = new Uint8Array(65);
-        completeBuffer[1] = 0xaa;
-        completeBuffer[2] = 0x16;
-        completeBuffer[6] = 0x38;
-        await deviceComm.setData(Array.from(completeBuffer));
+        await sendLcdScreenWorkAreaSave16(deviceComm);
 
         const eraseBlocks = Math.max(
           1,
@@ -735,6 +858,7 @@ export default function ScreenThemePage() {
         updateTransferStage("download");
         for (let screenIndex = 0; screenIndex < qgifData.length; screenIndex++) {
           const data = qgifData[screenIndex];
+          // 对齐 drive_app：当前会话内 0x19 地址从 0 开始，按分片顺序累加。
           let currentAddress = 0;
           for (let i = 0; i < screenIndex; i++) {
             currentAddress += Math.ceil(qgifData[i].length / (64 * 1024)) * (64 * 1024);
@@ -786,21 +910,19 @@ export default function ScreenThemePage() {
       const logical15 = buildDualIslandWorkLogical15FromReadPatch(read14.rawResponse, read14.parsed, {
         islandBeingSaved: lcdMeta.islandMode,
         newEntries,
+        fpsSimple: lcdMeta.fpsSimple,
+        fpsDefine: lcdMeta.fpsDefine,
       });
       try {
         await sendScreenWorkParam15Packets(deviceComm, logical15);
-
-        const completeBuffer = new Uint8Array(65);
-        completeBuffer[1] = 0xaa;
-        completeBuffer[2] = 0x16;
-        completeBuffer[6] = 0x38;
-        await deviceComm.setData(Array.from(completeBuffer));
+        await sendLcdScreenWorkAreaSave16(deviceComm);
 
         const eraseBlocks = Math.max(1, Math.ceil(totalSize / (64 * 1024)));
         updateTransferStage("erase");
         await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
 
         const step = 56;
+        // 对齐 drive_app：当前会话内 0x19 地址从 0 开始。
         let currentAddress = 0;
         let totalBytesTransferred = 0;
         updateTransferStage("download");
@@ -837,9 +959,7 @@ export default function ScreenThemePage() {
 
   const syncVideoSpeedFuncBytes = useCallback(
     async (mode: "video" | "clear"): Promise<boolean> => {
-      const protocolVer = keyboard?.deviceBaseInfo?.protocolVer;
-      const currentFuncInfo = keyboard?.deviceFuncInfo;
-      if (!connectedKeyboard || protocolVer == null || !currentFuncInfo) {
+      if (!deviceComm) {
         showMessage({ type: "error", message: t("1660") });
         return false;
       }
@@ -847,17 +967,30 @@ export default function ScreenThemePage() {
       const speedIndex = VIDEO_SPEED_OPTIONS.findIndex((o) => o.value === videoSpeed);
       const indexValue = speedIndex >= 0 ? speedIndex : 0;
       const byteValue = mode === "video" ? indexValue : 0;
-      const patch =
-        mediaEditIsland === "personal"
-          ? { pickupLightFpsDefine: byteValue }
-          : { pickupLightFpsLevel: byteValue };
 
-      const next = { ...currentFuncInfo, ...patch };
-      keyboard?.setDeviceFuncInfo?.(next);
-      await connectedKeyboard.setFuncInfo(next, protocolVer);
+      try {
+        await readMergeSendLcdWorkAreaScreenTail(
+          deviceComm,
+          mediaEditIsland === "personal" ? { fpsDefine: byteValue } : { fpsSimple: byteValue },
+        );
+      } catch {
+        showMessage({ type: "error", message: t("1660") });
+        return false;
+      }
+
       return true;
     },
-    [connectedKeyboard, keyboard, mediaEditIsland, showMessage, t, videoSpeed],
+    [deviceComm, mediaEditIsland, showMessage, t, videoSpeed],
+  );
+
+  /** 与 `syncVideoSpeedFuncBytes` 字节一致，合并进媒体下发时的单次 0x15，避免保存前多发一帧功能区 */
+  const lcdFpsMetaPatch = useCallback(
+    (mode: "video" | "clear"): { fpsSimple?: number; fpsDefine?: number } => {
+      const speedIndex = VIDEO_SPEED_OPTIONS.findIndex((o) => o.value === videoSpeed);
+      const indexValue = mode === "video" ? (speedIndex >= 0 ? speedIndex : 0) : 0;
+      return mediaEditIsland === "personal" ? { fpsDefine: indexValue } : { fpsSimple: indexValue };
+    },
+    [mediaEditIsland, videoSpeed],
   );
 
   const saveAlbumToKeyboard = useCallback(async () => {
@@ -872,8 +1005,6 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("album");
       setDownLoad(true);
-      const synced = await syncVideoSpeedFuncBytes("clear");
-      if (!synced) return;
       openTransferDialog();
       updateTransferStage("convert");
       const targetW = Math.max(1, Number(screenWidth) || 240);
@@ -912,6 +1043,7 @@ export default function ScreenThemePage() {
         {
           metaByte,
           islandMode: lcdEraseIslandModeFromMediaIsland(mediaEditIsland),
+          ...lcdFpsMetaPatch("clear"),
         },
         1,
       );
@@ -938,7 +1070,7 @@ export default function ScreenThemePage() {
     screenInfo,
     screenWidth,
     showMessage,
-    syncVideoSpeedFuncBytes,
+    lcdFpsMetaPatch,
     t,
     transition,
     mediaEditIsland,
@@ -962,8 +1094,6 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("video");
       setDownLoad(true);
-      const synced = await syncVideoSpeedFuncBytes("video");
-      if (!synced) return;
       openTransferDialog();
       updateTransferStage("convert");
       const targetW = Math.max(1, Number(screenWidth) || 240);
@@ -986,7 +1116,40 @@ export default function ScreenThemePage() {
       );
       console.info(`[ScreenTheme] 本次下载 GIF 帧数: ${frames.length}`);
       const fps = isNativeGifPlaybackSpeed(videoSpeed) ? fpsFromGif : getScreenThemeGifPlaybackFps(videoSpeed);
-      const qgifBin = await compressPngFramesToQgif(frames, fps);
+      let qgifBin: Uint8Array;
+      let qgifTrimmedForLimit = false;
+      try {
+        const capped = await compressPngFramesToQgifWithinPayloadLimit(
+          frames,
+          fps,
+          GIF_UPLOAD_MAX_BYTES,
+          compressPngFramesToQgif,
+        );
+        qgifBin = capped.bin;
+        qgifTrimmedForLimit = capped.trimmed;
+        if (capped.trimmed) {
+          console.info(
+            `[ScreenTheme] QGIF 超过 ${GIF_UPLOAD_MAX_BYTES} 字节，已按 ${capped.usedFrames}/${frames.length} 帧下发`,
+          );
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === "QGIF_SINGLE_FRAME_EXCEEDS_PAYLOAD_LIMIT") {
+          showMessage({ type: "error", message: t("2587") });
+          return;
+        }
+        throw e;
+      }
+      if (qgifTrimmedForLimit) {
+        const proceedSave = await askMediaOversizeConfirm("save-qgif");
+        if (!proceedSave) {
+          try {
+            await sendLcdStopCommands(deviceComm);
+          } catch (stopErr) {
+            console.warn("[ScreenTheme] 取消保存视频时 LCD 收尾(1A/11)失败", stopErr);
+          }
+          return;
+        }
+      }
       const metaByte = encodeLcdImageMetaByte({
         imageSlotCount: 1,
         animType: 0,
@@ -995,8 +1158,9 @@ export default function ScreenThemePage() {
       await downloadQgifToDevice([qgifBin], {
         metaByte,
         islandMode: lcdEraseIslandModeFromMediaIsland(mediaEditIsland),
+        ...lcdFpsMetaPatch("video"),
       });
-      showMessage({ type: "success", message: t("1650") });
+      showMessage({ type: "success", message: qgifTrimmedForLimit ? t("2586") : t("1650") });
     } catch (err) {
       console.error("[ScreenTheme] 保存视频到键盘失败", err);
       showMessage({ type: "error", message: t("1651") });
@@ -1020,12 +1184,13 @@ export default function ScreenThemePage() {
     screenInfo,
     decomposeGifDataUrlToPngFrames,
     videoSpeed,
-    syncVideoSpeedFuncBytes,
+    lcdFpsMetaPatch,
     compressPngFramesToQgif,
     downloadQgifToDevice,
     showMessage,
     mediaEditIsland,
     setSavingSource,
+    askMediaOversizeConfirm,
   ]);
 
   const convertImageDataUrlToRgb565Swap = useCallback(
@@ -1197,10 +1362,7 @@ export default function ScreenThemePage() {
   );
 
   const saveThemeColorsToKeyboard = useCallback(async (): Promise<boolean> => {
-    const protocolVer = keyboard?.deviceBaseInfo?.protocolVer;
-    
-    const currentFuncInfo = keyboard?.deviceFuncInfo;
-    if (!connectedKeyboard || protocolVer == null || !currentFuncInfo) {
+    if (!deviceComm) {
       showMessage({ type: "error", message: t("1660") });
       return false;
     }
@@ -1215,21 +1377,13 @@ export default function ScreenThemePage() {
 
     try {
       setSavingSource("theme");
-      
-      const next = {
-        ...currentFuncInfo,
-        lcdCustomTimeRValue: timeRgb[0],
-        lcdCustomTimeGValue: timeRgb[1],
-        lcdCustomTimeBValue: timeRgb[2],
-        lcdCustomBatteryRValue: batteryRgb[0],
-        lcdCustomBatteryGValue: batteryRgb[1],
-        lcdCustomBatteryBValue: batteryRgb[2],
-        lcdCustomIconRValue: statusRgb[0],
-        lcdCustomIconGValue: statusRgb[1],
-        lcdCustomIconBValue: statusRgb[2],
-      };
-      keyboard?.setDeviceFuncInfo?.(next);
-      await connectedKeyboard.setFuncInfo(next, protocolVer);
+
+      await readMergeSendLcdWorkAreaScreenTail(deviceComm, {
+        timeRgb: [timeRgb[0], timeRgb[1], timeRgb[2]],
+        batteryRgb: [batteryRgb[0], batteryRgb[1], batteryRgb[2]],
+        iconRgb: [statusRgb[0], statusRgb[1], statusRgb[2]],
+      });
+
       showMessage({ type: "success", message: t("2546") });
       return true;
     } catch {
@@ -1238,16 +1392,7 @@ export default function ScreenThemePage() {
     } finally {
       setSavingSource(null);
     }
-  }, [
-    connectedKeyboard,
-    keyboard,
-    keyboard?.deviceFuncInfo,
-    personalThemeColors.date,
-    personalThemeColors.power,
-    personalThemeColors.status,
-    showMessage,
-    t,
-  ]);
+  }, [deviceComm, personalThemeColors.date, personalThemeColors.power, personalThemeColors.status, showMessage, t]);
 
   const saveTypingThemeToKeyboard = useCallback(async () => {
     if (!deviceComm) {
@@ -1331,8 +1476,6 @@ export default function ScreenThemePage() {
     try {
       setSavingSource("image");
       setDownLoad(true);
-      const synced = await syncVideoSpeedFuncBytes("clear");
-      if (!synced) return;
       openTransferDialog();
       updateTransferStage("convert");
       const rgb565Bin = await convertImageDataUrlToRgb565Swap(imageAsset.dataUrl, targetW, targetH, rotate);
@@ -1351,6 +1494,7 @@ export default function ScreenThemePage() {
       await downloadStaticRgb565ToDevice(rgb565Bin, {
         metaByte,
         islandMode: lcdEraseIslandModeFromMediaIsland(mediaEditIsland),
+        ...lcdFpsMetaPatch("clear"),
       });
       showMessage({ type: "success", message: t("1661") });
     } catch {
@@ -1373,7 +1517,7 @@ export default function ScreenThemePage() {
     screenInfo,
     screenWidth,
     showMessage,
-    syncVideoSpeedFuncBytes,
+    lcdFpsMetaPatch,
     t,
     updateTransferStage,
     mediaEditIsland,
@@ -1414,6 +1558,130 @@ export default function ScreenThemePage() {
 
     void restoreFromDb();
   }, []);
+
+  /** 基础灵动岛：无 IndexedDB 草稿时注入 `public/image.png` 为默认图片 */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (basicDraft.imageAsset) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(DEFAULT_BASIC_MEDIA_PATH, "image.png");
+        if (cancelled) return;
+        setBasicDraft((prev) => (prev.imageAsset ? prev : { ...prev, imageAsset: asset }));
+      } catch (e) {
+        console.warn("[ScreenTheme] 基础灵动岛默认图片加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, basicDraft.imageAsset]);
+
+  /** 个性化灵动岛：无本地草稿时注入 `public/image1.png` 为默认「图片」 */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (personalDraft.imageAsset) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(DEFAULT_PERSONAL_MEDIA_PATH, "image1.png");
+        if (cancelled) return;
+        setPersonalDraft((prev) => (prev.imageAsset ? prev : { ...prev, imageAsset: asset }));
+      } catch (e) {
+        console.warn("[ScreenTheme] 个性化灵动岛默认图片加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, personalDraft.imageAsset]);
+
+  /** 基础灵动岛：无相册草稿时注入单张默认图 */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (basicDraft.albumAssets.length > 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(DEFAULT_BASIC_MEDIA_PATH, "image.png");
+        if (cancelled) return;
+        setBasicDraft((prev) =>
+          prev.albumAssets.length > 0 ? prev : { ...prev, albumAssets: [{ name: asset.name, dataUrl: asset.dataUrl }], albumIndex: 0 },
+        );
+      } catch (e) {
+        console.warn("[ScreenTheme] 基础灵动岛默认相册加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, basicDraft.albumAssets.length]);
+
+  /** 个性化灵动岛：无相册草稿时注入单张默认图 */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (personalDraft.albumAssets.length > 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(DEFAULT_PERSONAL_MEDIA_PATH, "image1.png");
+        if (cancelled) return;
+        setPersonalDraft((prev) =>
+          prev.albumAssets.length > 0 ? prev : { ...prev, albumAssets: [{ name: asset.name, dataUrl: asset.dataUrl }], albumIndex: 0 },
+        );
+      } catch (e) {
+        console.warn("[ScreenTheme] 个性化灵动岛默认相册加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, personalDraft.albumAssets.length]);
+
+  /** 基础灵动岛：无视频草稿时注入默认 GIF */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (basicDraft.videoAsset) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(
+          DEFAULT_VIDEO_BG_STATIC_PATH,
+          DEFAULT_VIDEO_BG_STATIC_PATH.split("/").pop() || "default-background.gif",
+        );
+        if (cancelled) return;
+        setBasicDraft((prev) => (prev.videoAsset ? prev : { ...prev, videoAsset: { ...asset, frameLimit: undefined } }));
+      } catch (e) {
+        console.warn("[ScreenTheme] 基础灵动岛默认视频占位加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, basicDraft.videoAsset]);
+
+  /** 个性化灵动岛：无视频草稿时注入同一默认 GIF（与基础岛视频占位一致） */
+  useEffect(() => {
+    if (!restored || mediaHydratingRef.current) return;
+    if (personalDraft.videoAsset) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const asset = await fetchPublicFileAsMediaAsset(
+          DEFAULT_VIDEO_BG_STATIC_PATH,
+          DEFAULT_VIDEO_BG_STATIC_PATH.split("/").pop() || "default-background.gif",
+        );
+        if (cancelled) return;
+        setPersonalDraft((prev) => (prev.videoAsset ? prev : { ...prev, videoAsset: { ...asset, frameLimit: undefined } }));
+      } catch (e) {
+        console.warn("[ScreenTheme] 个性化灵动岛默认视频占位加载失败", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, personalDraft.videoAsset]);
 
   useEffect(() => {
     if (!restored || mediaHydratingRef.current) return;
@@ -1832,6 +2100,22 @@ export default function ScreenThemePage() {
             {t("2570")}
           </Button>
           <Button onClick={() => resolveGifTrimConfirm(true)} variant="contained">
+            {t("2569")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={oversizeConfirmDialog.open} onClose={() => resolveMediaOversizeConfirm(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t("2565")}</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: "0.9375rem", color: "#334155", lineHeight: 1.6 }}>
+            {t(oversizeConfirmDialog.kind === "save-qgif" ? "2591" : "2590")}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => resolveMediaOversizeConfirm(false)} color="inherit">
+            {t("2570")}
+          </Button>
+          <Button onClick={() => resolveMediaOversizeConfirm(true)} variant="contained">
             {t("2569")}
           </Button>
         </DialogActions>

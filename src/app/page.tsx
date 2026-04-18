@@ -25,19 +25,19 @@ export default function Home() {
     setRemBase(screenWidth);
   }, []);
   return (
-    <ConnectKbProvider>
-      <EditorProvider>
-        <ProfileProvider>
-          <SnackbarDialogProvider>
+    <SnackbarDialogProvider>
+      <ConnectKbProvider>
+        <EditorProvider>
+          <ProfileProvider>
             <MainProvider>
               <LayoutProvider>
                 <AppContent />
               </LayoutProvider>
             </MainProvider>
-          </SnackbarDialogProvider>
-        </ProfileProvider>
-      </EditorProvider>
-    </ConnectKbProvider>
+          </ProfileProvider>
+        </EditorProvider>
+      </ConnectKbProvider>
+    </SnackbarDialogProvider>
   );
 }
 

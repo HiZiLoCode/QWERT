@@ -32,6 +32,11 @@ import {
   testTravelKeys,
   testUserKeys,
 } from "@/keyboard/testData";
+import {
+  DEMO_LIGHT_MATRIX,
+  demoDeviceBaseInfo,
+  demoDeviceFuncInfo,
+} from "@/keyboard/demoKeyboardDefaults";
 import { deviceInfo } from "../config/deviceInfo";
 import {
   Dialog,
@@ -271,8 +276,11 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       console.log("设备断开:", device, item, keyboardData, connectedKeyboard);
       if (devPID === item.devPID) {
         keyboard.setDeviceMode(0);
-        setConnectState(true);
-        setConnectedKeyboard(null);
+        // 演示会话：列表里物理端点的断开通知不得清空虚拟键盘、不得拉回设备选择态
+        if (!connectedKeyboard?.test) {
+          setConnectState(true);
+          setConnectedKeyboard(null);
+        }
       }
       setKeyboardData(prev =>
         prev.map(d =>
@@ -366,6 +374,10 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     const deviceData = await getAccreditDevice();
 
     if (!deviceData?.length) {
+      // 演示模式：无已授权 HID 时仍可能正在使用虚拟键盘，不应把 loading 打开导致退回首页
+      if (connectedKeyboard?.test) {
+        return;
+      }
       setLoading(true);
       return;
     }
@@ -451,6 +463,16 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     if (connectedKeyboard == undefined) {
       return false;
     }
+    // 与真实 0x3059 设备对齐，便于功能区/自定义灯等逻辑走同一分支（仍不下发 HID）
+    connectedKeyboard.vendorId = demoDeviceBaseInfo.vendorId;
+    connectedKeyboard.productId = demoDeviceBaseInfo.productId;
+    connectedKeyboard.productName = "Demo Keyboard";
+    connectedKeyboard.deviceBaseInfo = {
+      lightMaxSpeed: demoDeviceBaseInfo.lightMaxSpeed,
+      logoLightMaxSpeed: demoDeviceBaseInfo.logoLightMaxSpeed ?? 6,
+      sideLightMaxSpeed: demoDeviceBaseInfo.sideLightMaxSpeed ?? 6,
+      matrixScreenLightMaxSpeed: demoDeviceBaseInfo.matrixScreenLightMaxSpeed ?? 6,
+    };
 
     setConnectedKeyboard(connectedKeyboard);
     // const keyboarBaseInfo = await connectedKeyboard.getBase();
@@ -493,6 +515,15 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
     // 获取配置信息
     keyboard.setConfigInfo(testConfigInfo as any);
+
+    keyboard.deviceVID = demoDeviceBaseInfo.vendorId;
+    keyboard.devicePID = demoDeviceBaseInfo.productId;
+    keyboard.setDeviceVID?.(demoDeviceBaseInfo.vendorId);
+    keyboard.setDevicePID?.(demoDeviceBaseInfo.productId);
+    keyboard.setDeviceBaseInfo(demoDeviceBaseInfo);
+    keyboard.setDeviceFuncInfo(demoDeviceFuncInfo);
+    keyboard.setLightMatrix(DEMO_LIGHT_MATRIX);
+    keyboard.setKeysColor(Array(128).fill("#000000"));
 
     setInitDataLoaded(true);
     return true;
@@ -598,7 +629,9 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           keyboard.setDeviceStatus(true);
           keyboard.setDeviceOnline(true);
           keyboard.setDeviceType(101);
-          keyboard.setDeviceName('Demo Keyboard');
+          keyboard.setDeviceName("Demo Keyboard");
+          keyboard.setDeviceVID?.(demoDeviceBaseInfo.vendorId);
+          keyboard.setDevicePID?.(demoDeviceBaseInfo.productId);
           setLoading(false);
           setConnectState(false);
         }
