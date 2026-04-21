@@ -20,6 +20,28 @@ type EffectGroup = {
   items: EffectItem[];
 };
 
+function resolveLightEffectLabel(
+  effect: any,
+  fallbackIndex: number,
+  t: (key: string) => string
+): string {
+  const langKey = typeof effect?.lang === 'string' ? effect.lang : '';
+  if (langKey) {
+    const translated = t(langKey);
+    if (translated && translated !== langKey) return translated;
+  }
+
+  const name = typeof effect?.name === 'string' ? effect.name : '';
+  if (name) {
+    const translatedName = t(name);
+    if (translatedName && translatedName !== name) return translatedName;
+    return name;
+  }
+
+  if (langKey) return langKey;
+  return `Effect ${fallbackIndex + 1}`;
+}
+
 function getGroupTypeByContentId(contentId: string): 'backlight' | 'logo' | null {
   if (contentId.startsWith('id_qmk_rgb_matrix_')) return 'backlight';
   if (contentId.startsWith('id_qmk_rgblight_')) return 'logo';
@@ -119,7 +141,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
       return effects.map((effect: any, idx: number) => ({
         ...effect,
         value: effect.value ?? idx,
-        label: effect.name || effect.lang || `Effect ${idx + 1}`,
+        label: resolveLightEffectLabel(effect, idx, t),
       }));
     }
 
@@ -127,9 +149,9 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     return list.map((effect: any, idx: number) => ({
       ...effect,
       value: effect.value ?? idx,
-      label: effect.name || effect.lang || `Effect ${idx + 1}`,
+      label: resolveLightEffectLabel(effect, idx, t),
     }));
-  }, [isQMK, keyboardLayout, qmkGroupType, lightType]);
+  }, [isQMK, keyboardLayout, qmkGroupType, lightType, t]);
 
   const selectedEffect = useMemo(() => {
     const mode = keyboard?.deviceFuncInfo?.[`${legacyPrefix}Mode`] ?? 0;
@@ -138,15 +160,56 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   }, [keyboard?.deviceFuncInfo, legacyPrefix]);
 
   const currentLightInfo = useMemo<any>(() => {
-    return lightEffects.find((effect: any) => effect.value === selectedEffect) ?? null;
+    const found = lightEffects.find((effect: any) => effect.value === selectedEffect);
+    if (found) return found;
+    // 布局里未声明 value=0 的「全灭」时，effectGroups 仍会展示全灭项；这里占位避免判空导致拾音等逻辑异常
+    if (selectedEffect === 0) {
+      return { value: 0, brightness: false, speed: false, direction: false, color: false };
+    }
+    return null;
   }, [lightEffects, selectedEffect]);
 
-  const canAdjustBrightness = openLight && Boolean(currentLightInfo?.brightness);
-  const canAdjustSpeed = openLight && Boolean(currentLightInfo?.speed);
-  const canAdjustDirection = openLight && Boolean(currentLightInfo?.direction);
-  const canEnableColorful = openLight && Boolean(currentLightInfo?.color);
+  /** 与「动态灯效」分组规则一致：非 color-only 静态、且非全灭类，视为动态（拾音下关闭音频响应开关）。 */
+  const isPickupDynamicLighting = useMemo(() => {
+    if (!isPickupLightingModule || !currentLightInfo) return false;
+    const isOff =
+      currentLightInfo.value === 0 ||
+      (typeof currentLightInfo.label === 'string' && currentLightInfo.label.includes(t('1675')));
+    return !(currentLightInfo.color === false || isOff);
+  }, [isPickupLightingModule, currentLightInfo, t]);
+
+  /** 拾音「全灭」：与分组里全灭项一致（value=0 或文案含全灭）。 */
+  const isPickupAllOff = useMemo(() => {
+    if (!isPickupLightingModule || !currentLightInfo) return false;
+    return (
+      currentLightInfo.value === 0 ||
+      (typeof currentLightInfo.label === 'string' && currentLightInfo.label.includes(t('1675')))
+    );
+  }, [isPickupLightingModule, currentLightInfo, t]);
+
+  /** 拾音静态（非动态、非全灭）：禁用底部预设色块（Swatch），主色盘与 HEX 仍可用。 */
+  const pickupStaticDisableSwatch =
+    isPickupLightingModule && !isPickupAllOff && !isPickupDynamicLighting;
+  /** 拾音静态（非动态、非全灭）：方向区显示/可用受音频开关控制。 */
+  const isPickupStaticLighting =
+    isPickupLightingModule && !isPickupAllOff && !isPickupDynamicLighting;
+
+  /** 拾音模块下「音频响应」仅写 FUNCINFO 字节 63，不用于禁用亮度/速度/方向/彩色等；其它灯区仍用 openLight 作总开关。 */
+  const lightGatesEffectControls = isPickupLightingModule || openLight;
+  const canAdjustBrightness = lightGatesEffectControls && Boolean(currentLightInfo?.brightness);
+  const canAdjustSpeed = lightGatesEffectControls && Boolean(currentLightInfo?.speed);
+  const canAdjustDirection =
+    Boolean(currentLightInfo?.direction) &&
+    (isPickupStaticLighting ? openLight : lightGatesEffectControls);
+  /** 拾音静态且带 palette（如单色）时允许色板，即使 JSON 里 color 为 false */
+  const canEnableColorful =
+    lightGatesEffectControls &&
+    (Boolean(currentLightInfo?.color) ||
+      (isPickupLightingModule &&
+        !isPickupDynamicLighting &&
+        Boolean(currentLightInfo?.palette)));
   const isCustomEffect = selectedEffect >= 253;
-  const canCustomPaint = !isQMK && lightType === 'backlight' && openLight && isCustomEffect;
+  const canCustomPaint = !isQMK && lightType === 'backlight' && lightGatesEffectControls && isCustomEffect;
   const switchingCustomEffectRef = useRef(false);
   const customPaintDragRef = useRef(false);
   const customPaintDragColorRef = useRef<string | null>(null);
@@ -234,6 +297,23 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     setSingleColorMode(true);
     updateFuncInfo({ [`${legacyPrefix}MixColor`]: 0 });
   }, [isQMK, currentLightInfo?.color, singleColorMode, legacyPrefix]);
+
+  /** 拾音静态：禁用单色/彩色切换时强制单色，避免仍处彩色模式导致取色器不可用 */
+  useEffect(() => {
+    if (!isPickupLightingModule) return;
+    if (isPickupAllOff || isPickupDynamicLighting) return;
+    if (singleColorMode) return;
+    if (isQMK) return;
+    setSingleColorMode(true);
+    updateFuncInfo({ [`${legacyPrefix}MixColor`]: 0 });
+  }, [
+    isPickupLightingModule,
+    isPickupAllOff,
+    isPickupDynamicLighting,
+    singleColorMode,
+    isQMK,
+    legacyPrefix,
+  ]);
 
   useEffect(() => {
     if (!canCustomPaint) return;
@@ -431,10 +511,30 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
       return;
     }
 
+    // 拾音灯：动态灯效或全灭时关闭音频响应（字节 63 = 0）
+    const effectMeta = effectId >= 253 ? null : lightEffects.find((e: any) => e.value === effectId);
+    let closePickupAudio = false;
+    if (isPickupLightingModule) {
+      if (effectId === 0 && !effectMeta) {
+        closePickupAudio = true;
+      } else if (effectMeta) {
+        const isOff =
+          effectMeta.value === 0 ||
+          (typeof effectMeta.label === 'string' && effectMeta.label.includes(t('1675')));
+        const isDynamicEffect = !(effectMeta.color === false || isOff);
+        if (isDynamicEffect || isOff) closePickupAudio = true;
+      }
+    }
+
     const patch = {
       [`${legacyPrefix}Mode`]: effectId >= 253 ? 253 : effectId,
       lightCustomIndex: effectId >= 253 ? effectId - 253 : 0,
+      ...(closePickupAudio ? { pickupLightEffectSwitch: 0 } : {}),
     };
+
+    if (closePickupAudio) {
+      setOpenLight(false);
+    }
 
     const next = { ...(keyboard?.deviceFuncInfo ?? {}), ...patch };
     keyboard?.setDeviceFuncInfo?.(next);
@@ -510,6 +610,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   };
 
   const handlePickupAudioSwitch = async (checked: boolean) => {
+    if (isPickupLightingModule && (isPickupDynamicLighting || isPickupAllOff)) return;
     setOpenLight(checked);
     if (isQMK) return;
     const switchByte = isPickupLightingModule
@@ -651,7 +752,8 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
                 {t('1305')}
               </Typography>
               <Switch
-                checked={openLight}
+                disabled={isPickupDynamicLighting || isPickupAllOff}
+                checked={isPickupDynamicLighting || isPickupAllOff ? false : openLight}
                 onChange={(_, checked) => {
                   void handlePickupAudioSwitch(checked);
                 }}
@@ -712,7 +814,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
 
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1677')}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 9, mb: 3.5 }}>
             <SliderRem
               value={speed}
               min={0}
@@ -777,7 +879,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <ButtonRem
-              disabled={!canEnableColorful}
+              disabled={!canEnableColorful || pickupStaticDisableSwatch}
               onClick={() => void handleColorfulSwitch(false)}
               variant="text"
               sx={{
@@ -796,7 +898,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
               {t('1690')}
             </ButtonRem>
             <ButtonRem
-              disabled={!canEnableColorful}
+              disabled={!canEnableColorful || pickupStaticDisableSwatch}
               onClick={() => void handleColorfulSwitch(true)}
               variant="text"
               sx={{
@@ -828,7 +930,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           }}
         >
           <ColorPicker
-            disabled={!openLight || !singleColorMode}
+            disabled={!singleColorMode || !canEnableColorful}
             selectColor={selectedColor}
             setSelectColor={(hex) => {
               void handleColorChange(hex);

@@ -272,7 +272,7 @@ export const defaultKeys = {
       type: 0,
       code1: 0,
       code2: 225,
-      name: "SHIFT",
+      name: "Shift",
     },
     {
       type: 0,
@@ -338,7 +338,7 @@ export const defaultKeys = {
       type: 0,
       code1: 0,
       code2: 229,
-      name: "SHIFT",
+      name: "Shift",
     },
     null,
     null,

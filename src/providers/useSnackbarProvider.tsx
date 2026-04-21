@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { TransitionProps } from "@mui/material/transitions";
 import { SnackbarOrigin } from "@mui/material/Snackbar";
 import { styled } from "@mui/material";
 
@@ -29,30 +28,20 @@ interface StyledSnackbarProps {
 }
 
 const Snackbar = styled(MUI_Snackbar)<StyledSnackbarProps>`
-  color: var(--key--color_inside-accent) !important;
-
-  background-color: ${({ type }) =>
-    type === "success"
-      ? "#67c23a"
-      : type === "error"
-      ? "#f56c6c"
-      : type === "warning"
-      ? "#e6a23c"
-      : "var(--key--color_accent)"} !important;
+  color: #ffffff !important;
+  background-color: #3b82f6 !important;
 
   border-radius: 0.625rem;
 
   & > .MuiPaper-root {
-    color: var(--key--color_inside-accent) !important;
-    background-color: ${({ type }) =>
-      type === "success"
-        ? "#67c23a"
-        : type === "error"
-        ? "#f56c6c"
-        : type === "warning"
-        ? "#e6a23c"
-        : "var(--key--color_accent)"} !important;
+    color: #ffffff !important;
+    background-color: #3b82f6 !important;
     border-radius: 0.625rem;
+  }
+
+  & .MuiSnackbarContent-message {
+    width: 100%;
+    text-align: center;
   }
 `;
 
@@ -65,11 +54,11 @@ interface SnackbarState extends SnackbarOrigin {
   title?: string;
   type: "success" | "error" | "info" | "warning";
   duration: number;
-  transition: React.ComponentType<TransitionProps>;
+  transition: React.ElementType;
   id: number;
   remainingTime: number;
-  /** 右上角深色卡片（设备发现 / 已连接） */
-  presentation?: "default" | "deviceCard";
+  /** 右上角卡片 */
+  presentation?: "default" | "deviceCard" | "deviceCardDark";
 }
 
 /* ---------------------------------------------
@@ -81,7 +70,7 @@ interface SnackbarDialogContextType {
     title?: string;
     type?: "success" | "error" | "info" | "warning";
     duration?: number;
-    presentation?: "default" | "deviceCard";
+    presentation?: "default" | "deviceCard" | "deviceCardDark";
   }) => void;
 
   showDialog: (dialogProps: {
@@ -102,12 +91,14 @@ function DeviceCardToast({
   title,
   message,
   onClose,
+  legacyDark = false,
 }: {
   title: string;
   message: string;
   onClose: () => void;
+  legacyDark?: boolean;
 }) {
-  /** 对齐第二张参考图：深灰底、约 10px 圆角、绿圈 + 深色勾、右上浅灰关闭 */
+  /** 统一 showMessage 外观：默认蓝底；legacyDark 用于兼容旧的深色设备卡片 */
   return (
     <Paper
       elevation={0}
@@ -116,12 +107,13 @@ function DeviceCardToast({
         minWidth: { xs: 268, sm: 300 },
         maxWidth: 420,
         py: "10px",
-        pl: "12px",
-        pr: "32px",
+        px: "14px",
         borderRadius: "10px",
-        bgcolor: "#212121",
+        bgcolor: legacyDark ? "#212121" : "#3b82f6",
         color: "#fff",
-        boxShadow: "0 4px 14px rgba(0,0,0,0.35)",
+        boxShadow: legacyDark
+          ? "0 4px 14px rgba(0,0,0,0.35)"
+          : "0 4px 14px rgba(59, 130, 246, 0.35)",
         backgroundImage: "none",
       }}
     >
@@ -134,10 +126,10 @@ function DeviceCardToast({
           top: 8,
           right: 8,
           p: "4px",
-          color: "rgba(255,255,255,0.38)",
+          color: legacyDark ? "rgba(255,255,255,0.38)" : "rgba(255,255,255,0.72)",
           "&:hover": {
-            color: "rgba(255,255,255,0.75)",
-            bgcolor: "rgba(255,255,255,0.06)",
+            color: "#ffffff",
+            bgcolor: legacyDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.12)",
           },
         }}
       >
@@ -148,55 +140,90 @@ function DeviceCardToast({
           display: "flex",
           flexDirection: "column",
           gap: "4px",
-          pr: 0.5,
+          alignItems: legacyDark ? "stretch" : "center",
+          justifyContent: "center",
+          textAlign: legacyDark ? "left" : "center",
+          pr: legacyDark ? 0.5 : 0,
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            minWidth: 0,
-          }}
-        >
+        {legacyDark ? (
           <Box
             sx={{
-              width: 20,
-              height: 20,
-              borderRadius: "50%",
-              bgcolor: "#3ddc84",
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
-            }}
-          >
-            <CheckRoundedIcon sx={{ fontSize: 10, color: "#40AA19" }} />
-          </Box>
-          <Typography
-            component="div"
-            sx={{
-              fontWeight: 600,
-              fontSize: "0.8125rem",
-              lineHeight: 1.3,
-              color: "#f5f5f5",
-              letterSpacing: "0.01em",
+              gap: "8px",
               minWidth: 0,
-              flex: 1,
             }}
           >
-            {title}
-          </Typography>
-        </Box>
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                bgcolor: "#3ddc84",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <CheckRoundedIcon sx={{ fontSize: 10, color: "#40AA19" }} />
+            </Box>
+            <Typography
+              component="div"
+              sx={{
+                fontWeight: 600,
+                fontSize: "0.8125rem",
+                lineHeight: 1.3,
+                color: "#f5f5f5",
+                letterSpacing: "0.01em",
+                minWidth: 0,
+                flex: 1,
+              }}
+            >
+              {title}
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                bgcolor: "rgba(255,255,255,0.24)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <CheckRoundedIcon sx={{ fontSize: 12, color: "#ffffff" }} />
+            </Box>
+            <Typography
+              component="div"
+              sx={{
+                fontWeight: 600,
+                fontSize: "0.8125rem",
+                lineHeight: 1.3,
+                color: "#ffffff",
+                letterSpacing: "0.01em",
+                minWidth: 0,
+              }}
+            >
+              {title}
+            </Typography>
+          </>
+        )}
         <Typography
           component="div"
           sx={{
             fontSize: "0.75rem",
             lineHeight: 1.4,
-            color: "rgba(255,255,255,0.62)",
+            color: legacyDark ? "rgba(255,255,255,0.62)" : "#ffffff",
             fontWeight: 400,
-            pl: "28px",
+            opacity: legacyDark ? 1 : 0.95,
+            pl: legacyDark ? "28px" : 0,
           }}
         >
           {message}
@@ -231,12 +258,13 @@ export const SnackbarDialogProvider: React.FC<{
     title?: string;
     type?: "success" | "error" | "info" | "warning";
     duration?: number;
-    presentation?: "default" | "deviceCard";
+    presentation?: "default" | "deviceCard" | "deviceCardDark";
   }) => {
     const id = snackbarId;
     setSnackbarId((s) => s + 1);
 
-    const isCard = presentation === "deviceCard";
+    const isCard =
+      presentation === "deviceCard" || presentation === "deviceCardDark";
 
     const newSnackbar: SnackbarState = {
       open: true,
@@ -322,7 +350,7 @@ export const SnackbarDialogProvider: React.FC<{
         const fade = Math.max(sn.remainingTime, 0);
         const opacity = fade <= 500 ? fade / 500 : 1;
 
-        if (sn.presentation === "deviceCard") {
+        if (sn.presentation === "deviceCard" || sn.presentation === "deviceCardDark") {
           // 不用 MUI Snackbar：其内部会为滚动/锚点访问父级 scroll 容器，在部分布局下
           // 可能出现对 null 读取 scrollTop。固定层用 Portal + fixed 即可。
           return (
@@ -342,6 +370,7 @@ export const SnackbarDialogProvider: React.FC<{
                 <DeviceCardToast
                   title={sn.title || ""}
                   message={sn.message}
+                  legacyDark={sn.presentation === "deviceCardDark"}
                   onClose={() => handleClose(sn.id)}
                 />
               </Box>
@@ -356,16 +385,25 @@ export const SnackbarDialogProvider: React.FC<{
             anchorOrigin={{ vertical: sn.vertical, horizontal: sn.horizontal }}
             open={sn.open}
             message={
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}
+              >
                 {sn.title && (
-                  <span style={{ fontWeight: 700, marginBottom: 2 }}>{sn.title}</span>
+                  <span style={{ fontWeight: 700, marginBottom: 2, color: "#fff" }}>
+                    {sn.title}
+                  </span>
                 )}
-                <span>{sn.message}</span>
+                <span style={{ color: "#fff" }}>{sn.message}</span>
               </div>
             }
             autoHideDuration={sn.duration}
-            onClose={(event, reason) => handleClose(sn.id, reason as string)}
-            TransitionComponent={sn.transition}
+            onClose={(_event, reason) => handleClose(sn.id, reason as string)}
+            TransitionComponent={sn.transition as any}
             style={{
               zIndex: 9999 - i,
               position: "absolute",
@@ -378,13 +416,25 @@ export const SnackbarDialogProvider: React.FC<{
       })}
 
       {/* Dialog */}
-      <Dialog open={dialogOpen} onClose={() => dialogProps.onCancel()}>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => {
+          dialogProps.onCancel();
+          setDialogOpen(false);
+        }}
+      >
         <DialogTitle>{dialogProps.title}</DialogTitle>
         <DialogContent>
           <p>{dialogProps.content}</p>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => dialogProps.onCancel()} color="secondary">
+          <Button
+            onClick={() => {
+              dialogProps.onCancel();
+              setDialogOpen(false);
+            }}
+            color="secondary"
+          >
             {dialogProps.cancelText}
           </Button>
           <Button

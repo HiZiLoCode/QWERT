@@ -189,7 +189,6 @@ function MainProvider({ children }: { children: ReactNode }) {
       pollConnectStatus(connecDevice);
       // 设置轮询，每3秒执行一次      
       intervalId = setInterval(() => {
-        console.log(12321);
         pollConnectStatus(connecDevice, downLoadRef.current)
       }, 3000);
       return true;

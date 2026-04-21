@@ -1162,7 +1162,7 @@
       "code1": 0,
       "code2": 83,
       "index": 38,
-      "name": "Num Lock",
+      "name": "Num",
       "color": "mod",
       "state": 1
     },
@@ -1171,7 +1171,7 @@
       "code1": 0,
       "code2": 84,
       "index": 39,
-      "name": "Num /",
+      "name": "/",
       "color": "mod",
       "state": 1
     },
@@ -1180,7 +1180,7 @@
       "code1": 0,
       "code2": 85,
       "index": 40,
-      "name": "Num *",
+      "name": "*",
       "color": "mod",
       "state": 1
     },
@@ -1189,7 +1189,7 @@
       "code1": 0,
       "code2": 86,
       "index": 41,
-      "name": "Num -",
+      "name": "-",
       "color": "mod",
       "state": 1
     },
@@ -1351,7 +1351,7 @@
       "code1": 0,
       "code2": 95,
       "index": 59,
-      "name": "Num 7",
+      "name": "7",
       "color": "mod",
       "state": 1
     },
@@ -1360,7 +1360,7 @@
       "code1": 0,
       "code2": 96,
       "index": 60,
-      "name": "Num 8",
+      "name": "8",
       "color": "mod",
       "state": 1
     },
@@ -1369,7 +1369,7 @@
       "code1": 0,
       "code2": 97,
       "index": 61,
-      "name": "Num 9",
+      "name": "9",
       "color": "mod",
       "state": 1
     },
@@ -1378,7 +1378,7 @@
       "code1": 0,
       "code2": 87,
       "index": 62,
-      "name": "Num +",
+      "name": "+",
       "color": "mod",
       "state": 1
     },
@@ -1504,7 +1504,7 @@
       "code1": 0,
       "code2": 92,
       "index": 80,
-      "name": "Num 4",
+      "name": "4",
       "color": "mod",
       "state": 1
     },
@@ -1513,7 +1513,7 @@
       "code1": 0,
       "code2": 93,
       "index": 81,
-      "name": "Num 5",
+      "name": "5",
       "color": "mod",
       "state": 1
     },
@@ -1522,7 +1522,7 @@
       "code1": 0,
       "code2": 94,
       "index": 82,
-      "name": "Num 6",
+      "name": "6",
       "color": "mod",
       "state": 1
     },
@@ -1666,7 +1666,7 @@
       "code1": 0,
       "code2": 89,
       "index": 101,
-      "name": "Num 1",
+      "name": "1",
       "color": "mod",
       "state": 1
     },
@@ -1675,7 +1675,7 @@
       "code1": 0,
       "code2": 90,
       "index": 102,
-      "name": "Num 2",
+      "name": "2",
       "color": "mod",
       "state": 1
     },
@@ -1684,7 +1684,7 @@
       "code1": 0,
       "code2": 91,
       "index": 103,
-      "name": "Num 3",
+      "name": "3",
       "color": "mod",
       "state": 1
     },
@@ -1693,7 +1693,7 @@
       "code1": 0,
       "code2": 88,
       "index": 104,
-      "name": "Num Enter",
+      "name": "Enter",
       "color": "mod",
       "state": 1
     },
@@ -1810,7 +1810,7 @@
       "code1": 0,
       "code2": 98,
       "index": 122,
-      "name": "Num 0",
+      "name": "0",
       "color": "mod",
       "state": 1
     },
@@ -1819,7 +1819,7 @@
       "code1": 0,
       "code2": 99,
       "index": 124,
-      "name": "Num .",
+      "name": ".",
       "color": "mod",
       "state": 1
     }

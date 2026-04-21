@@ -68,7 +68,7 @@ const germanKeyNames: Record<number, string> = {
 // 德语修饰键名称映射
 const germanModifierNames = {
   ALT: "Alt",
-  SHIFT: "Umsch",
+  Shift: "Umsch",
   CTRL: "Strg",
   WIN: "Win"
 };
@@ -1465,17 +1465,17 @@ const keyName = {
   KC_PENT: "N.Ent",
   KC_PDOT: ".",
   KC_PEQL: "=",
-  KC_APP: "MENU",
+  KC_APP: "Menu",
   KC_HELP: "Help",
   KC_RO: "/",
-  KC_LALT: "ALT",
-  KC_RALT: "ALT",
-  KC_LCTL: "CTRL",
-  KC_RCTL: "CTRL",
-  KC_LGUI: "WIN",
-  KC_RGUI: "WIN",
-  KC_LSFT: "SHIFT",
-  KC_RSFT: "SHIFT",
+  KC_LALT: "Alt",
+  KC_RALT: "Alt",
+  KC_LCTL: "Ctrl",
+  KC_RCTL: "Ctrl",
+  KC_LGUI: "Win",
+  KC_RGUI: "Win",
+  KC_LSFT: "Shift",
+  KC_RSFT: "Shift",
   KC_VOLU: "Vol+",
   KC_VOLD: "Vol-",
   KC_MUTE: "Mute",
@@ -2016,8 +2016,8 @@ export const getSystemName = (code1: number, code2: number) => {
     { code1: 0, code2: 8, name: "Fn8" },
     { code1: 0, code2: 9, name: "Fn9" },
     { code1: 1, code2: 0, name: "复位" },
-    { code1: 1, code2: 1, name: "WIN" },
-    { code1: 1, code2: 2, name: "MAC" },
+    { code1: 1, code2: 1, name: "Win" },
+    { code1: 1, code2: 2, name: "Mac" },
     { code1: 3, code2: 9, name: "LockWIN" },
     { code1: 3, code2: 16, name: "切换灯效" },
     { code1: 3, code2: 18, name: "亮度+" },
@@ -2254,19 +2254,19 @@ const keyCodes = [
   },
   {
     code: 83,
-    key: "Num\nLock",
+    key: "Num",
   },
   {
     code: 84,
-    key: "Num /",
+    key: "/",
   },
   {
     code: 85,
-    key: "Num *",
+    key: "*",
   },
   {
     code: 86,
-    key: "Num -",
+    key: "-",
   },
   {
     code: 43,
@@ -2338,19 +2338,19 @@ const keyCodes = [
   },
   {
     code: 95,
-    key: "Num 7",
+    key: "7",
   },
   {
     code: 96,
-    key: "Num 8",
+    key: "8",
   },
   {
     code: 97,
-    key: "Num 9",
+    key: "9",
   },
   {
     code: 87,
-    key: "Num +",
+    key: "+",
   },
   {
     code: 57,
@@ -2406,15 +2406,15 @@ const keyCodes = [
   },
   {
     code: 92,
-    key: "Num 4",
+    key: "4",
   },
   {
     code: 93,
-    key: "Num 5",
+    key: "5",
   },
   {
     code: 94,
-    key: "Num 6",
+    key: "6",
   },
   {
     code: 29,
@@ -2462,19 +2462,19 @@ const keyCodes = [
   },
   {
     code: 89,
-    key: "Num 1",
+    key: "1",
   },
   {
     code: 90,
-    key: "Num 2",
+    key: "2",
   },
   {
     code: 91,
-    key: "Num 3",
+    key: "3",
   },
   {
     code: 88,
-    key: "Num Enter",
+    key: "Enter",
   },
   {
     code: 44,
@@ -2502,11 +2502,11 @@ const keyCodes = [
   },
   {
     code: 98,
-    key: "Num 0",
+    key: "0",
   },
   {
     code: 99,
-    key: "Num .",
+    key: ".",
   },
   {
     code: 100,
@@ -2747,11 +2747,11 @@ export const getKeyName = (key) => {
   if (key.type === 0x10) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
     if (key.code1) {
-      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("ALT") : "";
+      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("Alt") : "";
       let shift =
-        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("SHIFT") : "";
-      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("CTRL") : "";
-      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("WIN") : "";
+        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("Shift") : "";
+      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("Ctrl") : "";
+      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("Win") : "";
       return [alt, shift, ctrl, win, localizedKeyName]
         .filter((e) => e !== "")
         .join("+");
@@ -2761,11 +2761,11 @@ export const getKeyName = (key) => {
   else if (key.type === 0x12) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
     if (key.code1) {
-      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("ALT") : "";
+      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("Alt") : "";
       let shift =
-        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("SHIFT") : "";
-      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("CTRL") : "";
-      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("WIN") : "";
+        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("Shift") : "";
+      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("Ctrl") : "";
+      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("Win") : "";
       return [alt, shift, ctrl, win, localizedKeyName]
         .filter((e) => e !== "")
         .join("+");

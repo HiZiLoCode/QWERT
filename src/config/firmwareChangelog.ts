@@ -24,41 +24,19 @@ export type FirmwareRelease = {
 export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [
         {
-            version: '103',
-            date: '2026-04-15',
+            version: '106',
+            date: '2026-04-17',
             changes: {
-                zh: ['新增打字主题切换相关能力', '修复若干稳定性问题'],
-                en: ['Typing theme switching support', 'Stability fixes'],
+                zh: ['1、背光最低亮度时背光会熄灭问题', '2、优化蓝牙模式睡眠后屏幕模式指示错误问题', '3、优化触摸条卡顿问题'],
+                en: ['1、The backlight will turn off when the backlight is at the lowest brightness', '2、Optimize the screen mode indicator error problem after sleep in Bluetooth mode', '3、Optimize the touch bar stuttering problem'],
             },
         },
         {
-            version: '102',
-            date: '2026-04-15',
+            version: '107',
+            date: '2026-04-18',
             changes: {
-                zh: ['新增打字主题切换相关能力', '修复若干稳定性问题'],
-                en: ['Typing theme switching support', 'Stability fixes'],
-            },
-        },
-        {
-            version: '101 ',
-            date: '2026-04-01',
-            changes: {
-                zh: [
-                    '优化功能区协议，支持扩展配置项',
-                    '改进休眠与电量相关表现',
-                ],
-                en: [
-                    'Extended function-area protocol support',
-                    'Sleep and power-related improvements',
-                ],
-            },
-        },
-        {
-            version: '100',
-            date: '2026-03-01',
-            changes: {
-                zh: ['初始量产固件', '基础键位与灯光能力'],
-                en: ['Initial mass-production firmware', 'Basic keys and lighting'],
+                zh: ['1、解决拾音灯卡死问题', '2、解决蓝牙模式屏幕会卡死无法切换问题', '3、优化屏幕上电闪烁问题', '4、适配免驱升级包'],
+                en: ['1、Solve the pickup light freezing problem', '2、Solve the screen freezing problem in Bluetooth mode', '3、Optimize the screen power-on flicker problem', '4、Adapt the no-driver upgrade package'],
             },
         },
     ],

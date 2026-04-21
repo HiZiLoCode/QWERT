@@ -18,7 +18,7 @@ import HomePage from '@/components/GIFHome/HomePage';
 import { EditorContext } from '@/providers/EditorProvider';
 import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
 import { MainContext } from '@/providers/MainProvider';
-import KeyboardAltOutlinedIcon from '@mui/icons-material/KeyboardAltOutlined';
+import { useTranslation } from '@/app/i18n';
 
 /** 对齐 ticktype0407CodeNew `keyboard.tsx` + `common/layout` SidePanel + `common/menu` Submenu（本文件使用 px） */
 const KP = {
@@ -72,6 +72,7 @@ function SettingsContent({
     selectedSetting: string;
     deviceAuthorized: boolean;
 }) {
+    const { t } = useTranslation('common');
     if (selectedSetting === 'macro') {
         return <MacroTravelAdjustView />;
     } else if (selectedSetting === 'lighting') {
@@ -99,12 +100,13 @@ function SettingsContent({
                 justifyContent: 'center',
             }}
         >
-            <Typography sx={{ color: '#71839b' }}>该模块开发中</Typography>
+            <Typography sx={{ color: '#71839b' }}>{t('2700')}</Typography>
         </Box>
     );
 }
 
 export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: KeyboardPanelProps) {
+    const { t } = useTranslation('common');
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const { keyboardData, connectedKeyboard, keyboard, connectKeyboard, setConnectKeyboardStauts } =
         useContext(ConnectKbContext);
@@ -117,9 +119,9 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
         try {
             await connectKeyboard('tryConnect', true, true);
         } catch (error) {
-            console.error('连接失败', error);
+            console.error(t('2701'), error);
         }
-    }, [connectKeyboard]);
+    }, [connectKeyboard, t]);
 
     const handleSettingSelect = (settingId: string) => {
         setSelectedSetting(settingId);
@@ -173,15 +175,15 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
         const keyBoardLayer = key ? !!deviceInfo[key]?.keyBoardLayer : false;
 
         const tabs = [
-            { id: 'keypress', label: '按键映射', keyboardType: true },
-            { id: 'layout', label: '布局', keyBoardLayer },
-            { id: 'lighting', label: '轴灯调节', keyboardType: true },
-            { id: 'logolighting', label: '拾音灯调节', keyboardType: true },
-            { id: 'Led', label: '屏幕', keyboardType: !!deviceBaseInfo?.isLed },
-            { id: 'matrix', label: '点阵屏', keyboardType: !!deviceBaseInfo?.matrixScreen },
+            { id: 'keypress', label: t('2702'), keyboardType: true },
+            { id: 'layout', label: t('2703'), keyBoardLayer },
+            { id: 'lighting', label: t('2704'), keyboardType: true },
+            { id: 'logolighting', label: t('2705'), keyboardType: true },
+            { id: 'Led', label: t('2706'), keyboardType: !!deviceBaseInfo?.isLed },
+            { id: 'matrix', label: t('2707'), keyboardType: !!deviceBaseInfo?.matrixScreen },
         ];
         return tabs.filter((tab) => (tab.keyboardType ?? true) && (tab.keyBoardLayer ?? true));
-    }, [connectedKeyboard, keyboardData, deviceBaseInfo]);
+    }, [connectedKeyboard, keyboardData, deviceBaseInfo, t]);
 
     const getKeyboardPreviewCandidates = useCallback((vid?: number, pid?: number, devMode: number = 0) => {
         if (typeof vid !== 'number' || typeof pid !== 'number') return [];
@@ -292,7 +294,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                     onClick={handleOpenMenu}
                 >
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>选择键盘</Typography>
+                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2708')}</Typography>
                         <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 24 }} />
                     </Box>
 
@@ -315,7 +317,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                             <Box
                                 component="img"
                                 src={keyboardPreviewSrc}
-                                alt="Keyboard Preview"
+                                alt={t('2712')}
                                 onError={() => setPreviewCandidateIndex((prev) => prev + 1)}
                                 sx={{
                                     width: '100%',
@@ -387,7 +389,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                         >
                             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                 <AddRoundedIcon sx={{ fontSize: 18 }} />
-                                新键盘
+                                {t('2709')}
                             </Box>
                         </Button>
 
@@ -424,7 +426,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                                                     <Box
                                                         component="img"
                                                         src={kbPreviewSrc}
-                                                        alt={kb.productName || 'Keyboard'}
+                                                        alt={kb.productName || t('2713')}
                                                         sx={{
                                                             width: '100%',
                                                             height: '100%',
@@ -499,9 +501,9 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                     }}
                 >
                     <Box sx={{ width: '100%' }}>
-                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>设置键盘</Typography>
+                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2710')}</Typography>
                         <Typography sx={{ ...KP.tipsFont, color: KP.tipsColor, mt: '6px' }}>
-                            设置仅对当前配置生效
+                            {t('2711')}
                         </Typography>
                     </Box>
 
@@ -545,8 +547,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
                     </Stack>
                 </Box>
             </Box>
-
-            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingBottom:43 }}>
                 <SettingsContent
                     selectedSetting={selectedSetting}
                     deviceAuthorized={Boolean(deviceStatus)}

@@ -1367,7 +1367,7 @@ export const testDefaultKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 1
@@ -1477,7 +1477,7 @@ export const testDefaultKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 1
@@ -2649,7 +2649,7 @@ export const testDefaultKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 2
@@ -2759,7 +2759,7 @@ export const testDefaultKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 2
@@ -3931,7 +3931,7 @@ export const testDefaultKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 3
@@ -4041,7 +4041,7 @@ export const testDefaultKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 3
@@ -5336,7 +5336,7 @@ export const testUserKeys = {
       "code1": 0,
       "code2": 83,
       "code": 83,
-      "name": "NumLock",
+      "name": "Num",
       "i": 39,
       "profile": 0,
       "layer": 0
@@ -6328,7 +6328,7 @@ export const testUserKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 1
@@ -6438,7 +6438,7 @@ export const testUserKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 1
@@ -7610,7 +7610,7 @@ export const testUserKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 2
@@ -7720,7 +7720,7 @@ export const testUserKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 2
@@ -8892,7 +8892,7 @@ export const testUserKeys = {
       "code1": 32,
       "code2": 0,
       "code": 229,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 25,
       "profile": 0,
       "layer": 3
@@ -9002,7 +9002,7 @@ export const testUserKeys = {
       "code1": 2,
       "code2": 0,
       "code": 225,
-      "name": "SHIFT",
+      "name": "Shift",
       "i": 36,
       "profile": 0,
       "layer": 3

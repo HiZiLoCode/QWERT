@@ -39,6 +39,15 @@ type DndDropResult = {
     destination?: { index: number } | null;
 };
 
+const DELAY_MIN = 10;
+const DELAY_MAX = 255;
+
+function clampDelayValue(raw: string, fallback: number = DELAY_MIN): number {
+    const parsed = Number.parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return fallback;
+    return Math.min(DELAY_MAX, Math.max(DELAY_MIN, parsed));
+}
+
 // ─── 格式转换工具 ─────────────────────────────────────────────────────────────
 // 将本地 MacroProfile[] 转为 types_v1 MacroProfile[]（用于写入键盘）
 function toV1Profiles(localMacros: MacroProfile[]): V1MacroProfile[] {
@@ -518,7 +527,6 @@ const MacroRecorder: React.FC = () => {
                                 boxShadow: 'rgba(176, 206, 255, 0.5) 0rem 0rem 1.3125rem',
                                 px: '0.75rem',
                                 py: '1rem',
-                                width: "11rem",
                                 display: 'flex',
                                 flexDirection: 'column',
                             }}
@@ -574,23 +582,25 @@ const MacroRecorder: React.FC = () => {
                                         {t('1683')}
                                     </ButtonRem>
                                 </Box>
-                                <Box sx={{ display: 'flex', gap: '0.375rem', justifyContent: 'center', visibility: standardDelay ? 'visible' : 'hidden', height: '1.5rem', alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', visibility: standardDelay ? 'visible' : 'hidden', height: '1.5rem', alignItems: 'center' }}>
                                     <Typography sx={{ fontSize: '0.65rem', color: '#5f7089', whiteSpace: 'nowrap' }}>
                                         {t('1684')}
                                     </Typography>
                                     <TextField
                                         size="small"
                                         value={delayValue}
-                                        onChange={(e) => setDelayValue(e.target.value)}
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (!/^\d*$/.test(raw)) return;
+                                            setDelayValue(raw);
+                                        }}
                                         onBlur={(e) => {
                                             const val = e.target.value;
-                                            if (val === '') { setDelayValue('10'); return; }
-                                            const num = parseInt(val, 10);
-                                            if (isNaN(num)) { setDelayValue('10'); return; }
-                                            setDelayValue(String(Math.min(255, Math.max(10, num))));
+                                            if (val === '') { setDelayValue(String(DELAY_MIN)); return; }
+                                            setDelayValue(String(clampDelayValue(val)));
                                         }}
                                         disabled={isRecording}
-                                        inputProps={{ min: 10, max: 255 }}
+                                        inputProps={{ min: DELAY_MIN, max: DELAY_MAX }}
                                         sx={{
                                             width: '3.5rem',
                                             '& .MuiInputBase-input': { fontSize: '0.65rem', p: '0.2rem 0.3rem' },
@@ -795,13 +805,30 @@ const MacroRecorder: React.FC = () => {
                                                                                 onClick={(e: any) => e.stopPropagation()}
                                                                                 onMouseDown={(e: any) => e.stopPropagation()}
                                                                                 onChange={(e: any) => {
-                                                                                    const val = e.target.value;
+                                                                                    const val = e.target.value as string;
+                                                                                    if (!/^\d*$/.test(val)) return;
                                                                                     setMacros(prev => prev.map((m, mi) =>
                                                                                         mi === selectedMacroIndex
                                                                                             ? { ...m, actions: m.actions.map((a, ai) => ai === index ? { ...a, key: val } : a) }
                                                                                             : m
                                                                                     ));
                                                                                 }}
+                                                                                onBlur={(e: any) => {
+                                                                                    const val = e.target.value as string;
+                                                                                    const normalized = String(clampDelayValue(val));
+                                                                                    setMacros(prev => prev.map((m, mi) =>
+                                                                                        mi === selectedMacroIndex
+                                                                                            ? {
+                                                                                                ...m,
+                                                                                                actions: m.actions.map((a, ai) =>
+                                                                                                    ai === index ? { ...a, key: normalized } : a
+                                                                                                ),
+                                                                                            }
+                                                                                            : m
+                                                                                    ));
+                                                                                }}
+                                                                                min={DELAY_MIN}
+                                                                                max={DELAY_MAX}
                                                                                 sx={{
                                                                                     width: '1.75rem',
                                                                                     height: '.75rem',

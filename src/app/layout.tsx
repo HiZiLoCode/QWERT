@@ -3,7 +3,7 @@ import './globals.css';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
 import ThemeContextProvider from "@/providers/ThemeContextProvider";
 export const metadata: Metadata = {
-  title: 'QK100',
+  title: 'QK 100 MK2',
 };
 
 export default function RootLayout({

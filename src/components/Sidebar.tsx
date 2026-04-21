@@ -36,11 +36,11 @@ const SIDE = {
 } as const;
 
 export default function Sidebar() {
-    const { i18n } = useTranslation();
+    const { i18n, t } = useTranslation('common');
     const { onChangeTab, currentTab } = useContext(EditorContext);
     const menuItems = [
-        { id: 'keyboard', label: '键盘' },
-        { id: 'settings', label: '设置' },
+        { id: 'keyboard', label: t('2713') },
+        { id: 'settings', label: t('56') },
     ];
 
     const toggleLanguage = () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, LinearProgress, Typography } from "@mui/material";
+import { Box, Dialog, DialogContent, DialogTitle, Divider, LinearProgress, Typography } from "@mui/material";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import { MainContext } from "@/providers/MainProvider";
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
@@ -17,6 +17,7 @@ import ScreenThemeTypingPanel, { type TypingCharacterValue } from "./ScreenTheme
 import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
 import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
 import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
+import ScreenThemeConfirmDialog from "./ScreenThemeConfirmDialog";
 import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
@@ -116,6 +117,110 @@ const DEFAULT_BASIC_MEDIA_PATH = "/image.png";
 const DEFAULT_PERSONAL_MEDIA_PATH = "/image1.png";
 /** `public/screen-theme/default-background.gif`：导入「视频」槽位默认 / 恢复默认视频（两岛共用） */
 const DEFAULT_VIDEO_BG_STATIC_PATH = "/screen-theme/default-background.gif";
+
+/** 解码后单边超过此值时先用 createImageBitmap 缩小，降低手机大图等导致 OOM / 标签页崩溃的概率 */
+const LCD_DECODE_MAX_SIDE = 4096;
+/** 设备返回异常超大分辨率时的 canvas 单边上限 */
+const LCD_TARGET_MAX_SIDE = 8192;
+/** 主线程 RGB565 转换分片，中间 yield，减轻「页面无响应」被强杀 */
+const LCD_RGB565_CHUNK_PIXELS = 65536;
+
+function clampLcdTargetDimension(n: number, maxSide: number): number {
+  return Math.min(Math.max(1, Math.floor(Number(n) || 1)), maxSide);
+}
+
+function canvasImageSourceSize(source: CanvasImageSource): { w: number; h: number } {
+  if (source instanceof HTMLImageElement) {
+    const w = source.naturalWidth || source.width;
+    const h = source.naturalHeight || source.height;
+    return { w, h };
+  }
+  if (typeof ImageBitmap !== "undefined" && source instanceof ImageBitmap) {
+    return { w: source.width, h: source.height };
+  }
+  if (source instanceof HTMLVideoElement) {
+    return { w: source.videoWidth, h: source.videoHeight };
+  }
+  if ("width" in source && "height" in source && typeof (source as { width: unknown }).width === "number") {
+    const s = source as { width: number; height: number };
+    return { w: s.width, h: s.height };
+  }
+  return { w: 0, h: 0 };
+}
+
+async function yieldMainThreadIfNeeded(): Promise<void> {
+  const sched = (globalThis as unknown as { scheduler?: { yield?: () => Promise<void> } }).scheduler;
+  if (typeof sched?.yield === "function") {
+    await sched.yield();
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+/**
+ * 大图先缩到单边 LCD_DECODE_MAX_SIDE，再参与 letterbox 绘制，降低 decode 内存峰值。
+ */
+async function openDownscaledCanvasSourceIfNeeded(
+  image: HTMLImageElement,
+): Promise<{ source: CanvasImageSource; close?: () => void }> {
+  const { w, h } = canvasImageSourceSize(image);
+  const maxSide = Math.max(w, h);
+  if (maxSide <= 0 || maxSide <= LCD_DECODE_MAX_SIDE) {
+    return { source: image };
+  }
+  const scale = LCD_DECODE_MAX_SIDE / maxSide;
+  const rw = Math.max(1, Math.round(w * scale));
+  const rh = Math.max(1, Math.round(h * scale));
+  try {
+    const bitmap = await createImageBitmap(image, {
+      resizeWidth: rw,
+      resizeHeight: rh,
+      resizeQuality: "high",
+    });
+    return {
+      source: bitmap,
+      close: () => {
+        try {
+          bitmap.close();
+        } catch {
+          /* ignore */
+        }
+      },
+    };
+  } catch {
+    return { source: image };
+  }
+}
+
+async function rgbaToRgb565SwappedChunked(rgba: Uint8ClampedArray, pixelCount: number, rgb565: Uint8Array): Promise<void> {
+  if (pixelCount <= LCD_RGB565_CHUNK_PIXELS) {
+    for (let p = 0; p < pixelCount; p++) {
+      const r5 = (rgba[p * 4] >> 3) & 0x1f;
+      const g6 = (rgba[p * 4 + 1] >> 2) & 0x3f;
+      const b5 = (rgba[p * 4 + 2] >> 3) & 0x1f;
+      const pixel = (r5 << 11) | (g6 << 5) | b5;
+      rgb565[p * 2] = (pixel >> 8) & 0xff;
+      rgb565[p * 2 + 1] = pixel & 0xff;
+    }
+    return;
+  }
+  for (let start = 0; start < pixelCount; start += LCD_RGB565_CHUNK_PIXELS) {
+    const end = Math.min(start + LCD_RGB565_CHUNK_PIXELS, pixelCount);
+    for (let p = start; p < end; p++) {
+      const r5 = (rgba[p * 4] >> 3) & 0x1f;
+      const g6 = (rgba[p * 4 + 1] >> 2) & 0x3f;
+      const b5 = (rgba[p * 4 + 2] >> 3) & 0x1f;
+      const pixel = (r5 << 11) | (g6 << 5) | b5;
+      rgb565[p * 2] = (pixel >> 8) & 0xff;
+      rgb565[p * 2 + 1] = pixel & 0xff;
+    }
+    if (end < pixelCount) {
+      await yieldMainThreadIfNeeded();
+    }
+  }
+}
 
 /**
  * 从 `public/` 拉取静态资源并转为 data URL。静态导出且 `assetPrefix` 为相对路径时，
@@ -295,6 +400,7 @@ export default function ScreenThemePage() {
     open: false,
     frameCount: 0,
   });
+  const [saveConfirmDialog, setSaveConfirmDialog] = useState<{ open: boolean }>({ open: false });
   type MediaOversizeConfirmKind = "import-gif" | "save-qgif";
   const [oversizeConfirmDialog, setOversizeConfirmDialog] = useState<{ open: boolean; kind: MediaOversizeConfirmKind }>({
     open: false,
@@ -329,6 +435,7 @@ export default function ScreenThemePage() {
   const videoRef = useRef<HTMLInputElement>(null);
   const isSavingToKeyboardRef = useRef(false);
   const trimConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
+  const saveConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
   const oversizeConfirmResolverRef = useRef<((accepted: boolean) => void) | null>(null);
   /** 首次从 IDB 灌入两套草稿时跳过自动回写，避免无意义覆盖 */
   const mediaHydratingRef = useRef(false);
@@ -341,10 +448,23 @@ export default function ScreenThemePage() {
     });
   }, []);
 
+  const confirmSaveToKeyboard = useCallback(() => {
+    return new Promise<boolean>((resolve) => {
+      saveConfirmResolverRef.current = resolve;
+      setSaveConfirmDialog({ open: true });
+    });
+  }, []);
+
   const resolveGifTrimConfirm = useCallback((accepted: boolean) => {
     trimConfirmResolverRef.current?.(accepted);
     trimConfirmResolverRef.current = null;
     setTrimConfirmDialog({ open: false, frameCount: 0 });
+  }, []);
+
+  const resolveSaveConfirm = useCallback((accepted: boolean) => {
+    saveConfirmResolverRef.current?.(accepted);
+    saveConfirmResolverRef.current = null;
+    setSaveConfirmDialog({ open: false });
   }, []);
 
   const askMediaOversizeConfirm = useCallback((kind: MediaOversizeConfirmKind) => {
@@ -380,6 +500,8 @@ export default function ScreenThemePage() {
     return () => {
       trimConfirmResolverRef.current?.(false);
       trimConfirmResolverRef.current = null;
+      saveConfirmResolverRef.current?.(false);
+      saveConfirmResolverRef.current = null;
       oversizeConfirmResolverRef.current?.(false);
       oversizeConfirmResolverRef.current = null;
     };
@@ -587,66 +709,68 @@ export default function ScreenThemePage() {
         img.src = dataUrl;
       });
 
-      const needsRotate = rotate === 1 || rotate === 3;
-      const outputWidth = needsRotate ? targetHeight : targetWidth;
-      const outputHeight = needsRotate ? targetWidth : targetHeight;
+      const tw = clampLcdTargetDimension(targetWidth, LCD_TARGET_MAX_SIDE);
+      const th = clampLcdTargetDimension(targetHeight, LCD_TARGET_MAX_SIDE);
 
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = targetWidth;
-      tempCanvas.height = targetHeight;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx) throw new Error(t("1653"));
+      const { source, close } = await openDownscaledCanvasSourceIfNeeded(image);
+      try {
+        const { w: srcW, h: srcH } = canvasImageSourceSize(source);
+        const needsRotate = rotate === 1 || rotate === 3;
+        const outputWidth = needsRotate ? th : tw;
+        const outputHeight = needsRotate ? tw : th;
 
-      const outputCanvas = document.createElement("canvas");
-      outputCanvas.width = outputWidth;
-      outputCanvas.height = outputHeight;
-      const outputCtx = outputCanvas.getContext("2d");
-      if (!outputCtx) throw new Error(t("1654"));
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = tw;
+        tempCanvas.height = th;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) throw new Error(t("1653"));
 
-      const scale = Math.min(targetWidth / image.width, targetHeight / image.height);
-      const drawW = image.width * scale;
-      const drawH = image.height * scale;
-      const offsetX = (targetWidth - drawW) / 2;
-      const offsetY = (targetHeight - drawH) / 2;
+        const outputCanvas = document.createElement("canvas");
+        outputCanvas.width = outputWidth;
+        outputCanvas.height = outputHeight;
+        const outputCtx = outputCanvas.getContext("2d");
+        if (!outputCtx) throw new Error(t("1654"));
 
-      tempCtx.clearRect(0, 0, targetWidth, targetHeight);
-      tempCtx.drawImage(image, offsetX, offsetY, drawW, drawH);
+        const scale = Math.min(tw / srcW, th / srcH);
+        const drawW = srcW * scale;
+        const drawH = srcH * scale;
+        const offsetX = (tw - drawW) / 2;
+        const offsetY = (th - drawH) / 2;
 
-      outputCtx.clearRect(0, 0, outputWidth, outputHeight);
-      outputCtx.save();
-      if (needsRotate) {
-        outputCtx.translate(outputWidth / 2, outputHeight / 2);
-        const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
-        outputCtx.rotate(rotationAngle);
-        outputCtx.drawImage(tempCanvas, -targetWidth / 2, -targetHeight / 2);
-      } else {
-        outputCtx.drawImage(tempCanvas, 0, 0);
+        tempCtx.clearRect(0, 0, tw, th);
+        tempCtx.drawImage(source, offsetX, offsetY, drawW, drawH);
+
+        outputCtx.clearRect(0, 0, outputWidth, outputHeight);
+        outputCtx.save();
+        if (needsRotate) {
+          outputCtx.translate(outputWidth / 2, outputHeight / 2);
+          const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
+          outputCtx.rotate(rotationAngle);
+          outputCtx.drawImage(tempCanvas, -tw / 2, -th / 2);
+        } else {
+          outputCtx.drawImage(tempCanvas, 0, 0);
+        }
+        outputCtx.restore();
+
+        const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
+        const rgba = pixelData.data;
+        const pixelCount = outputWidth * outputHeight;
+        const rgb565 = new Uint8Array(pixelCount * 2);
+        await rgbaToRgb565SwappedChunked(rgba, pixelCount, rgb565);
+
+        const headerVal = (outputHeight << 21) | (outputWidth << 10) | 4;
+        const lvglHeader = new Uint8Array(4);
+        lvglHeader[0] = headerVal & 0xff;
+        lvglHeader[1] = (headerVal >> 8) & 0xff;
+        lvglHeader[2] = (headerVal >> 16) & 0xff;
+        lvglHeader[3] = (headerVal >> 24) & 0xff;
+        const out = new Uint8Array(4 + rgb565.length);
+        out.set(lvglHeader, 0);
+        out.set(rgb565, 4);
+        return out;
+      } finally {
+        close?.();
       }
-      outputCtx.restore();
-
-      const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
-      const rgba = pixelData.data;
-      const pixelCount = outputWidth * outputHeight;
-      const rgb565 = new Uint8Array(pixelCount * 2);
-      for (let p = 0; p < pixelCount; p++) {
-        const r5 = (rgba[p * 4] >> 3) & 0x1f;
-        const g6 = (rgba[p * 4 + 1] >> 2) & 0x3f;
-        const b5 = (rgba[p * 4 + 2] >> 3) & 0x1f;
-        const pixel = (r5 << 11) | (g6 << 5) | b5;
-        rgb565[p * 2] = (pixel >> 8) & 0xff;
-        rgb565[p * 2 + 1] = pixel & 0xff;
-      }
-
-      const headerVal = (outputHeight << 21) | (outputWidth << 10) | 4;
-      const lvglHeader = new Uint8Array(4);
-      lvglHeader[0] = headerVal & 0xff;
-      lvglHeader[1] = (headerVal >> 8) & 0xff;
-      lvglHeader[2] = (headerVal >> 16) & 0xff;
-      lvglHeader[3] = (headerVal >> 24) & 0xff;
-      const out = new Uint8Array(4 + rgb565.length);
-      out.set(lvglHeader, 0);
-      out.set(rgb565, 4);
-      return out;
     },
     [t],
   );
@@ -1202,76 +1326,71 @@ export default function ScreenThemePage() {
         img.src = dataUrl;
       });
 
-      const needsRotate = rotate === 1 || rotate === 3;
-      const outputWidth = needsRotate ? targetHeight : targetWidth;
-      const outputHeight = needsRotate ? targetWidth : targetHeight;
+      const tw = clampLcdTargetDimension(targetWidth, LCD_TARGET_MAX_SIDE);
+      const th = clampLcdTargetDimension(targetHeight, LCD_TARGET_MAX_SIDE);
 
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = targetWidth;
-      tempCanvas.height = targetHeight;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (!tempCtx) throw new Error(t("1653"));
+      const { source, close } = await openDownscaledCanvasSourceIfNeeded(image);
+      try {
+        const { w: srcW, h: srcH } = canvasImageSourceSize(source);
+        const needsRotate = rotate === 1 || rotate === 3;
+        const outputWidth = needsRotate ? th : tw;
+        const outputHeight = needsRotate ? tw : th;
 
-      const outputCanvas = document.createElement("canvas");
-      outputCanvas.width = outputWidth;
-      outputCanvas.height = outputHeight;
-      const outputCtx = outputCanvas.getContext("2d");
-      if (!outputCtx) throw new Error(t("1654"));
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = tw;
+        tempCanvas.height = th;
+        const tempCtx = tempCanvas.getContext("2d");
+        if (!tempCtx) throw new Error(t("1653"));
 
-      const scale = Math.min(targetWidth / image.width, targetHeight / image.height);
-      const drawW = image.width * scale;
-      const drawH = image.height * scale;
-      const offsetX = (targetWidth - drawW) / 2;
-      const offsetY = (targetHeight - drawH) / 2;
+        const outputCanvas = document.createElement("canvas");
+        outputCanvas.width = outputWidth;
+        outputCanvas.height = outputHeight;
+        const outputCtx = outputCanvas.getContext("2d");
+        if (!outputCtx) throw new Error(t("1654"));
 
-      tempCtx.clearRect(0, 0, targetWidth, targetHeight);
-      tempCtx.drawImage(image, offsetX, offsetY, drawW, drawH);
+        const scale = Math.min(tw / srcW, th / srcH);
+        const drawW = srcW * scale;
+        const drawH = srcH * scale;
+        const offsetX = (tw - drawW) / 2;
+        const offsetY = (th - drawH) / 2;
 
-      outputCtx.clearRect(0, 0, outputWidth, outputHeight);
-      outputCtx.save();
-      if (needsRotate) {
-        outputCtx.translate(outputWidth / 2, outputHeight / 2);
-        const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
-        outputCtx.rotate(rotationAngle);
-        outputCtx.drawImage(tempCanvas, -targetWidth / 2, -targetHeight / 2);
-      } else {
-        outputCtx.drawImage(tempCanvas, 0, 0);
+        tempCtx.clearRect(0, 0, tw, th);
+        tempCtx.drawImage(source, offsetX, offsetY, drawW, drawH);
+
+        outputCtx.clearRect(0, 0, outputWidth, outputHeight);
+        outputCtx.save();
+        if (needsRotate) {
+          outputCtx.translate(outputWidth / 2, outputHeight / 2);
+          const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
+          outputCtx.rotate(rotationAngle);
+          outputCtx.drawImage(tempCanvas, -tw / 2, -th / 2);
+        } else {
+          outputCtx.drawImage(tempCanvas, 0, 0);
+        }
+        outputCtx.restore();
+
+        // RGBA -> RGB565 (R5G6B5), then swap bytes to match firmware order.
+        const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
+        const rgba = pixelData.data;
+        const pixelCount = outputWidth * outputHeight;
+
+        const rgb565 = new Uint8Array(pixelCount * 2);
+
+        await rgbaToRgb565SwappedChunked(rgba, pixelCount, rgb565);
+
+        const headerVal = (outputHeight << 21) | (outputWidth << 10) | 4;
+        const lvglHeader = new Uint8Array(4);
+        lvglHeader[0] = headerVal & 0xff;
+        lvglHeader[1] = (headerVal >> 8) & 0xff;
+        lvglHeader[2] = (headerVal >> 16) & 0xff;
+        lvglHeader[3] = (headerVal >> 24) & 0xff;
+        const out = new Uint8Array(4 + rgb565.length);
+        out.set(lvglHeader, 0);
+        out.set(rgb565, 4);
+        return out;
+      } finally {
+        close?.();
       }
-      outputCtx.restore();
-
-      // RGBA -> RGB565 (R5G6B5), then swap bytes to match firmware order.
-      const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
-      const rgba = pixelData.data;
-      const pixelCount = outputWidth * outputHeight;
-
-      const rgb565 = new Uint8Array(pixelCount * 2);
-
-      for (let p = 0; p < pixelCount; p++) {
-        const r = rgba[p * 4];
-        const g = rgba[p * 4 + 1];
-        const b = rgba[p * 4 + 2];
-
-        const r5 = (r >> 3) & 0x1f;
-        const g6 = (g >> 2) & 0x3f;
-        const b5 = (b >> 3) & 0x1f;
-
-        const pixel = (r5 << 11) | (g6 << 5) | b5;
-
-        // Byte-swapped on wire: hi then lo.
-        rgb565[p * 2] = (pixel >> 8) & 0xff;
-        rgb565[p * 2 + 1] = pixel & 0xff;
-      }
-
-      const headerVal = (outputHeight << 21) | (outputWidth << 10) | 4;
-      const lvglHeader = new Uint8Array(4);
-      lvglHeader[0] = headerVal & 0xff;
-      lvglHeader[1] = (headerVal >> 8) & 0xff;
-      lvglHeader[2] = (headerVal >> 16) & 0xff;
-      lvglHeader[3] = (headerVal >> 24) & 0xff;
-      const out = new Uint8Array(4 + rgb565.length);
-      out.set(lvglHeader, 0);
-      out.set(rgb565, 4);
-      return out;
     },
     [t],
   );
@@ -1317,9 +1436,17 @@ export default function ScreenThemePage() {
    * 打字主题专用：按固件 subject 区协议下发（0x1D 擦除、0x1E 写入），
    * 不走 0x14/0x15 功能区，也不走 0x18/0x19 灵动岛资源区。
    */
+  type TypingSubjectBinOpts = {
+    /** 仅首包擦写前切到「擦除中」；第二路 subject 续传时为 false，避免进度条阶段被重置 */
+    showEraseStage?: boolean;
+    /** 单路 payload 写入进度 0–100（不含擦除阶段） */
+    onWriteProgress?: (pctWithinPayload: number) => void;
+  };
+
   const downloadTypingSubjectBinToDevice = useCallback(
-    async (payload: Uint8Array, subjectSlot: 0 | 1) => {
+    async (payload: Uint8Array, subjectSlot: 0 | 1, opts?: TypingSubjectBinOpts) => {
       if (!deviceComm) throw new Error(t("1660"));
+      const { showEraseStage = true, onWriteProgress } = opts ?? {};
       const eraseBlocks = Math.max(1, Math.ceil(payload.length / (64 * 1024)));
 
       const eraseBuffer = new Uint8Array(65);
@@ -1328,10 +1455,18 @@ export default function ScreenThemePage() {
       eraseBuffer[6] = 0x38;
       eraseBuffer[7] = subjectSlot;
       eraseBuffer[9] = eraseBlocks & 0xff;
+      if (showEraseStage) {
+        updateTransferStage("erase");
+      }
       try {
         await deviceComm.setData(Array.from(eraseBuffer));
       } catch (e) {
         throw new Error(`Subject erase timeout (cmd=0x1D, slot=${subjectSlot}, blocks=${eraseBlocks})`);
+      }
+
+      if (showEraseStage) {
+        updateTransferStage("download");
+        onWriteProgress?.(0);
       }
 
       const step = 56;
@@ -1356,9 +1491,11 @@ export default function ScreenThemePage() {
         }
         await settleBetweenLcd19Packets();
         addr += bytesToSend;
+        const pct = Math.round(Math.min(100, ((i + bytesToSend) / payload.length) * 100));
+        onWriteProgress?.(pct);
       }
     },
-    [deviceComm, t],
+    [deviceComm, t, updateTransferStage],
   );
 
   const saveThemeColorsToKeyboard = useCallback(async (): Promise<boolean> => {
@@ -1399,9 +1536,28 @@ export default function ScreenThemePage() {
       showMessage({ type: "error", message: t("1660") });
       return;
     }
+
+    setSavingSource("typing");
+    setDownLoad(true);
+    openTransferDialog();
+    updateTransferStage("convert");
+    updateTransferProgress(0);
+
     try {
-      setSavingSource("typing");
-      setDownLoad(true);
+      let bin1: Uint8Array;
+      let bin2: Uint8Array;
+      try {
+        bin1 = await loadTypingThemeBinByChar(typingChar1);
+        bin2 = await loadTypingThemeBinByChar(typingChar2);
+      } catch {
+        showMessage({ type: "warning", message: t("2558") });
+        return;
+      }
+      if (!bin1.length || !bin2.length) {
+        showMessage({ type: "warning", message: t("2592") });
+        return;
+      }
+
       const synced = await syncVideoSpeedFuncBytes("clear");
       if (!synced) return;
 
@@ -1412,15 +1568,16 @@ export default function ScreenThemePage() {
       startBuffer[6] = 0x38;
       await deviceComm.setData(Array.from(startBuffer));
 
-      // 两个下拉对应两份 bin（当前可走 cat.bin 兜底）。
-      const [bin1, bin2] = await Promise.all([
-        loadTypingThemeBinByChar(typingChar1),
-        loadTypingThemeBinByChar(typingChar2),
-      ]);
-
-      // 打字主题：专用 subject 擦写链路，不写功能区。
-      await downloadTypingSubjectBinToDevice(bin1, 0);
-      await downloadTypingSubjectBinToDevice(bin2, 1);
+      // 打字主题：专用 subject 擦写链路；进度条与图片/相册下发一致（转换 → 擦除 → 下载）
+      await downloadTypingSubjectBinToDevice(bin1, 0, {
+        showEraseStage: true,
+        onWriteProgress: (p) => updateTransferProgress(Math.round(p * 0.5)),
+      });
+      await downloadTypingSubjectBinToDevice(bin2, 1, {
+        showEraseStage: false,
+        onWriteProgress: (p) => updateTransferProgress(50 + Math.round(p * 0.5)),
+      });
+      updateTransferProgress(100);
 
       // 正常完成也必须发送 1A + 11 结束流程。
       const stopped = await tryStopLcdTransfer();
@@ -1441,14 +1598,17 @@ export default function ScreenThemePage() {
       }
       showMessage({ type: "error", message: error instanceof Error ? error.message : t("1662") });
     } finally {
+      closeTransferDialog();
       setDownLoad(false);
       setSavingSource(null);
     }
   }, [
+    closeTransferDialog,
     deviceComm,
     disconnectDevice,
     downloadTypingSubjectBinToDevice,
     loadTypingThemeBinByChar,
+    openTransferDialog,
     setDownLoad,
     showMessage,
     syncVideoSpeedFuncBytes,
@@ -1456,6 +1616,8 @@ export default function ScreenThemePage() {
     tryStopLcdTransfer,
     typingChar1,
     typingChar2,
+    updateTransferProgress,
+    updateTransferStage,
   ]);
 
   const saveImageToKeyboard = useCallback(async () => {
@@ -1979,7 +2141,11 @@ export default function ScreenThemePage() {
           onColorChange={(field, color) => {
             setPersonalThemeColors((prev) => ({ ...prev, [field]: color }));
           }}
-          onSaveToKeyboard={saveThemeColorsToKeyboard}
+          onSaveToKeyboard={async () => {
+            const ok = await confirmSaveToKeyboard();
+            if (!ok) return false;
+            return await saveThemeColorsToKeyboard();
+          }}
         />
       ) : activeSource === "image" ? (
         <ScreenThemeImageSettingsPanel
@@ -1987,7 +2153,9 @@ export default function ScreenThemePage() {
           isSaving={savingSource === "image"}
           isLocked={isTransferLocked}
           onSelectFile={pickCurrentSourceFile}
-          onSaveToKeyboard={() => {
+          onSaveToKeyboard={async () => {
+            const ok = await confirmSaveToKeyboard();
+            if (!ok) return;
             void saveImageToKeyboard();
           }}
         />
@@ -2002,7 +2170,9 @@ export default function ScreenThemePage() {
           onRestoreBackground={() => {
             void restoreVideoBackground();
           }}
-          onSaveToKeyboard={() => {
+          onSaveToKeyboard={async () => {
+            const ok = await confirmSaveToKeyboard();
+            if (!ok) return;
             void saveVideoToKeyboard();
           }}
         />
@@ -2017,7 +2187,9 @@ export default function ScreenThemePage() {
           onIntervalChange={setIntervalSec}
           onTransitionChange={setTransition}
           onSelectFolder={pickCurrentSourceFile}
-          onSaveToKeyboard={() => {
+          onSaveToKeyboard={async () => {
+            const ok = await confirmSaveToKeyboard();
+            if (!ok) return;
             void saveAlbumToKeyboard();
           }}
         />
@@ -2039,7 +2211,9 @@ export default function ScreenThemePage() {
         onChar2Change={setTypingChar2}
         isSaving={savingSource === "typing"}
         isLocked={isTransferLocked}
-        onSaveToKeyboard={() => {
+        onSaveToKeyboard={async () => {
+          const ok = await confirmSaveToKeyboard();
+          if (!ok) return;
           void saveTypingThemeToKeyboard();
         }}
       />
@@ -2088,38 +2262,33 @@ export default function ScreenThemePage() {
       <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg,.webp" hidden onChange={onImageFileChange} />
       <input ref={albumRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple hidden onChange={onAlbumFileChange} />
       <input ref={videoRef} type="file" accept=".gif" hidden onChange={onVideoFileChange} />
-      <Dialog open={trimConfirmDialog.open} onClose={() => resolveGifTrimConfirm(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t("2565")}</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: "0.9375rem", color: "#334155", lineHeight: 1.6 }}>
-            {`${t("2563")} (${trimConfirmDialog.frameCount} -> ${MAX_GIF_FRAMES})`}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => resolveGifTrimConfirm(false)} color="inherit">
-            {t("2570")}
-          </Button>
-          <Button onClick={() => resolveGifTrimConfirm(true)} variant="contained">
-            {t("2569")}
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={oversizeConfirmDialog.open} onClose={() => resolveMediaOversizeConfirm(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t("2565")}</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ fontSize: "0.9375rem", color: "#334155", lineHeight: 1.6 }}>
-            {t(oversizeConfirmDialog.kind === "save-qgif" ? "2591" : "2590")}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => resolveMediaOversizeConfirm(false)} color="inherit">
-            {t("2570")}
-          </Button>
-          <Button onClick={() => resolveMediaOversizeConfirm(true)} variant="contained">
-            {t("2569")}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ScreenThemeConfirmDialog
+        open={saveConfirmDialog.open}
+        title={t("2565")}
+        content={t("2714")}
+        cancelText={t("2570")}
+        confirmText={t("2569")}
+        onCancel={() => resolveSaveConfirm(false)}
+        onConfirm={() => resolveSaveConfirm(true)}
+      />
+      <ScreenThemeConfirmDialog
+        open={trimConfirmDialog.open}
+        title={t("2565")}
+        content={`${t("2563")} (${trimConfirmDialog.frameCount} -> ${MAX_GIF_FRAMES})`}
+        cancelText={t("2570")}
+        confirmText={t("2569")}
+        onCancel={() => resolveGifTrimConfirm(false)}
+        onConfirm={() => resolveGifTrimConfirm(true)}
+      />
+      <ScreenThemeConfirmDialog
+        open={oversizeConfirmDialog.open}
+        title={t("2565")}
+        content={t(oversizeConfirmDialog.kind === "save-qgif" ? "2591" : "2590")}
+        cancelText={t("2570")}
+        confirmText={t("2569")}
+        onCancel={() => resolveMediaOversizeConfirm(false)}
+        onConfirm={() => resolveMediaOversizeConfirm(true)}
+      />
       <Dialog
         open={transferDialog.open}
         onClose={() => {}}

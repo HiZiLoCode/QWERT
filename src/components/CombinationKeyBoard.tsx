@@ -4,6 +4,7 @@ import { Box, Typography, styled, TextField } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getKeyCodeFromWebCode } from '@/keyboard/keycode';
 import { ButtonRem } from '@/styled/ReconstructionRem';
+import { useTranslation } from '@/app/i18n';
 
 type CombinationKeyBoardProps = {
     disabled: boolean;
@@ -29,17 +30,6 @@ const KeyInput = styled(TextField)({
     },
 });
 
-const MODIFIER_KEYS = [
-    { label: 'Ctrl (L)', value: 0x01 },
-    { label: 'Shift (L)', value: 0x02 },
-    { label: 'Alt (L)', value: 0x04 },
-    { label: 'Win (L)', value: 0x08 },
-    { label: 'Ctrl (R)', value: 0x10 },
-    { label: 'Shift (R)', value: 0x20 },
-    { label: 'Alt (R)', value: 0x40 },
-    { label: 'Win (R)', value: 0x80 },
-];
-
 const getDisplayKeyFromCode = (code: string) => {
     if (code.startsWith('Key')) return code.slice(3).toUpperCase();
     if (code.startsWith('Digit')) return code.slice(5);
@@ -47,11 +37,24 @@ const getDisplayKeyFromCode = (code: string) => {
 };
 
 export default function CombinationKeyBoard({ disabled, onSave }: CombinationKeyBoardProps) {
+    const { t } = useTranslation('common');
     const [modifierMask, setModifierMask] = useState(0);
     const [mainKey, setMainKey] = useState('');
     const [mainKeyCode, setMainKeyCode] = useState(0);
-    const [isListening, setIsListening] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const modifierKeys = useMemo(
+        () => [
+            { label: `${t('1717')} (${t('1715')})`, value: 0x01 },
+            { label: `${t('1718')} (${t('1715')})`, value: 0x02 },
+            { label: `${t('1720')} (${t('1715')})`, value: 0x04 },
+            { label: `${t('1719')} (${t('1715')})`, value: 0x08 },
+            { label: `${t('1717')} (${t('1716')})`, value: 0x10 },
+            { label: `${t('1718')} (${t('1716')})`, value: 0x20 },
+            { label: `${t('1720')} (${t('1716')})`, value: 0x40 },
+            { label: `${t('1719')} (${t('1716')})`, value: 0x80 },
+        ],
+        [t]
+    );
 
     useEffect(() => {
         const input = inputRef.current
@@ -77,8 +80,8 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
     }, [])
 
     const activeModifiers = useMemo(
-        () => MODIFIER_KEYS.filter((item) => (modifierMask & item.value) !== 0).map((item) => item.label),
-        [modifierMask]
+        () => modifierKeys.filter((item) => (modifierMask & item.value) !== 0).map((item) => item.label),
+        [modifierKeys, modifierMask]
     );
 
     const combinationText = useMemo(
@@ -97,7 +100,7 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                 boxShadow: '0 0.625rem 1.875rem rgba(52, 90, 160, 0.10)',
             }}
         >
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#3a4a63', mb: '0.75rem' }}>组合键设置</Typography>
+            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#3a4a63', mb: '0.75rem' }}>{t('1711')}</Typography>
 
             <Box
                 sx={{
@@ -115,11 +118,11 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                     letterSpacing: '0.0125rem',
                 }}
             >
-                {combinationText || '请设置组合键'}
+                {combinationText || t('1712')}
             </Box>
 
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: '0.75rem' }}>
-                {MODIFIER_KEYS.map((item) => {
+                {modifierKeys.map((item) => {
                     const active = (modifierMask & item.value) !== 0;
                     return (
                         <ButtonRem
@@ -157,7 +160,7 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                     id='mainKey'
                     inputRef={inputRef}
                     value={mainKey}
-                    placeholder="点击输入按键或手动输入"
+                    placeholder={t('1713')}
                     variant="outlined"
                     size="small"
                     sx={{ flex: 1 }}
@@ -185,7 +188,7 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                         },
                     }}
                 >
-                    保存组合
+                    {t('1714')}
                 </ButtonRem>
             </Box>
         </Box>

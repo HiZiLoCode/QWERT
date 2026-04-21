@@ -9,6 +9,8 @@ import { hsvaToHex, hexToHsva } from '@uiw/color-convert';
 
 type ColorPickerProps = {
   disabled?: boolean;
+  /** 为 true 时禁用底部预设色块（Swatch），主色盘与 HEX 仍可用 */
+  swatchDisabled?: boolean;
   selectColor: string;
   setSelectColor: (value: string) => void | Promise<void>;
 };
@@ -67,7 +69,7 @@ function HuePointer({ left, bg }: { left: number | string; bg: string }) {
   );
 }
 
-export default function ColorPicker({ disabled, selectColor, setSelectColor }: ColorPickerProps) {
+export default function ColorPicker({ disabled, swatchDisabled = false, selectColor, setSelectColor }: ColorPickerProps) {
   const [hsva, setHsva] = useState(() => hexToHsva(selectColor || '#ff0000'));
   const [hexInput, setHexInput] = useState((selectColor || '#ff0000').toUpperCase());
 
@@ -171,24 +173,39 @@ export default function ColorPicker({ disabled, selectColor, setSelectColor }: C
           }}
         />
       </Box>
-      <Swatch
-        colors={['#FF1C1C', '#0047FF', '#00B7FF', '#63F200', '#D8EA00', '#FF8A00', '#C96A6A']}
-        color={hsvaToHex(hsva)}
-        style={{ justifyContent: 'space-between', marginTop: 18 }}
-        rectProps={{
-          children: <SwatchCheckedBorder />,
-          style: {
-            width: '1.5rem',
-            height: '1.5rem',
-            borderRadius: '50%',
-          },
+      <Box
+        sx={{
+          position: 'relative',
+          marginTop: 18,
+          ...(swatchDisabled
+            ? {
+                  pointerEvents: 'none',
+                  opacity: 0.45,
+                  userSelect: 'none',
+              }
+            : {}),
         }}
-        onChange={(hsvColor) => {
-          changeColor(hsvaToHex(hsvColor));
-          setHsva({ ...hsva, ...hsvColor });
-          setHexInput(hsvaToHex(hsvColor).toUpperCase());
-        }}
-      />
+      >
+        <Swatch
+          colors={['#FF1C1C', '#0047FF', '#00B7FF', '#63F200', '#D8EA00', '#FF8A00', '#C96A6A']}
+          color={hsvaToHex(hsva)}
+          style={{ justifyContent: 'space-between' }}
+          rectProps={{
+            children: <SwatchCheckedBorder />,
+            style: {
+              width: '1.5rem',
+              height: '1.5rem',
+              borderRadius: '50%',
+            },
+          }}
+          onChange={(hsvColor) => {
+            if (swatchDisabled) return;
+            changeColor(hsvaToHex(hsvColor));
+            setHsva({ ...hsva, ...hsvColor });
+            setHexInput(hsvaToHex(hsvColor).toUpperCase());
+          }}
+        />
+      </Box>
     </Box>
   );
 }

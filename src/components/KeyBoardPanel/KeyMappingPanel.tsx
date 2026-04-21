@@ -81,9 +81,18 @@ const KeyButton = ({
     };
 
     const baseTextColor = '#5f7089';
+    const customFallbackLangId =
+        keyItem.type === 80 && !keyItem.langid && keyItem.code1 > 0 ? String(90000 + keyItem.code1) : undefined;
+    const translatedByLangid = keyItem.langid ? t(keyItem.langid) : '';
+    const translatedByFallback = customFallbackLangId ? t(customFallbackLangId) : '';
+    const displayLabel =
+        (translatedByLangid && translatedByLangid !== keyItem.langid ? translatedByLangid : '') ||
+        (translatedByFallback && translatedByFallback !== customFallbackLangId ? translatedByFallback : '') ||
+        keyItem.name;
 
     return (
         <Box sx={{ display: 'inline-block', m: '4px' }}>
+            <Tooltip title={displayLabel} arrow placement="top">
             <Button
                 variant="contained"
                 onMouseEnter={() => setHover(true)}
@@ -116,15 +125,14 @@ const KeyButton = ({
                 onClick={changeKey}
             >
                 {keyItem.icon ? (
-                    <Tooltip title={keyItem.langid ? t(keyItem.langid) : keyItem.name}>
-                        <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
-                    </Tooltip>
+                    <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
                 ) : (
                     <span style={{ transform: 'scale(0.6)', width: '128px', whiteSpace: 'pre-wrap', display: 'flex' }}>
-                        {keyItem.langid ? t(keyItem.langid) : keyItem.name}
+                        {displayLabel}
                     </span>
                 )}
             </Button>
+            </Tooltip>
         </Box>
     );
 };

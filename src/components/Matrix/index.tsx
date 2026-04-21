@@ -162,8 +162,8 @@ const Matrix = () => {
                     flexDirection: 'column',
                     gap: '1.25rem',
                     minHeight: 0,
-                        margin: '0 auto',
-          justifyContent: "center"
+                    margin: '0 auto',
+                    justifyContent: "center"
                 }}
             >
                 <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -205,7 +205,7 @@ const Matrix = () => {
                                     },
                                 }}
                             >
-                                全灭
+                                {t("1675")}
                             </ButtonRem>
                         </Box>
                         {matrixLightList.map((item: any, index: number) =>
@@ -237,7 +237,7 @@ const Matrix = () => {
                 </Box>
 
                 <Box sx={{ borderRadius: '0.875rem', border: '0.0625rem solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(0.375rem)', p: 20 }}>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>灯光亮度</Typography>
+                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1676")}</Typography>
                     <Box sx={{ mb: 3 }}>
                         <SliderBlock>
                             <SliderRem
@@ -276,7 +276,7 @@ const Matrix = () => {
                             <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
                         </SliderBlock>
                     </Box>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>播放速度</Typography>
+                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1677")}</Typography>
                     <SliderBlock>
                         <SliderRem
                             value={speedValue}
@@ -286,6 +286,7 @@ const Matrix = () => {
                             onChange={(_, newValue) => handleSpeedChange(newValue as number)}
                             sx={{
                                 color: '#3B82F6',
+
                                 '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
                                 '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
                                 '& .MuiSlider-thumb': {
@@ -318,7 +319,7 @@ export default Matrix;
 
 function SliderBlock({ children }: { children: React.ReactNode }) {
     return (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 3.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 9, mb: 3.5 }}>
             {children}
         </Box>
     );

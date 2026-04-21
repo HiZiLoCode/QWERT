@@ -275,7 +275,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         message: t("2582", { name }),
         type: "success",
         duration: 4200,
-        presentation: "deviceCard",
+        presentation: "deviceCardDark",
       });
     },
     [showMessage, t]
@@ -309,7 +309,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
                 message: t("2580", { name }),
                 type: "success",
                 duration: 4500,
-                presentation: "deviceCard",
+                presentation: "deviceCardDark",
               });
             }
           }
