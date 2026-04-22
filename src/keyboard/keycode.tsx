@@ -108,6 +108,27 @@ const getLocalizedModifierName = (modifier: string): string => {
   return modifier;
 };
 
+const getLocalizedSideModifierName = (modifier: "Ctrl" | "Shift" | "Alt" | "Win", side: "L" | "R"): string => {
+  return `${side}${getLocalizedModifierName(modifier)}`;
+};
+
+const getSideModifierNames = (mask: number): string[] => {
+  const sideModifiers: Array<{ bit: number; modifier: "Ctrl" | "Shift" | "Alt" | "Win"; side: "L" | "R" }> = [
+    { bit: 0, modifier: "Ctrl", side: "L" },
+    { bit: 1, modifier: "Shift", side: "L" },
+    { bit: 2, modifier: "Alt", side: "L" },
+    { bit: 3, modifier: "Win", side: "L" },
+    { bit: 4, modifier: "Ctrl", side: "R" },
+    { bit: 5, modifier: "Shift", side: "R" },
+    { bit: 6, modifier: "Alt", side: "R" },
+    { bit: 7, modifier: "Win", side: "R" },
+  ];
+
+  return sideModifiers
+    .filter(({ bit }) => ((mask >> bit) & 0x1) === 1)
+    .map(({ modifier, side }) => getLocalizedSideModifierName(modifier, side));
+};
+
 export const basicKeyToByte = {
   _QK_MODS: 0x0100,
   _QK_MODS_MAX: 0x1fff,
@@ -2747,28 +2768,16 @@ export const getKeyName = (key) => {
   if (key.type === 0x10) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
     if (key.code1) {
-      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("Alt") : "";
-      let shift =
-        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("Shift") : "";
-      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("Ctrl") : "";
-      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("Win") : "";
-      return [alt, shift, ctrl, win, localizedKeyName]
-        .filter((e) => e !== "")
-        .join("+");
+      const modifiers = getSideModifierNames(key.code1);
+      return [...modifiers, localizedKeyName].join("");
     }
     return localizedKeyName;
   }
   else if (key.type === 0x12) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
     if (key.code1) {
-      let alt = (key.code1 >> 2) & 0x1 || (key.code1 >> 6) & 0x1 ? getLocalizedModifierName("Alt") : "";
-      let shift =
-        (key.code1 >> 1) & 0x1 || (key.code1 >> 5) & 0x1 ? getLocalizedModifierName("Shift") : "";
-      let ctrl = key.code1 & 0x1 || (key.code1 >> 4) & 0x1 ? getLocalizedModifierName("Ctrl") : "";
-      let win = (key.code1 >> 3) & 0x1 || (key.code1 >> 7) & 0x1 ? getLocalizedModifierName("Win") : "";
-      return [alt, shift, ctrl, win, localizedKeyName]
-        .filter((e) => e !== "")
-        .join("+");
+      const modifiers = getSideModifierNames(key.code1);
+      return [...modifiers, localizedKeyName].join("");
     }
     return localizedKeyName;
   }

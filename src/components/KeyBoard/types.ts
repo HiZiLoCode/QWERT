@@ -68,6 +68,8 @@ export type TravelVirtualKeyboardProps = {
     /** 屏幕主题等场景：指定键橙色高亮 + Tooltip */
     demoHighlightKeyIndex?: number;
     demoHighlightTitle?: string;
+    /** 可选：按键右下角角标（如测试次数） */
+    keyBadges?: Record<number, string | number>;
 };
 
 export type CompositeLayoutKey = LayoutKey & {

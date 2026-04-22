@@ -9,6 +9,7 @@ import MacroTravelAdjustView from '@/components/MacroTravelAdjustView';
 import LightSettingPanel from '@/components/KeyBoardPanel/LightSettingPanel';
 import KeyMappingPanel from '@/components/KeyBoardPanel/KeyMappingPanel';
 import LayoutPanel from '@/components/KeyBoardPanel/LayoutPanel';
+import BindTest from '@/components/common/BindTest';
 import { throttle } from 'lodash';
 import { QMK_KeyboardDevice } from '@/devices/QMK/QMK_KeyboardDevice';
 import { KeyboardDevice } from '@/devices/KeyboardDevice';
@@ -63,6 +64,7 @@ interface KeyboardPanelProps {
     onSelectKeyboard?: (keyboard: string) => void;
     onSelectConfig?: () => void;
     onKeyboardSettings?: () => void;
+    onlyTestMode?: boolean;
 }
 
 function SettingsContent({
@@ -85,6 +87,8 @@ function SettingsContent({
         return <KeyMappingPanel />;
     } else if (selectedSetting === 'layout') {
         return <LayoutPanel />;
+    } else if (selectedSetting === 'test') {
+        return <BindTest />;
     } else if (selectedSetting === 'Led') {
         return deviceAuthorized ? <ScreenThemePage /> : <HomePage />;
     }
@@ -105,7 +109,7 @@ function SettingsContent({
     );
 }
 
-export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: KeyboardPanelProps) {
+export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, onlyTestMode = false }: KeyboardPanelProps) {
     const { t } = useTranslation('common');
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const { keyboardData, connectedKeyboard, keyboard, connectKeyboard, setConnectKeyboardStauts } =
@@ -164,6 +168,9 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
     );
 
     const keyboardSettings = useMemo(() => {
+        if (onlyTestMode) {
+            return [{ id: 'test', label: t('1300'), keyboardType: true }];
+        }
         const currentKeyboard = keyboardData.find((item: any) => item.productName === connectedKeyboard?.productName);
         const devMode = currentKeyboard?.devMode ?? 0;
         const vid = connectedKeyboard?.vendorId;
@@ -183,7 +190,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
             { id: 'matrix', label: t('2707'), keyboardType: !!deviceBaseInfo?.matrixScreen },
         ];
         return tabs.filter((tab) => (tab.keyboardType ?? true) && (tab.keyBoardLayer ?? true));
-    }, [connectedKeyboard, keyboardData, deviceBaseInfo, t]);
+    }, [connectedKeyboard, keyboardData, deviceBaseInfo, t, onlyTestMode]);
 
     const getKeyboardPreviewCandidates = useCallback((vid?: number, pid?: number, devMode: number = 0) => {
         if (typeof vid !== 'number' || typeof pid !== 'number') return [];
@@ -239,6 +246,21 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings }: 
     }, [keyboardSettings, selectedSetting, setSelectedSetting]);
 
     const open = Boolean(anchorEl);
+
+    if (onlyTestMode) {
+        return (
+            <Box
+                sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    minHeight: 0,
+                }}
+            >
+                <BindTest />
+            </Box>
+        );
+    }
 
     return (
         <Box

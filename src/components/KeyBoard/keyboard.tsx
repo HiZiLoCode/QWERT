@@ -159,6 +159,7 @@ export default function TravelVirtualKeyboard({
     currentLayer = 0,
     onSelectLayer,
     onRestoreDefault,
+    keyBadges,
 }: TravelVirtualKeyboardProps) {
     void _scaleMin;
     void _alignTop;
@@ -426,6 +427,7 @@ export default function TravelVirtualKeyboard({
                             ku={ku}
                             kg={kg}
                             keyboardStyle={keyboardStyle}
+                            keyBadges={keyBadges}
                         />
                         {!layoutKeys.length && (
                             <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -1434,7 +1434,6 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
       // 获取设备功能区信息，包括灯光
       const funcInfo = await connectedKeyboard.getFuncInfo(keyboard.deviceBaseInfo.protocolVer);
-      console.log(funcInfo,'1231232111');
 
       keyboard.setDeviceFuncInfo(funcInfo);
       let lightInfo = {

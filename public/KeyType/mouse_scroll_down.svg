@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30.600 30.600" width="30.600" height="30.600">
+<style type="text/css">
+	.st0{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st1{fill:#64748B;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st2{stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st3{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;}
+	.st4{fill:none;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st5{fill:#64748B;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st6{stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st7{stroke:#64748B;stroke-width:2.1301;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4.0001;}
+	.st8{fill:none;stroke:#000000;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st9{clip-path:url(#SVGID_00000014612375850469961350000001811857499777453985_);}
+	.st10{fill:none;stroke:#FF0339;stroke-miterlimit:10;}
+	.st11{enable-background:new    ;}
+</style>
+<g transform="translate(-799.300 -45.600)">
+<g xmlns="http://www.w3.org/2000/svg">
+	<path class="st4" d="M824.1,57.5v2.6h-7.7v-1.6c0.8,0,1.4-0.6,1.5-1.4v-3.4c0-0.8-0.7-1.5-1.5-1.5l0,0v-2.3c2,0,4,0.8,5.4,2.2   S824.1,55.5,824.1,57.5z" />
+	<path class="st5" d="M817.9,53.7v3.4c-0.1,0.8-0.7,1.4-1.5,1.4s-1.4-0.6-1.4-1.4v-3.4c-0.1-0.8,0.5-1.4,1.3-1.5h0.1   C817.2,52.2,817.9,52.9,817.9,53.7L817.9,53.7z" />
+	<path class="st4" d="M810.6,60.1L810.6,60.1z" />
+	<path class="st4" d="M815,53.7v3.4c0,0.8,0.6,1.4,1.4,1.4v1.6h-7.6v-2.6c0-4.2,3.4-7.6,7.6-7.6l0,0v2.3   C815.6,52.2,815,52.8,815,53.7C815,53.7,815,53.7,815,53.7z" />
+	<path class="st4" d="M810.2,60.1L810.2,60.1z" />
+	<path class="st4" d="M824.1,60.1v4.2c0,4.3-3.4,7.7-7.7,7.7l0,0c-4.2,0-7.6-3.4-7.6-7.6v-0.1v-4.2L824.1,60.1L824.1,60.1z" />
+	<path class="st4" d="M810.1,60.1h-0.9l-0.2,0.3v0.2l0.2-0.2l0,0l0.3-0.2L810.1,60.1L810.1,60.1L810.1,60.1z" />
+	<path class="st4" d="M808.7,56.5v2.7c0,0.5-0.8,0.9-1.7,0.9s-1.7-0.4-1.7-0.9v-2.7c0-0.4,0.8-0.8,1.7-0.8S808.7,56.1,808.7,56.5z" />
+	<path class="st4" d="M808.7,60.9v2.8c0,0.4-0.8,0.8-1.7,0.8h-0.6c-0.5,0-0.9-0.3-1.1-0.8l0,0v-2.8l0,0l0.3-0.3h1.9   C808.2,60.2,808.7,60.6,808.7,60.9z" />
+	<path class="st6" d="M811.1,60.1L811.1,60.1z" />
+	<line class="st4" x1="810" y1="60.1" x2="809.5" y2="60.1" />
+	<path class="st0" d="M806.1,47.1h17c2.9,0,5.3,2.4,5.3,5.3v17c0,2.9-2.4,5.3-5.3,5.3h-17c-2.9,0-5.3-2.4-5.3-5.3v-17   C800.8,49.5,803.2,47.1,806.1,47.1z" />
+</g>
+
+</g>
+</svg>

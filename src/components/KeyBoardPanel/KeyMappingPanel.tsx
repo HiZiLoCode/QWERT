@@ -89,6 +89,10 @@ const KeyButton = ({
         (translatedByLangid && translatedByLangid !== keyItem.langid ? translatedByLangid : '') ||
         (translatedByFallback && translatedByFallback !== customFallbackLangId ? translatedByFallback : '') ||
         keyItem.name;
+    const iconValue = keyItem.icon ?? '';
+    const isImageIcon =
+        typeof iconValue === 'string' &&
+        (iconValue.startsWith('/KeyType/') || iconValue.endsWith('.svg') || iconValue.endsWith('.png'));
 
     return (
         <Box sx={{ display: 'inline-block', m: '4px' }}>
@@ -125,7 +129,16 @@ const KeyButton = ({
                 onClick={changeKey}
             >
                 {keyItem.icon ? (
-                    <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
+                    isImageIcon ? (
+                        <Box
+                            component="img"
+                            src={iconValue}
+                            alt={displayLabel}
+                            sx={{ width: 28, height: 28, objectFit: 'contain' }}
+                        />
+                    ) : (
+                        <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
+                    )
                 ) : (
                     <span style={{ transform: 'scale(0.6)', width: '128px', whiteSpace: 'pre-wrap', display: 'flex' }}>
                         {displayLabel}

@@ -616,7 +616,7 @@
   "1264": "Device Not Responding",
   "1265": "Firmware Upload Failed",
   "1266": "Please Connect Device First",
-  "1300": "Test Keyboard",
+  "1300": "Test",
   "1301": "Test Keyboard (128 Keys)",
   "1302": "Authorized Keyboard",
   "1303": "Unknown Device",
@@ -730,7 +730,7 @@
   "1690": "Single color",
   "1691": "Colorful",
   "2690": "Gradient",
-  "2691": "Scan",
+  "2691": "Spectrum",
   "2692": "Rainbow",
   "1692": "Import failed: invalid file format",
   "1693": "Backspace layout",
@@ -768,7 +768,7 @@
   "2503": "When on, NumLock LED off means numeric input mode. When off, LED on means numeric input mode.",
   "2504": "Set sleep time",
   "2505": "Set deep sleep time",
-  "2506": "Adjust key debounce time",
+  "2506": "If delay parameters are set too low, mis-detected keys and double-clicks are more likely. Adjust based on how it feels in use.",
   "2507": "This will clear all settings.",
   "2508": "Current firmware version",
   "2509": "New version available",
@@ -862,5 +862,8 @@
   "2711": "Settings only apply to the current profile",
   "2712": "Keyboard Preview",
   "2713": "Keyboard",
-  "2714": "Do not disconnect the USB port during download to avoid display corruption"
+  "2714": "Do not disconnect the USB port during download to avoid display corruption",
+  "2715": "Test Matrix",
+  "2716": "No key press stats yet",
+  "2717": "Reset complete"
 }

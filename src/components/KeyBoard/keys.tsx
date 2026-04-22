@@ -22,6 +22,7 @@ type KeyboardKeysProps = {
     keyboardStyle: { width: string; height: string };
     demoHighlightKeyIndex?: number;
     demoHighlightTitle?: string;
+    keyBadges?: Record<number, string | number>;
 };
 
 export default function KeyboardKeys({
@@ -43,6 +44,7 @@ export default function KeyboardKeys({
     keyboardStyle,
     demoHighlightKeyIndex,
     demoHighlightTitle,
+    keyBadges,
 }: KeyboardKeysProps) {
     return (
         <Box sx={{ position: 'relative', ...keyboardStyle, transition: 'none', animation: 'none' }}>
@@ -108,6 +110,28 @@ export default function KeyboardKeys({
                                 : {}),
                         }}
                     >
+                        {keyBadges && keyBadges[keyIndex] != null && String(keyBadges[keyIndex]) !== '0' && (
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    right: '3px',
+                                    bottom: '2px',
+                                    minWidth: '12px',
+                                    height: '12px',
+                                    px: '2px',
+                                    borderRadius: '10px',
+                                    bgcolor: '#3b82f6',
+                                    color: '#fff',
+                                    fontSize: '9px',
+                                    fontWeight: 700,
+                                    lineHeight: '12px',
+                                    textAlign: 'center',
+                                    pointerEvents: 'none',
+                                }}
+                            >
+                                {String(keyBadges[keyIndex])}
+                            </Box>
+                        )}
                         <Typography
                             sx={{
                                 fontSize: '11px',

@@ -526,8 +526,10 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
       }
     }
 
+    const isAllOff = effectId === 0;
     const patch = {
-      [`${legacyPrefix}Mode`]: effectId >= 253 ? 253 : effectId,
+      [`${legacyPrefix}Switch`]: isAllOff ? 1 : 0,
+      [`${legacyPrefix}Mode`]: isAllOff ? 0 : effectId >= 253 ? 253 : effectId,
       lightCustomIndex: effectId >= 253 ? effectId - 253 : 0,
       ...(closePickupAudio ? { pickupLightEffectSwitch: 0 } : {}),
     };

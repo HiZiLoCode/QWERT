@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32.500 30.600" width="32.500" height="30.600">
+<style type="text/css">
+	.st0{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st1{fill:#64748B;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st2{stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st3{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;}
+	.st4{fill:none;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st5{fill:#64748B;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st6{stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st7{stroke:#64748B;stroke-width:2.1301;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4.0001;}
+	.st8{fill:none;stroke:#000000;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st9{clip-path:url(#SVGID_00000014612375850469961350000001811857499777453985_);}
+	.st10{fill:none;stroke:#FF0339;stroke-miterlimit:10;}
+	.st11{enable-background:new    ;}
+</style>
+<g transform="translate(-401.000 -93.400)">
+<g xmlns="http://www.w3.org/2000/svg">
+	<path class="st0" d="M430.1,108.7v8.5c0,2.9-2.4,5.3-5.3,5.3h-17c-2.9,0-5.3-2.4-5.3-5.3v-17c0-2.9,2.4-5.3,5.3-5.3h9.1" />
+	<line class="st0" x1="407.5" y1="106.3" x2="420.3" y2="106.3" />
+	<line class="st0" x1="407.5" y1="110.6" x2="418.2" y2="110.6" />
+	<path class="st2" d="M408.9,100.4v0.9c0,0.2-0.1,0.3-0.3,0.3h-0.9c-0.2,0-0.3-0.1-0.3-0.3v-0.9c0-0.2,0.1-0.3,0.3-0.3h0.9   C408.7,100.1,408.9,100.3,408.9,100.4z" />
+	<path class="st2" d="M417.6,100.4v0.9c0,0.2-0.1,0.3-0.3,0.3h-0.9c-0.2,0-0.3-0.1-0.3-0.3v-0.9c0-0.2,0.1-0.3,0.3-0.3h0.9   C417.4,100.1,417.6,100.3,417.6,100.4z" />
+	<path class="st0" d="M425.9,103.6c-2.3,0-4.2-1.9-4.2-4.2c0-2.3,1.9-4.2,4.2-4.2c2.3,0,4.2,1.9,4.2,4.2" />
+	<polyline class="st0" points="432,98.7 430.1,100.7 428.2,98.7  " />
+</g>
+
+</g>
+</svg>

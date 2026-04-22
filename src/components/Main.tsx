@@ -9,10 +9,11 @@ import { MainContext } from "@/providers/MainProvider";
 import UpgradeNotification from "@/components/UpgradeNotification";
 export default function Main() {
     const { setQgifModule } = useContext(MainContext);
-    const { currentTab, onChangeTab } = useContext(EditorContext);
+    const { currentTab } = useContext(EditorContext);
     const tabs = useMemo(() => {
         const tableList = [
             { key: "keyboard", name: "键值", lang: "50", component: <KeyboardPanel /> },
+            { key: "test", name: "测试键盘", lang: "1300", component: <KeyboardPanel onlyTestMode /> },
             { key: "settings", name: "设置", lang: "50", component: <SettingPanel /> },
         ]
         return tableList

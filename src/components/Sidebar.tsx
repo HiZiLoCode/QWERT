@@ -37,9 +37,10 @@ const SIDE = {
 
 export default function Sidebar() {
     const { i18n, t } = useTranslation('common');
-    const { onChangeTab, currentTab } = useContext(EditorContext);
+    const { onChangeTab, currentTab, setSelectedSetting } = useContext(EditorContext);
     const menuItems = [
         { id: 'keyboard', label: t('2713') },
+        { id: 'test', label: t('1300') },
         { id: 'settings', label: t('56') },
     ];
 
@@ -134,13 +135,25 @@ export default function Sidebar() {
                         return (
                             <Box
                                 key={item.id}
-                                onClick={() => onChangeTab(item.id)}
+                                onClick={() => {
+                                    onChangeTab(item.id);
+                                    if (item.id === 'test') {
+                                        setSelectedSetting('test');
+                                    } else if (item.id === 'keyboard') {
+                                        setSelectedSetting('keypress');
+                                    }
+                                }}
                                 role="button"
                                 tabIndex={0}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
                                         onChangeTab(item.id);
+                                        if (item.id === 'test') {
+                                            setSelectedSetting('test');
+                                        } else if (item.id === 'keyboard') {
+                                            setSelectedSetting('keypress');
+                                        }
                                     }
                                 }}
                                 sx={{

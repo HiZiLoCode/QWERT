@@ -962,7 +962,8 @@
                 "type": 48,
                 "code1": 233,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_volume_plus.svg"
             },
             {
                 "name": "Volume -",
@@ -971,7 +972,8 @@
                 "type": 48,
                 "code1": 234,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_volume_minus.svg"
             },
             {
                 "name": "Mute",
@@ -980,7 +982,8 @@
                 "type": 48,
                 "code1": 226,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_mute.svg"
             },
             {
                 "name": "Play/Pause",
@@ -989,7 +992,8 @@
                 "type": 48,
                 "code1": 205,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_play_pause.svg"
             },
             {
                 "name": "Stop",
@@ -998,7 +1002,8 @@
                 "type": 48,
                 "code1": 183,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_stop.svg"
             },
             {
                 "name": "Prev Track",
@@ -1007,7 +1012,8 @@
                 "type": 48,
                 "code1": 182,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_prev_track.svg"
             },
             {
                 "name": "Next Track",
@@ -1016,7 +1022,8 @@
                 "type": 48,
                 "code1": 181,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_next_track.svg"
             },
             {
                 "name": "Multimedia",
@@ -1025,7 +1032,8 @@
                 "type": 48,
                 "code1": 131,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_multimedia.svg"
             },
             {
                 "name": "Homepage",
@@ -1034,7 +1042,8 @@
                 "type": 48,
                 "code1": 35,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_homepage.svg"
             },
             {
                 "name": "Web-Refresh",
@@ -1043,7 +1052,8 @@
                 "type": 48,
                 "code1": 39,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_refresh.svg"
             },
             {
                 "name": "Web-Stop",
@@ -1052,7 +1062,8 @@
                 "type": 48,
                 "code1": 38,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_stop.svg"
             },
             {
                 "name": "Web-Forward",
@@ -1061,7 +1072,8 @@
                 "type": 48,
                 "code1": 37,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_forward.svg"
             },
             {
                 "name": "Web-Backward",
@@ -1070,7 +1082,8 @@
                 "type": 48,
                 "code1": 36,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_backward.svg"
             },
             {
                 "name": "Web-Favorites",
@@ -1079,7 +1092,8 @@
                 "type": 48,
                 "code1": 42,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_favorites.svg"
             },
             {
                 "name": "Web-Search",
@@ -1088,7 +1102,8 @@
                 "type": 48,
                 "code1": 33,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_web_search.svg"
             },
             {
                 "name": "Calculator",
@@ -1097,7 +1112,8 @@
                 "type": 48,
                 "code1": 146,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_calculator.svg"
             },
             {
                 "name": "My Computer",
@@ -1106,7 +1122,8 @@
                 "type": 48,
                 "code1": 148,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_my_computer.svg"
             },
             {
                 "name": "Mail",
@@ -1115,7 +1132,8 @@
                 "type": 48,
                 "code1": 138,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_mail.svg"
             },
             {
                 "name": "Screen Bright-",
@@ -1124,7 +1142,8 @@
                 "type": 48,
                 "code1": 112,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_screen_bright_minus.svg"
             },
             {
                 "name": "Screen Bright+",
@@ -1133,7 +1152,8 @@
                 "type": 48,
                 "code1": 111,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/media_screen_bright_plus.svg"
             }
         ]
     },
@@ -1149,7 +1169,8 @@
                 "type": 64,
                 "code1": 0,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_left_button.svg"
             },
             {
                 "name": "Middle Button",
@@ -1158,7 +1179,8 @@
                 "type": 64,
                 "code1": 0,
                 "code2": 4,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_middle_button.svg"
             },
             {
                 "name": "Right Button",
@@ -1167,7 +1189,8 @@
                 "type": 64,
                 "code1": 0,
                 "code2": 2,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_right_button.svg"
             },
             {
                 "name": "Forward",
@@ -1176,7 +1199,8 @@
                 "type": 64,
                 "code1": 0,
                 "code2": 8,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_forward.svg"
             },
             {
                 "name": "Backward",
@@ -1185,7 +1209,8 @@
                 "type": 64,
                 "code1": 0,
                 "code2": 16,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_backward.svg"
             },
             {
                 "name": "Scroll Up",
@@ -1194,7 +1219,8 @@
                 "type": 64,
                 "code1": 5,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_scroll_up.svg"
             },
             {
                 "name": "Scroll Down",
@@ -1203,7 +1229,8 @@
                 "type": 64,
                 "code1": 6,
                 "code2": 1,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/mouse_scroll_down.svg"
             }
         ]
     },
@@ -1219,7 +1246,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 4,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_select_all.svg"
             },
             {
                 "name": "CTRL_C",
@@ -1228,7 +1256,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 6,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_copy.svg"
             },
             {
                 "name": "CTRL_V",
@@ -1237,7 +1266,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 25,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_paste.svg"
             },
             {
                 "name": "CTRL_S",
@@ -1246,7 +1276,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 22,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_save.svg"
             },
             {
                 "name": "CTRL_G",
@@ -1255,7 +1286,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 10,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_search.svg"
             },
             {
                 "name": "CTRL_Z",
@@ -1264,7 +1296,8 @@
                 "type": 18,
                 "code1": 1,
                 "code2": 29,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_undo.svg"
             },
             {
                 "name": "Power",
@@ -1273,7 +1306,8 @@
                 "type": 32,
                 "code1": 129,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_power.svg"
             },
             {
                 "name": "Sleep",
@@ -1282,7 +1316,8 @@
                 "type": 32,
                 "code1": 130,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_sleep.svg"
             },
             {
                 "name": "Wakeup",
@@ -1291,7 +1326,8 @@
                 "type": 32,
                 "code1": 131,
                 "code2": 0,
-                "code3": 0
+                "code3": 0,
+                "icon": "/KeyType/shortcut_wake.svg"
             }
         ]
     },
@@ -1371,7 +1407,7 @@
                 "code1": 9,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡"
+                "icon": "/KeyType/custom_bl_tog.svg"
             },
             {
                 "name": "Key Light Mode +",
@@ -1380,7 +1416,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➕"
+                "icon": "/KeyType/custom_bl_mod.svg"
             },
             {
                 "name": "Key Light Mode -",
@@ -1389,7 +1425,7 @@
                 "code1": 11,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➖"
+                "icon": "/KeyType/custom_bl_rmod.svg"
             },
             {
                 "name": "Key Light Hue +",
@@ -1398,7 +1434,7 @@
                 "code1": 12,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➕"
+                "icon": "/KeyType/custom_bl_hui.svg"
             },
             {
                 "name": "Key Light Hue -",
@@ -1407,7 +1443,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➖"
+                "icon": "/KeyType/custom_bl_hud.svg"
             },
             {
                 "name": "Key Light Bright +",
@@ -1416,7 +1452,7 @@
                 "code1": 14,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➕"
+                "icon": "/KeyType/custom_bl_vai.svg"
             },
             {
                 "name": "Key Light Bright -",
@@ -1425,7 +1461,7 @@
                 "code1": 15,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➖"
+                "icon": "/KeyType/custom_bl_vad.svg"
             },
             {
                 "name": "Key Light Speed +",
@@ -1434,7 +1470,7 @@
                 "code1": 16,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➕"
+                "icon": "/KeyType/custom_bl_spi.svg"
             },
             {
                 "name": "Key Light Speed -",
@@ -1443,7 +1479,7 @@
                 "code1": 17,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➖"
+                "icon": "/KeyType/custom_bl_spd.svg"
             },
             {
                 "name": "Color Board",
@@ -1461,7 +1497,7 @@
                 "code1": 19,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨1️⃣"
+                "icon": "/KeyType/custom_bl_define1.svg"
             },
             {
                 "name": "Custom Light 2",
@@ -1470,7 +1506,7 @@
                 "code1": 20,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨2️⃣"
+                "icon": "/KeyType/custom_bl_define2.svg"
             },
             {
                 "name": "Custom Light 3",
@@ -1479,7 +1515,7 @@
                 "code1": 21,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨3️⃣"
+                "icon": "/KeyType/custom_bl_define3.svg"
             },
             {
                 "name": "Custom Light 4",
@@ -1488,7 +1524,7 @@
                 "code1": 22,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨4️⃣"
+                "icon": "/KeyType/custom_bl_define4.svg"
             },
             {
                 "name": "Custom Light 5",
@@ -1497,7 +1533,7 @@
                 "code1": 23,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨5️⃣"
+                "icon": "/KeyType/custom_bl_define5.svg"
             },
             {
                 "name": "Logo Light Toggle",
@@ -1506,7 +1542,7 @@
                 "code1": 24,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆"
+                "icon": "/KeyType/custom_lg_tog.svg"
             },
             {
                 "name": "Logo Light Mode +",
@@ -1515,7 +1551,7 @@
                 "code1": 25,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➕"
+                "icon": "/KeyType/custom_lg_mod.svg"
             },
             {
                 "name": "Logo Light Mode -",
@@ -1524,7 +1560,7 @@
                 "code1": 26,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➖"
+                "icon": "/KeyType/custom_lg_rmod.svg"
             },
             {
                 "name": "Logo Light Hue +",
@@ -1533,7 +1569,7 @@
                 "code1": 27,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➕"
+                "icon": "/KeyType/custom_lg_hui.svg"
             },
             {
                 "name": "Logo Light Hue -",
@@ -1542,16 +1578,16 @@
                 "code1": 28,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➖"
+                "icon": "/KeyType/custom_lg_hud.svg"
             },
             {
-                "name": "Logo Ligh Bright +",
+                "name": "Logo Light Bright +",
                 "code": "LOGO_LIGHT_BRIGHT_PLUS",
                 "type": 80,
                 "code1": 29,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➕"
+                "icon": "/KeyType/custom_lg_vai.svg"
             },
             {
                 "name": "Logo Light Bright -",
@@ -1560,7 +1596,7 @@
                 "code1": 30,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➖"
+                "icon": "/KeyType/custom_lg_vad.svg"
             },
             {
                 "name": "Logo Light Speed +",
@@ -1569,7 +1605,7 @@
                 "code1": 31,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➕"
+                "icon": "/KeyType/custom_lg_spi.svg"
             },
             {
                 "name": "Logo Light Speed -",
@@ -1578,7 +1614,7 @@
                 "code1": 32,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➖"
+                "icon": "/KeyType/custom_lg_spd.svg"
             },
             {
                 "name": "Side Light Toggle",
@@ -1587,7 +1623,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➡️"
+                "icon": "/KeyType/custom_sd_tog.svg"
             },
             {
                 "name": "Side Light Mode +",
@@ -1596,7 +1632,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➡️➕"
+                "icon": "/KeyType/custom_sd_mod.svg"
             },
             {
                 "name": "Side Light Mode -",
@@ -1605,7 +1641,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➡️➖"
+                "icon": "/KeyType/custom_sd_rmod.svg"
             },
             {
                 "name": "Side Light Hue +",
@@ -1614,7 +1650,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➡️➕"
+                "icon": "/KeyType/custom_sd_hui.svg"
             },
             {
                 "name": "Side Light Hue -",
@@ -1623,7 +1659,7 @@
                 "code1": 37,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➡️➖"
+                "icon": "/KeyType/custom_sd_hud.svg"
             },
             {
                 "name": "Side Light Bright +",
@@ -1632,7 +1668,7 @@
                 "code1": 38,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➡️➕"
+                "icon": "/KeyType/custom_sd_vai.svg"
             },
             {
                 "name": "Side Light Bright -",
@@ -1641,7 +1677,7 @@
                 "code1": 39,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➡️➖"
+                "icon": "/KeyType/custom_sd_vad.svg"
             },
             {
                 "name": "Side Light Speed +",
@@ -1650,7 +1686,7 @@
                 "code1": 40,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➡️➕"
+                "icon": "/KeyType/custom_sd_spi.svg"
             },
             {
                 "name": "Side Light Speed -",
@@ -1659,7 +1695,7 @@
                 "code1": 41,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➡️➖"
+                "icon": "/KeyType/custom_sd_spd.svg"
             },
             {
                 "name": "Matrix Light Toggle",
@@ -1668,7 +1704,7 @@
                 "code1": 42,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔲"
+                "icon": "/KeyType/custom_sd_tog.svg"
             },
             {
                 "name": "Matrix Light Mode +",
@@ -1677,7 +1713,7 @@
                 "code1": 43,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔲➕"
+                "icon": "/KeyType/custom_sd_mod.svg"
             },
             {
                 "name": "Matrix Light Mode -",
@@ -1686,7 +1722,7 @@
                 "code1": 44,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔲➖"
+                "icon": "/KeyType/custom_sd_rmod.svg"
             },
             {
                 "name": "Matrix Light Hue +",
@@ -1695,7 +1731,7 @@
                 "code1": 45,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔲➕"
+                "icon": "/KeyType/custom_sd_hui.svg"
             },
             {
                 "name": "Matrix Light Hue -",
@@ -1704,7 +1740,7 @@
                 "code1": 46,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔲➖"
+                "icon": "/KeyType/custom_sd_hud.svg"
             },
             {
                 "name": "Matrix Light Bright +",
@@ -1713,7 +1749,7 @@
                 "code1": 47,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔲➕"
+                "icon": "/KeyType/custom_sd_vai.svg"
             },
             {
                 "name": "Matrix Light Bright -",
@@ -1722,7 +1758,7 @@
                 "code1": 48,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔲➖"
+                "icon": "/KeyType/custom_sd_vad.svg"
             },
             {
                 "name": "Matrix Light Speed +",
@@ -1731,7 +1767,7 @@
                 "code1": 49,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔲➕"
+                "icon": "/KeyType/custom_sd_spi.svg"
             },
             {
                 "name": "Matrix Light Speed -",
@@ -1740,7 +1776,7 @@
                 "code1": 50,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔲➖"
+                "icon": "/KeyType/custom_sd_spd.svg"
             },
             {
                 "name": "Reset",
@@ -1749,7 +1785,7 @@
                 "code1": 51,
                 "code2": 0,
                 "code3": 0,
-                "icon": "♻️"
+                "icon": "/KeyType/custom_kye_reset.svg"
             },
             {
                 "name": "BLE Mode1",
@@ -1758,7 +1794,7 @@
                 "code1": 52,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶1️⃣"
+                "icon": "/KeyType/custom_mode_ble1.svg"
             },
             {
                 "name": "BLE Mode2",
@@ -1767,7 +1803,7 @@
                 "code1": 53,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶2️⃣"
+                "icon": "/KeyType/custom_mode_ble2.svg"
             },
             {
                 "name": "BLE Mode3",
@@ -1776,7 +1812,7 @@
                 "code1": 54,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶3️⃣"
+                "icon": "/KeyType/custom_mode_ble3.svg"
             },
             {
                 "name": "2.4G Mode",
@@ -1785,7 +1821,7 @@
                 "code1": 55,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📡"
+                "icon": "/KeyType/custom_mode_2p4g.svg"
             },
             {
                 "name": "USB Mode",
@@ -1794,7 +1830,7 @@
                 "code1": 56,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔌"
+                "icon": "/KeyType/custom_mode_usb.svg"
             },
             {
                 "name": "Battery Status",
@@ -1803,7 +1839,7 @@
                 "code1": 57,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔋"
+                "icon": "/KeyType/custom_batt_status.svg"
             },
             {
                 "name": "6K/NK Toggle",
@@ -1812,7 +1848,7 @@
                 "code1": 58,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⌨️6️⃣"
+                "icon": "/KeyType/custom_kye_six_nch.svg"
             },
             {
                 "name": "MAC/Win Toggle",
@@ -1830,7 +1866,7 @@
                 "code1": 60,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔒🪟"
+                "icon": "/KeyType/custom_kye_win_lock_set.svg"
             },
             {
                 "name": "WASD Toggle",
@@ -1839,7 +1875,7 @@
                 "code1": 61,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🎮"
+                "icon": "/KeyType/custom_kye_wasd_set.svg"
             },
             {
                 "name": "Key Delay Toggle",
@@ -1848,7 +1884,7 @@
                 "code1": 62,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⏳"
+                "icon": "/KeyType/custom_kye_scak_delay_set.svg"
             },
             {
                 "name": "F-Row Mode Toggle",
@@ -2099,7 +2135,6 @@
                 "code1": 1,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90119"
             },
             {
@@ -2109,7 +2144,6 @@
                 "code1": 2,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90120"
             },
             {
@@ -2119,7 +2153,6 @@
                 "code1": 3,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90121"
             },
             {
@@ -2129,7 +2162,6 @@
                 "code1": 4,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90122"
             },
             {
@@ -2139,7 +2171,6 @@
                 "code1": 5,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90123"
             },
             {
@@ -2149,7 +2180,6 @@
                 "code1": 6,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90124"
             },
             {
@@ -2159,7 +2189,6 @@
                 "code1": 7,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90125"
             },
             {
@@ -2169,7 +2198,6 @@
                 "code1": 8,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90126"
             },
             {
@@ -2179,7 +2207,7 @@
                 "code1": 9,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡",
+                "icon": "/KeyType/custom_bl_tog.svg",
                 "langid": "90127"
             },
             {
@@ -2189,7 +2217,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➕",
+                "icon": "/KeyType/custom_bl_mod.svg",
                 "langid": "90128"
             },
             {
@@ -2199,7 +2227,7 @@
                 "code1": 11,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➖",
+                "icon": "/KeyType/custom_bl_rmod.svg",
                 "langid": "90129"
             },
             {
@@ -2209,7 +2237,7 @@
                 "code1": 12,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➕",
+                "icon": "/KeyType/custom_bl_hui.svg",
                 "langid": "90130"
             },
             {
@@ -2219,7 +2247,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➖",
+                "icon": "/KeyType/custom_bl_hud.svg",
                 "langid": "90131"
             },
             {
@@ -2229,7 +2257,7 @@
                 "code1": 14,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➕",
+                "icon": "/KeyType/custom_bl_vai.svg",
                 "langid": "90132"
             },
             {
@@ -2239,7 +2267,7 @@
                 "code1": 15,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➖",
+                "icon": "/KeyType/custom_bl_vad.svg",
                 "langid": "90133"
             },
             {
@@ -2249,7 +2277,7 @@
                 "code1": 16,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➕",
+                "icon": "/KeyType/custom_bl_spi.svg",
                 "langid": "90134"
             },
             {
@@ -2259,7 +2287,7 @@
                 "code1": 17,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➖",
+                "icon": "/KeyType/custom_bl_spd.svg",
                 "langid": "90135"
             },
             {
@@ -2269,7 +2297,7 @@
                 "code1": 18,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨1",
+                "icon": "/KeyType/custom_bl_define1.svg",
                 "langid": "90136"
             },
             {
@@ -2279,7 +2307,7 @@
                 "code1": 19,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨2",
+                "icon": "/KeyType/custom_bl_define2.svg",
                 "langid": "90137"
             },
             {
@@ -2289,7 +2317,7 @@
                 "code1": 20,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨3",
+                "icon": "/KeyType/custom_bl_define3.svg",
                 "langid": "90138"
             },
             {
@@ -2299,7 +2327,7 @@
                 "code1": 21,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨4",
+                "icon": "/KeyType/custom_bl_define4.svg",
                 "langid": "90139"
             },
             {
@@ -2309,7 +2337,7 @@
                 "code1": 22,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨5",
+                "icon": "/KeyType/custom_bl_define5.svg",
                 "langid": "90140"
             },
             {
@@ -2319,7 +2347,7 @@
                 "code1": 23,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆",
+                "icon": "/KeyType/custom_lg_tog.svg",
                 "langid": "90141"
             },
             {
@@ -2329,7 +2357,7 @@
                 "code1": 24,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➕",
+                "icon": "/KeyType/custom_lg_mod.svg",
                 "langid": "90142"
             },
             {
@@ -2339,7 +2367,7 @@
                 "code1": 25,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➖",
+                "icon": "/KeyType/custom_lg_rmod.svg",
                 "langid": "90143"
             },
             {
@@ -2349,7 +2377,7 @@
                 "code1": 26,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➕",
+                "icon": "/KeyType/custom_lg_hui.svg",
                 "langid": "90144"
             },
             {
@@ -2359,7 +2387,7 @@
                 "code1": 27,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➖",
+                "icon": "/KeyType/custom_lg_hud.svg",
                 "langid": "90145"
             },
             {
@@ -2369,7 +2397,7 @@
                 "code1": 28,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➕",
+                "icon": "/KeyType/custom_lg_vai.svg",
                 "langid": "90146"
             },
             {
@@ -2379,7 +2407,7 @@
                 "code1": 29,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➖",
+                "icon": "/KeyType/custom_lg_vad.svg",
                 "langid": "90147"
             },
             {
@@ -2389,7 +2417,7 @@
                 "code1": 30,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➕",
+                "icon": "/KeyType/custom_lg_spi.svg",
                 "langid": "90148"
             },
             {
@@ -2399,7 +2427,7 @@
                 "code1": 31,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➖",
+                "icon": "/KeyType/custom_lg_spd.svg",
                 "langid": "90149"
             },
             {
@@ -2409,7 +2437,7 @@
                 "code1": 32,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️",
+                "icon": "/KeyType/custom_sd_tog.svg",
                 "langid": "90150"
             },
             {
@@ -2419,7 +2447,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️➕",
+                "icon": "/KeyType/custom_sd_mod.svg",
                 "langid": "90151"
             },
             {
@@ -2429,7 +2457,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️➖",
+                "icon": "/KeyType/custom_sd_rmod.svg",
                 "langid": "90152"
             },
             {
@@ -2439,7 +2467,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🖱️➕",
+                "icon": "/KeyType/custom_sd_hui.svg",
                 "langid": "90153"
             },
             {
@@ -2449,7 +2477,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🖱️➖",
+                "icon": "/KeyType/custom_sd_hud.svg",
                 "langid": "90154"
             },
             {
@@ -2459,7 +2487,7 @@
                 "code1": 37,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🖱️➕",
+                "icon": "/KeyType/custom_sd_vai.svg",
                 "langid": "90155"
             },
             {
@@ -2469,7 +2497,7 @@
                 "code1": 38,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🖱️➖",
+                "icon": "/KeyType/custom_sd_vad.svg",
                 "langid": "90156"
             },
             {
@@ -2479,7 +2507,7 @@
                 "code1": 39,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🖱️➕",
+                "icon": "/KeyType/custom_sd_spi.svg",
                 "langid": "90157"
             },
             {
@@ -2489,7 +2517,7 @@
                 "code1": 40,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🖱️➖",
+                "icon": "/KeyType/custom_sd_spd.svg",
                 "langid": "90158"
             },
             {
@@ -2499,7 +2527,7 @@
                 "code1": 41,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔄",
+                "icon": "/KeyType/custom_kye_reset.svg",
                 "langid": "90159"
             },
             {
@@ -2509,7 +2537,7 @@
                 "code1": 42,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶1️⃣",
+                "icon": "/KeyType/custom_mode_ble1.svg",
                 "langid": "90167"
             },
             {
@@ -2519,7 +2547,7 @@
                 "code1": 43,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶2️⃣",
+                "icon": "/KeyType/custom_mode_ble2.svg",
                 "langid": "90168"
             },
             {
@@ -2529,7 +2557,7 @@
                 "code1": 44,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📶3️⃣",
+                "icon": "/KeyType/custom_mode_ble3.svg",
                 "langid": "90169"
             },
             {
@@ -2539,7 +2567,7 @@
                 "code1": 45,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📡",
+                "icon": "/KeyType/custom_mode_2p4g.svg",
                 "langid": "90170"
             },
             {
@@ -2549,7 +2577,7 @@
                 "code1": 46,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔌",
+                "icon": "/KeyType/custom_mode_usb.svg",
                 "langid": "90171"
             },
             {
@@ -2559,7 +2587,7 @@
                 "code1": 47,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔋",
+                "icon": "/KeyType/custom_batt_status.svg",
                 "langid": "90172"
             },
             {
@@ -2569,7 +2597,7 @@
                 "code1": 48,
                 "code2": 0,
                 "code3": 0,
-                "icon": "6️⃣",
+                "icon": "/KeyType/custom_kye_six_nch.svg",
                 "langid": "90160"
             },
             {
@@ -2579,7 +2607,7 @@
                 "code1": 50,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔒",
+                "icon": "/KeyType/custom_kye_win_lock_set.svg",
                 "langid": "90162"
             },
             {
@@ -2589,7 +2617,7 @@
                 "code1": 51,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🆆🅰️🆂🅳",
+                "icon": "/KeyType/custom_kye_wasd_set.svg",
                 "langid": "90163"
             },
             {
@@ -2599,7 +2627,7 @@
                 "code1": 52,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⏱️",
+                "icon": "/KeyType/custom_kye_scak_delay_set.svg",
                 "langid": "90164"
             }
         ]
@@ -2616,7 +2644,6 @@
                 "code1": 1,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90119"
             },
             {
@@ -2626,7 +2653,6 @@
                 "code1": 2,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90120"
             },
             {
@@ -2636,7 +2662,6 @@
                 "code1": 3,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90121"
             },
             {
@@ -2646,7 +2671,6 @@
                 "code1": 4,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90122"
             },
             {
@@ -2656,7 +2680,6 @@
                 "code1": 5,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90123"
             },
             {
@@ -2666,7 +2689,6 @@
                 "code1": 6,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90124"
             },
             {
@@ -2676,7 +2698,6 @@
                 "code1": 7,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90125"
             },
             {
@@ -2686,7 +2707,6 @@
                 "code1": 8,
                 "code2": 0,
                 "code3": 0,
-                "icon": "",
                 "langid": "90126"
             },
             {
@@ -2696,7 +2716,7 @@
                 "code1": 9,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡",
+                "icon": "/KeyType/custom_bl_tog.svg",
                 "langid": "90127"
             },
             {
@@ -2706,7 +2726,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➕",
+                "icon": "/KeyType/custom_bl_mod.svg",
                 "langid": "90128"
             },
             {
@@ -2716,7 +2736,7 @@
                 "code1": 11,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡➖",
+                "icon": "/KeyType/custom_bl_rmod.svg",
                 "langid": "90129"
             },
             {
@@ -2726,7 +2746,7 @@
                 "code1": 12,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➕",
+                "icon": "/KeyType/custom_bl_hui.svg",
                 "langid": "90130"
             },
             {
@@ -2736,7 +2756,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈➖",
+                "icon": "/KeyType/custom_bl_hud.svg",
                 "langid": "90131"
             },
             {
@@ -2746,7 +2766,7 @@
                 "code1": 14,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➕",
+                "icon": "/KeyType/custom_bl_vai.svg",
                 "langid": "90132"
             },
             {
@@ -2756,7 +2776,7 @@
                 "code1": 15,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆➖",
+                "icon": "/KeyType/custom_bl_vad.svg",
                 "langid": "90133"
             },
             {
@@ -2766,7 +2786,7 @@
                 "code1": 16,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➕",
+                "icon": "/KeyType/custom_bl_spi.svg",
                 "langid": "90134"
             },
             {
@@ -2776,7 +2796,7 @@
                 "code1": 17,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡➖",
+                "icon": "/KeyType/custom_bl_spd.svg",
                 "langid": "90135"
             },
             {
@@ -2786,7 +2806,7 @@
                 "code1": 18,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✨1️⃣",
+                "icon": "/KeyType/custom_bl_define1.svg",
                 "langid": "90136"
             },
             {
@@ -2796,7 +2816,7 @@
                 "code1": 19,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆",
+                "icon": "/KeyType/custom_lg_tog.svg",
                 "langid": "90141"
             },
             {
@@ -2806,7 +2826,7 @@
                 "code1": 20,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➕",
+                "icon": "/KeyType/custom_lg_mod.svg",
                 "langid": "90142"
             },
             {
@@ -2816,7 +2836,7 @@
                 "code1": 21,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💡🔆➖",
+                "icon": "/KeyType/custom_lg_rmod.svg",
                 "langid": "90143"
             },
             {
@@ -2826,7 +2846,7 @@
                 "code1": 22,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➕",
+                "icon": "/KeyType/custom_lg_hui.svg",
                 "langid": "90144"
             },
             {
@@ -2836,7 +2856,7 @@
                 "code1": 23,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🔆➖",
+                "icon": "/KeyType/custom_lg_hud.svg",
                 "langid": "90145"
             },
             {
@@ -2846,7 +2866,7 @@
                 "code1": 24,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➕",
+                "icon": "/KeyType/custom_lg_vai.svg",
                 "langid": "90146"
             },
             {
@@ -2856,7 +2876,7 @@
                 "code1": 25,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🔆➖",
+                "icon": "/KeyType/custom_lg_vad.svg",
                 "langid": "90147"
             },
             {
@@ -2866,7 +2886,7 @@
                 "code1": 26,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➕",
+                "icon": "/KeyType/custom_lg_spi.svg",
                 "langid": "90148"
             },
             {
@@ -2876,7 +2896,7 @@
                 "code1": 27,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🔆➖",
+                "icon": "/KeyType/custom_lg_spd.svg",
                 "langid": "90149"
             },
             {
@@ -2886,7 +2906,7 @@
                 "code1": 28,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️",
+                "icon": "/KeyType/custom_sd_tog.svg",
                 "langid": "90150"
             },
             {
@@ -2896,7 +2916,7 @@
                 "code1": 29,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️➕",
+                "icon": "/KeyType/custom_sd_mod.svg",
                 "langid": "90151"
             },
             {
@@ -2906,7 +2926,7 @@
                 "code1": 30,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖱️➖",
+                "icon": "/KeyType/custom_sd_rmod.svg",
                 "langid": "90152"
             },
             {
@@ -2916,7 +2936,7 @@
                 "code1": 31,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🖱️➕",
+                "icon": "/KeyType/custom_sd_hui.svg",
                 "langid": "90153"
             },
             {
@@ -2926,7 +2946,7 @@
                 "code1": 32,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🌈🖱️➖",
+                "icon": "/KeyType/custom_sd_hud.svg",
                 "langid": "90154"
             },
             {
@@ -2936,7 +2956,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🖱️➕",
+                "icon": "/KeyType/custom_sd_vai.svg",
                 "langid": "90155"
             },
             {
@@ -2946,7 +2966,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔆🖱️➖",
+                "icon": "/KeyType/custom_sd_vad.svg",
                 "langid": "90156"
             },
             {
@@ -2956,7 +2976,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🖱️➕",
+                "icon": "/KeyType/custom_sd_spi.svg",
                 "langid": "90157"
             },
             {
@@ -2966,7 +2986,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡🖱️➖",
+                "icon": "/KeyType/custom_sd_spd.svg",
                 "langid": "90158"
             },
             {
@@ -2976,7 +2996,7 @@
                 "code1": 37,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔄",
+                "icon": "/KeyType/custom_kye_reset.svg",
                 "langid": "90159"
             },
             {
@@ -2986,7 +3006,7 @@
                 "code1": 38,
                 "code2": 0,
                 "code3": 0,
-                "icon": "6️⃣",
+                "icon": "/KeyType/custom_kye_six_nch.svg",
                 "langid": "90160"
             },
             {
@@ -2996,7 +3016,7 @@
                 "code1": 39,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🖥️",
+                "icon": "💻🪟",
                 "langid": "90161"
             },
             {
@@ -3006,7 +3026,7 @@
                 "code1": 40,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🔒",
+                "icon": "/KeyType/custom_kye_win_lock_set.svg",
                 "langid": "90162"
             },
             {
@@ -3016,7 +3036,7 @@
                 "code1": 41,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🆆🅰️🆂🅳",
+                "icon": "/KeyType/custom_kye_wasd_set.svg",
                 "langid": "90163"
             },
             {
@@ -3026,7 +3046,7 @@
                 "code1": 42,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⏱️",
+                "icon": "/KeyType/custom_kye_scak_delay_set.svg",
                 "langid": "90164"
             }
         ]

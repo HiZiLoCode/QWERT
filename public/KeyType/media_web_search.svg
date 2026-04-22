@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 30.600 30.600" width="30.600" height="30.600">
+<style type="text/css">
+	.st0{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st1{fill:#64748B;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st2{stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st3{fill:none;stroke:#64748B;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;}
+	.st4{fill:none;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st5{fill:#64748B;stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st6{stroke:#64748B;stroke-width:1.98;stroke-linecap:round;stroke-linejoin:round;}
+	.st7{stroke:#64748B;stroke-width:2.1301;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4.0001;}
+	.st8{fill:none;stroke:#000000;stroke-width:2.13;stroke-linecap:round;stroke-linejoin:round;}
+	.st9{clip-path:url(#SVGID_00000014612375850469961350000001811857499777453985_);}
+	.st10{fill:none;stroke:#FF0339;stroke-miterlimit:10;}
+	.st11{enable-background:new    ;}
+</style>
+<g transform="translate(-611.700 -92.700)">
+<g xmlns="http://www.w3.org/2000/svg">
+	<path class="st0" d="M618.5,94.2h17c2.9,0,5.3,2.4,5.3,5.3v17c0,2.9-2.4,5.3-5.3,5.3h-17c-2.9,0-5.3-2.4-5.3-5.3v-17   C613.2,96.6,615.6,94.2,618.5,94.2z" />
+	<path class="st0" d="M624.4,99.5L624.4,99.5c3.2,0,5.8,2.6,5.8,5.8l0,0c0,3.2-2.6,5.8-5.8,5.8l0,0c-3.2,0-5.8-2.6-5.8-5.8l0,0   C618.6,102.1,621.2,99.5,624.4,99.5z" />
+	
+		<rect x="631.3" y="108.2" transform="matrix(0.7071 -0.7071 0.7071 0.7071 105.2703 479.828)" class="st3" width="1.1" height="9.3" />
+</g>
+
+</g>
+</svg>

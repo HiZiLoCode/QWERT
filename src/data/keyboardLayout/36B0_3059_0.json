@@ -74,8 +74,8 @@
                 "speed": true,
                 "direction": true,
                 "directionDescription": [
-                    "1709",
-                    "1710"
+                    "1710",
+                    "1709"
                 ],
                 "color": true,
                 "palette": true
@@ -265,7 +265,7 @@
                 "lang": "2691",
                 "value": 2,
                 "brightness": true,
-                "speed": false,
+                "speed": true,
                 "direction": false,
                 "color": true,
                 "palette": true
@@ -694,7 +694,7 @@
             },
             {
                 "row": 0,
-                "col": 15,
+                "col": 13,
                 "x": 15.25,
                 "y": 0,
                 "h": 1,
@@ -706,7 +706,7 @@
             },
             {
                 "row": 0,
-                "col": 16,
+                "col": 14,
                 "x": 16.25,
                 "y": 0,
                 "h": 1,
@@ -718,7 +718,7 @@
             },
             {
                 "row": 0,
-                "col": 16,
+                "col": 15,
                 "x": 20.5,
                 "y": 0,
                 "h": 1,
