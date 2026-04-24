@@ -21,14 +21,14 @@ import ScreenThemeConfirmDialog from "./ScreenThemeConfirmDialog";
 import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
-import type { LayoutKey } from "@/types/types_v1";
+import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
 import { getFileById, saveFile } from "@/utils/indexeddb-storage";
 import { countGifFrames, isGifFile } from "@/utils/gifFrameCount";
 import { compressPngFramesToQgifWithinPayloadLimit } from "@/utils/compressQgifUnderByteLimit";
-import { tryExtendQgifWasmMemory } from "@/utils/qgifWasmMemory";
+import { decomposeGifDataUrlToPngFramesInWorker } from "@/utils/decomposeGifInWorker";
+import { compressPngFramesToQgifInWorker } from "@/utils/compressQgifInWorker";
 import { GIF_UPLOAD_MAX_BYTES, shrinkGifArrayBufferToLimit } from "@/utils/shrinkGifToMaxBytes";
 import { useTranslation } from "@/app/i18n";
-import { decompressFrames, parseGIF, type ParsedFrame } from "gifuct-js";
 import { getScreenThemeGifPlaybackFps, isNativeGifPlaybackSpeed } from "./screenThemeGifPlaybackFps";
 import {
   buildDualIslandWorkLogical15FromReadPatch,
@@ -122,8 +122,14 @@ const DEFAULT_VIDEO_BG_STATIC_PATH = "/screen-theme/default-background.gif";
 const LCD_DECODE_MAX_SIDE = 4096;
 /** 设备返回异常超大分辨率时的 canvas 单边上限 */
 const LCD_TARGET_MAX_SIDE = 8192;
-/** 主线程 RGB565 转换分片，中间 yield，减轻「页面无响应」被强杀 */
-const LCD_RGB565_CHUNK_PIXELS = 65536;
+/** 主线程 RGB565 转换分片，中间 yield，减轻「页面无响应」被强杀（越小越顺滑，略增异步开销） */
+const LCD_RGB565_CHUNK_PIXELS = 16384;
+/** GIF 帧解码内存预算（RGBA 估算）；取保守值，优先稳定不崩溃 */
+const GIF_DECODE_BUDGET_BYTES = 80 * 1024 * 1024;
+/** data URL 输入体积上限（估算）；收紧阈值，提前拦截高风险大文件 */
+const GIF_SOURCE_DATAURL_MAX_BYTES = 12 * 1024 * 1024;
+/** GIF 原始尺寸软上限：超出则拒绝，避免大尺寸帧 patch 导致内存暴涨 */
+const GIF_SOURCE_MAX_SIDE = 1024;
 
 function clampLcdTargetDimension(n: number, maxSide: number): number {
   return Math.min(Math.max(1, Math.floor(Number(n) || 1)), maxSide);
@@ -155,7 +161,7 @@ async function yieldMainThreadIfNeeded(): Promise<void> {
     return;
   }
   await new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
+    setTimeout(resolve, 0);
   });
 }
 
@@ -275,15 +281,6 @@ function hexToRgbTuple(hex: string): [number, number, number] | null {
   return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
 }
 
-function dataUrlToUint8Array(dataUrl: string): Uint8Array {
-  const comma = dataUrl.indexOf(",");
-  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
-  const binary = atob(b64);
-  const out = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-  return out;
-}
-
 const VIDEO_SPEED_ALLOWED = new Set(["native", "15", "30", "60", "typing"]);
 const LEGACY_VIDEO_SPEED: Record<string, string> = {
   slow: "typing",
@@ -377,7 +374,7 @@ async function loadIslandDraftFromIds(
 
 export default function ScreenThemePage() {
   const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
-  const { deviceComm, screenWidth, screenHeight, screenInfo, qgifModule, setDownLoad, disconnectDevice } = useContext(MainContext);
+  const { deviceComm, screenWidth, screenHeight, screenInfo, setDownLoad, disconnectDevice } = useContext(MainContext);
   const { showMessage } = useSnackbarDialog();
   const { t } = useTranslation("common");
 
@@ -417,14 +414,7 @@ export default function ScreenThemePage() {
   const userKeys = keyboard?.userKeys?.[currentLayer] ?? [];
 
   const mappedLayoutKeys = useMemo(
-    () =>
-      layoutKeys.map((k: LayoutKey, idx: number) => {
-        const keyIndex = k.index ?? idx;
-        return {
-          ...k,
-          name: userKeys?.[keyIndex]?.name || k.name || "",
-        };
-      }),
+    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),
     [layoutKeys, userKeys],
   );
 
@@ -683,23 +673,6 @@ export default function ScreenThemePage() {
     else imageRef.current?.click();
   };
 
-  const cleanupQgifFs = useCallback(async () => {
-    if (!qgifModule?.FS) return;
-    try {
-      const files = qgifModule.FS.readdir("/");
-      for (const file of files) {
-        if (file === "." || file === "..") continue;
-        try {
-          qgifModule.FS.unlink(`/${file}`);
-        } catch {
-          // ignore unlink errors
-        }
-      }
-    } catch {
-      // ignore cleanup errors
-    }
-  }, [qgifModule]);
-
   const convertAssetDataUrlToRgb565WithHeader = useCallback(
     async (dataUrl: string, targetWidth: number, targetHeight: number, rotate: number): Promise<Uint8Array> => {
       const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -753,6 +726,7 @@ export default function ScreenThemePage() {
         outputCtx.restore();
 
         const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
+        await yieldMainThreadIfNeeded();
         const rgba = pixelData.data;
         const pixelCount = outputWidth * outputHeight;
         const rgb565 = new Uint8Array(pixelCount * 2);
@@ -777,42 +751,9 @@ export default function ScreenThemePage() {
 
   const compressPngFramesToQgif = useCallback(
     async (pngFrames: Uint8Array[], fps: number): Promise<Uint8Array> => {
-      if (!qgifModule?.FS || !qgifModule?.cwrap) throw new Error(t("1655"));
-      await cleanupQgifFs();
-      await tryExtendQgifWasmMemory(qgifModule);
-      const chunk = 24;
-      for (let i = 0; i < pngFrames.length; i++) {
-        await qgifModule.FS.writeFile(`/input_${i}.png`, pngFrames[i]);
-        if (i > 0 && i % chunk === 0) {
-          await new Promise<void>((r) => {
-            requestAnimationFrame(() => r());
-          });
-        }
-      }
-
-      const compressVideo = qgifModule.cwrap("compress_video_wasm", "number", ["string", "string", "number", "number"]);
-      const type = 0;
-      const attempts = [
-        () => compressVideo("input_X.png", "output.qgif", type, fps),
-        () => compressVideo("/input_X.png", "/output.qgif", type, fps),
-      ];
-      for (const run of attempts) {
-        try {
-          run();
-          try {
-            const out = qgifModule.FS.readFile("/output.qgif");
-            if (out?.length) return out;
-          } catch {
-            const out = qgifModule.FS.readFile("output.qgif");
-            if (out?.length) return out;
-          }
-        } catch {
-          // try next path format
-        }
-      }
-      throw new Error(t("1656"));
+      return compressPngFramesToQgifInWorker(pngFrames, fps);
     },
-    [cleanupQgifFs, qgifModule, t],
+    [],
   );
 
   const decomposeGifDataUrlToPngFrames = useCallback(
@@ -823,122 +764,19 @@ export default function ScreenThemePage() {
       rotate: number,
       frameLimit?: number,
     ): Promise<{ frames: Uint8Array[]; fpsFromGif: number }> => {
-      if (/^data:image\/(png|jpe?g|webp)/i.test(dataUrl)) {
-        const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error(t("1652")));
-          img.src = dataUrl;
-        });
-        const gifW = Math.max(1, image.naturalWidth);
-        const gifH = Math.max(1, image.naturalHeight);
-        const accCanvas = document.createElement("canvas");
-        accCanvas.width = gifW;
-        accCanvas.height = gifH;
-        const accCtx = accCanvas.getContext("2d");
-        if (!accCtx) throw new Error(t("1658"));
-        accCtx.drawImage(image, 0, 0, gifW, gifH);
-
-        const outCanvas = document.createElement("canvas");
-        const needsRotate = rotate === 1 || rotate === 3;
-        outCanvas.width = needsRotate ? targetHeight : targetWidth;
-        outCanvas.height = needsRotate ? targetWidth : targetHeight;
-        const outCtx = outCanvas.getContext("2d");
-        if (!outCtx) throw new Error(t("1654"));
-
-        const scale = Math.min(targetWidth / gifW, targetHeight / gifH);
-        const drawW = gifW * scale;
-        const drawH = gifH * scale;
-        const offsetX = (targetWidth - drawW) / 2;
-        const offsetY = (targetHeight - drawH) / 2;
-
-        outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
-        outCtx.save();
-        if (needsRotate) {
-          outCtx.translate(outCanvas.width / 2, outCanvas.height / 2);
-          const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
-          outCtx.rotate(rotationAngle);
-          outCtx.drawImage(accCanvas, -targetWidth / 2 + offsetX, -targetHeight / 2 + offsetY, drawW, drawH);
-        } else {
-          outCtx.drawImage(accCanvas, offsetX, offsetY, drawW, drawH);
-        }
-        outCtx.restore();
-
-        const b64 = outCanvas.toDataURL("image/png").split(",")[1] ?? "";
-        const png = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-        return { frames: [png], fpsFromGif: 30 };
-      }
-
-      const gifData = dataUrlToUint8Array(dataUrl);
-      const gifBuffer = gifData.buffer.slice(gifData.byteOffset, gifData.byteOffset + gifData.byteLength) as ArrayBuffer;
-      const gif = parseGIF(gifBuffer);
-      const frames = decompressFrames(gif, true) as ParsedFrame[];
-      const effectiveFrames =
-        frameLimit && frameLimit > 0 ? frames.slice(0, Math.min(frameLimit, frames.length)) : frames;
-      if (!effectiveFrames.length) throw new Error(t("1657"));
-
-      const firstDelay = Math.max(effectiveFrames[0]?.delay ?? 100, 1);
-      const fpsFromGif = Math.max(2, Math.min(120, Math.round(1000 / firstDelay)));
-      const gifW = gif.lsd.width;
-      const gifH = gif.lsd.height;
-
-      const accCanvas = document.createElement("canvas");
-      accCanvas.width = gifW;
-      accCanvas.height = gifH;
-      const accCtx = accCanvas.getContext("2d");
-      if (!accCtx) throw new Error(t("1658"));
-
-      const frameCanvas = document.createElement("canvas");
-      const outCanvas = document.createElement("canvas");
-      const needsRotate = rotate === 1 || rotate === 3;
-      outCanvas.width = needsRotate ? targetHeight : targetWidth;
-      outCanvas.height = needsRotate ? targetWidth : targetHeight;
-      const outCtx = outCanvas.getContext("2d");
-      if (!outCtx) throw new Error(t("1654"));
-
-      const pngFrames: Uint8Array[] = [];
-      for (let i = 0; i < effectiveFrames.length; i++) {
-        const frame = effectiveFrames[i];
-        if (i > 0) {
-          const prev = effectiveFrames[i - 1];
-          if (prev.disposalType === 2) {
-            accCtx.clearRect(prev.dims.left, prev.dims.top, prev.dims.width, prev.dims.height);
-          }
-        }
-        if (!frame.patch?.length) continue;
-        frameCanvas.width = frame.dims.width;
-        frameCanvas.height = frame.dims.height;
-        const fctx = frameCanvas.getContext("2d");
-        if (!fctx) continue;
-        fctx.putImageData(new ImageData(new Uint8ClampedArray(frame.patch), frame.dims.width, frame.dims.height), 0, 0);
-        accCtx.drawImage(frameCanvas, frame.dims.left, frame.dims.top);
-
-        const scale = Math.min(targetWidth / gifW, targetHeight / gifH);
-        const drawW = gifW * scale;
-        const drawH = gifH * scale;
-        const offsetX = (targetWidth - drawW) / 2;
-        const offsetY = (targetHeight - drawH) / 2;
-
-        outCtx.clearRect(0, 0, outCanvas.width, outCanvas.height);
-        outCtx.save();
-        if (needsRotate) {
-          outCtx.translate(outCanvas.width / 2, outCanvas.height / 2);
-          const rotationAngle = rotate === 1 ? Math.PI / 2 : (3 * Math.PI) / 2;
-          outCtx.rotate(rotationAngle);
-          outCtx.drawImage(accCanvas, -targetWidth / 2 + offsetX, -targetHeight / 2 + offsetY, drawW, drawH);
-        } else {
-          outCtx.drawImage(accCanvas, offsetX, offsetY, drawW, drawH);
-        }
-        outCtx.restore();
-
-        const b64 = outCanvas.toDataURL("image/png").split(",")[1] ?? "";
-        pngFrames.push(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
-      }
-
-      if (!pngFrames.length) throw new Error(t("1659"));
-      return { frames: pngFrames, fpsFromGif };
+      return decomposeGifDataUrlToPngFramesInWorker({
+        dataUrl,
+        targetWidth,
+        targetHeight,
+        rotate,
+        frameLimit,
+        maxGifFrames: MAX_GIF_FRAMES,
+        maxDataUrlBytes: GIF_SOURCE_DATAURL_MAX_BYTES,
+        maxDecodeBudgetBytes: GIF_DECODE_BUDGET_BYTES,
+        maxSourceSide: GIF_SOURCE_MAX_SIDE,
+      });
     },
-    [t],
+    [],
   );
 
   const downloadQgifToDevice = useCallback(
@@ -1147,6 +985,7 @@ export default function ScreenThemePage() {
       for (const asset of albumAssets) {
         const rgb565Bin = await convertAssetDataUrlToRgb565WithHeader(asset.dataUrl, targetW, targetH, rotate);
         rgb565Bins.push(rgb565Bin);
+        await yieldMainThreadIfNeeded();
       }
 
       // 相册要求：所有图片先转换完成，再合并成一段数据一次下发。
@@ -1210,11 +1049,6 @@ export default function ScreenThemePage() {
       showMessage({ type: "error", message: t("1660") });
       return;
     }
-    if (!qgifModule) {
-      showMessage({ type: "error", message: t("181") });
-      return;
-    }
-
     try {
       setSavingSource("video");
       setDownLoad(true);
@@ -1287,7 +1121,25 @@ export default function ScreenThemePage() {
       showMessage({ type: "success", message: qgifTrimmedForLimit ? t("2586") : t("1650") });
     } catch (err) {
       console.error("[ScreenTheme] 保存视频到键盘失败", err);
-      showMessage({ type: "error", message: t("1651") });
+      if (
+        err instanceof Error &&
+        (err.message === "GIF_INPUT_TOO_LARGE" ||
+          err.message === "GIF_DECODE_BUDGET_EXCEEDED" ||
+          err.message === "GIF_WORKER_TIMEOUT" ||
+          err.message === "GIF_WORKER_RUNTIME_ERROR" ||
+          err.message === "GIF_WORKER_UNAVAILABLE" ||
+          err.message === "QGIF_MODULE_SCRIPT_NOT_FOUND" ||
+          err.message === "QGIF_MODULE_FACTORY_INVALID" ||
+          err.message === "QGIF_MODULE_NOT_READY" ||
+          err.message === "QGIF_COMPRESS_FAILED" ||
+          err.message === "QGIF_WORKER_TIMEOUT" ||
+          err.message === "QGIF_WORKER_RUNTIME_ERROR" ||
+          err.message === "QGIF_WORKER_UNAVAILABLE")
+      ) {
+        showMessage({ type: "error", message: t("2584") });
+      } else {
+        showMessage({ type: "error", message: t("1651") });
+      }
     } finally {
       closeTransferDialog();
       setDownLoad(false);
@@ -1300,7 +1152,6 @@ export default function ScreenThemePage() {
     openTransferDialog,
     updateTransferStage,
     deviceComm,
-    qgifModule,
     setDownLoad,
     t,
     screenWidth,
@@ -1371,6 +1222,7 @@ export default function ScreenThemePage() {
 
         // RGBA -> RGB565 (R5G6B5), then swap bytes to match firmware order.
         const pixelData = outputCtx.getImageData(0, 0, outputWidth, outputHeight);
+        await yieldMainThreadIfNeeded();
         const rgba = pixelData.data;
         const pixelCount = outputWidth * outputHeight;
 

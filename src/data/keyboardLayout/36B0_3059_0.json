@@ -1,5 +1,11 @@
 {
     "name": "K98",
+    "previewSkins": [
+        { "value": "blackWarrior", "label": "黑武士", "suffix": "", "image": "/keyboard/skin_9f2a7c.png" },
+        { "value": "lightShine", "label": "浅闪闪", "suffix": "", "image": "/keyboard/skin_4c1d8e.png" },
+        { "value": "strawberryPink", "label": "草莓粉", "suffix": "", "image": "/keyboard/skin_b7e3d1.png" },
+        { "value": "sapphireBlue", "label": "蓝宝石", "suffix": "", "image": "/keyboard/skin_a5d9f0.png" }
+    ],
     "lighting": {
         "backlight": [
             {
@@ -268,6 +274,7 @@
                 "speed": true,
                 "direction": false,
                 "color": true,
+                "singleColor": false,
                 "palette": true
             },
             {
@@ -1399,7 +1406,7 @@
                 "w": 2.25,
                 "code": 225,
                 "index": 84,
-                "name": "Shift",
+                "name": "LShift",
                 "mode": 1
             },
             {
@@ -1531,7 +1538,7 @@
                 "w": 2.75,
                 "code": 229,
                 "index": 96,
-                "name": "Shift",
+                "name": "RShift",
                 "mode": 1
             },
             {

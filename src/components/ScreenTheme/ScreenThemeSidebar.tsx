@@ -8,7 +8,8 @@ import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx } from "
 
 const NAV_ITEMS: { id: ScreenThemeTab; labelKey: string }[] = [
   { id: "basic", labelKey: "1601" },
-  { id: "personal", labelKey: "1602" },
+  // 个性化灵动岛（选项暂隐藏）
+  // { id: "personal", labelKey: "1602" },
   { id: "typing", labelKey: "1603" },
 ];
 

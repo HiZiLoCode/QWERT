@@ -10,7 +10,9 @@ import CombinationKeyBoard from '@/components/CombinationKeyBoard';
 import MacroRecorder from '@/components/KeyBoardPanel/MacroRecorder';
 import customKeys from '@/data/customkeys.json';
 import type { LayoutKey } from '@/types/types_v1';
+import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 import { EditorContext } from '@/providers/EditorProvider';
+import { ButtonRem } from '@/styled/ReconstructionRem';
 
 /**
  * 与配置页截图：侧栏约为主键盘区宽度的 15%–20%；大块留白与浅灰底卡片。
@@ -80,7 +82,6 @@ const KeyButton = ({
         if (onSelectKey) onSelectKey(keyItem);
     };
 
-    const baseTextColor = '#5f7089';
     const customFallbackLangId =
         keyItem.type === 80 && !keyItem.langid && keyItem.code1 > 0 ? String(90000 + keyItem.code1) : undefined;
     const translatedByLangid = keyItem.langid ? t(keyItem.langid) : '';
@@ -97,8 +98,8 @@ const KeyButton = ({
     return (
         <Box sx={{ display: 'inline-block', m: '4px' }}>
             <Tooltip title={displayLabel} arrow placement="top">
-            <Button
-                variant="contained"
+            <ButtonRem
+                variant="text"
                 onMouseEnter={() => setHover(true)}
                 onMouseLeave={() => setHover(false)}
                 draggable
@@ -107,24 +108,22 @@ const KeyButton = ({
                     width: '80px',
                     minWidth: '44px',
                     height: '56px',
-                    backgroundColor: hover ? 'rgba(59,130,246,0.12)' : '#F7FAFF',
-                    color: hover ? MAP.primary : baseTextColor,
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    border: '1px solid',
-                    borderColor: hover ? '#8AB0F9' : '#CFD8E7',
+                    borderRadius: '0.625rem',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    border: '0.0625rem solid #cfe0ff',
+                    color: hover ? '#2f6fe8' : '#2d4a75',
+                    backgroundColor: hover ? '#f2f7ff' : '#ffffff',
+                    boxShadow: hover ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
                     wordBreak: 'keep-all',
                     overflowWrap: 'break-word',
                     whiteSpace: 'nowrap',
                     padding: '6px 12px',
-                    borderRadius: `${MAP.categoryItemRadius}px`,
-                    boxShadow: hover ? '0 4px 12px rgba(59,130,246,0.18)' : '0 1px 0 rgba(45,62,87,0.08)',
                     '&:hover': {
-                        backgroundColor: 'rgba(59,130,246,0.12)',
-                        border: '1px solid',
-                        borderColor: '#8AB0F9',
+                        borderColor: '#9fc2ff',
+                        backgroundColor: '#f7fbff',
                     },
-                    textTransform: 'none',
                 }}
                 onClick={changeKey}
             >
@@ -144,7 +143,7 @@ const KeyButton = ({
                         {displayLabel}
                     </span>
                 )}
-            </Button>
+            </ButtonRem>
             </Tooltip>
         </Box>
     );
@@ -243,15 +242,8 @@ export default function KeyMappingPanel() {
     }, [category, basicList, mediaList, mouseList, shortcutList, rawCustomList, macroListItems]);
 
     const mappedLayoutKeys = useMemo(
-        () =>
-            layoutKeys.map((k, idx) => {
-                const keyIndex = k.index ?? idx;
-                return {
-                    ...k,
-                    name: userKeys?.[keyIndex]?.name || k.name || '',
-                };
-            }),
-        [layoutKeys, userKeys]
+        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),
+        [layoutKeys, userKeys],
     );
 
     const applyKey = async (key: KeyItem) => {

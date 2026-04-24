@@ -3,7 +3,16 @@
 import { Box, Button, Popover, Stack, Typography } from '@mui/material';
 import ChevronRightOutlinedIcon from '@mui/icons-material/ChevronRightOutlined';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import { useCallback, useContext, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import {
+    useCallback,
+    useContext,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type MouseEvent,
+} from 'react';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import MacroTravelAdjustView from '@/components/MacroTravelAdjustView';
 import LightSettingPanel from '@/components/KeyBoardPanel/LightSettingPanel';
@@ -52,6 +61,45 @@ const KP = {
     dotSize: 8,
 } as const;
 
+const DEFAULT_KEYBOARD_SKIN_OPTIONS = [
+    { value: 'blackWarrior', label: '黑武士', suffix: '', image: '' },
+    { value: 'lightShine', label: '浅闪闪', suffix: '_lightShine', image: '' },
+    { value: 'strawberryPink', label: '草莓粉', suffix: '_strawberryPink', image: '' },
+    { value: 'sapphireBlue', label: '蓝宝石', suffix: '_sapphireBlue', image: '' },
+] as const;
+
+type KeyboardSkinOption = {
+    value: string;
+    label: string;
+    suffix: string;
+    image?: string;
+};
+
+const KEYBOARD_SKIN_STORAGE_KEY = 'keyboard-panel:skin-option';
+
+function normalizeKeyboardSkinOptions(input: unknown): KeyboardSkinOption[] {
+    if (!Array.isArray(input)) return [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
+    const parsed = input.filter(
+        (item): item is KeyboardSkinOption =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof (item as { value?: unknown }).value === 'string' &&
+            typeof (item as { label?: unknown }).label === 'string' &&
+            typeof (item as { suffix?: unknown }).suffix === 'string' &&
+            (typeof (item as { image?: unknown }).image === 'string' || typeof (item as { image?: unknown }).image === 'undefined'),
+    );
+    return parsed.length ? parsed : [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
+}
+
+function resolveKeyboardPreviewBySkin(src: string, skin: string, options: KeyboardSkinOption[]): string {
+    const option = options.find((item) => item.value === skin);
+    if (option?.image) return option.image;
+    if (!option || !option.suffix) return src;
+    const dotIndex = src.lastIndexOf('.');
+    if (dotIndex <= 0) return src;
+    return `${src.slice(0, dotIndex)}${option.suffix}${src.slice(dotIndex)}`;
+}
+
 const sidePanelSx = {
     position: 'relative' as const,
     borderRadius: `${KP.radiusDefault}px`,
@@ -70,9 +118,11 @@ interface KeyboardPanelProps {
 function SettingsContent({
     selectedSetting,
     deviceAuthorized,
+    tryEnterBindTestFullscreen,
 }: {
     selectedSetting: string;
     deviceAuthorized: boolean;
+    tryEnterBindTestFullscreen: () => void;
 }) {
     const { t } = useTranslation('common');
     if (selectedSetting === 'macro') {
@@ -88,7 +138,29 @@ function SettingsContent({
     } else if (selectedSetting === 'layout') {
         return <LayoutPanel />;
     } else if (selectedSetting === 'test') {
-        return <BindTest />;
+        return (
+            <Box
+                onPointerDownCapture={() => {
+                    if (
+                        typeof document !== 'undefined' &&
+                        document.fullscreenElement !== document.documentElement
+                    ) {
+                        tryEnterBindTestFullscreen();
+                    }
+                }}
+                sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    minWidth: 0,
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <BindTest />
+            </Box>
+        );
     } else if (selectedSetting === 'Led') {
         return deviceAuthorized ? <ScreenThemePage /> : <HomePage />;
     }
@@ -109,13 +181,135 @@ function SettingsContent({
     );
 }
 
+function exitDocumentFullscreen() {
+    if (typeof document === 'undefined') return;
+    if (document.fullscreenElement) {
+        void Promise.resolve(document.exitFullscreen()).catch(() => {});
+    }
+}
+
+/** Chromium：全屏时可 Keyboard Lock，减少 Win/Meta 触发系统菜单（需 HTTPS，且因浏览器策略可能仍无法完全屏蔽 OS） */
+type NavigatorWithKeyboard = Navigator & {
+    keyboard?: {
+        lock?: (keyCodes?: Iterable<string>) => Promise<void> | void;
+        unlock?: () => Promise<void> | void;
+    };
+};
+
+const BIND_TEST_WIN_KEY_CODES = ['MetaLeft', 'MetaRight'] as const;
+
+function getNavigatorKeyboard() {
+    if (typeof navigator === 'undefined') return undefined;
+    return (navigator as NavigatorWithKeyboard).keyboard;
+}
+
+function unlockNavigatorKeyboard() {
+    void Promise.resolve(getNavigatorKeyboard()?.unlock?.()).catch(() => {});
+}
+
+function lockNavigatorWinKeysWhenPageFullscreen() {
+    if (typeof document === 'undefined') return;
+    if (document.fullscreenElement !== document.documentElement) return;
+    const keyboard = getNavigatorKeyboard();
+    if (!keyboard?.lock) return;
+    void Promise.resolve(keyboard.lock([...BIND_TEST_WIN_KEY_CODES])).catch(() => {});
+}
+
+function syncBindTestKeyboardLock(isBindTestView: boolean) {
+    if (typeof document === 'undefined') return;
+    const pageFullscreen = document.fullscreenElement === document.documentElement;
+    if (isBindTestView && pageFullscreen) {
+        lockNavigatorWinKeysWhenPageFullscreen();
+        return;
+    }
+    unlockNavigatorKeyboard();
+}
+
 export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, onlyTestMode = false }: KeyboardPanelProps) {
     const { t } = useTranslation('common');
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const { keyboardData, connectedKeyboard, keyboard, connectKeyboard, setConnectKeyboardStauts } =
+    const [keyboardSkin, setKeyboardSkin] = useState<string>(DEFAULT_KEYBOARD_SKIN_OPTIONS[0].value);
+    const [keyboardSkinHydrated, setKeyboardSkinHydrated] = useState(false);
+    const { keyboardData, connectedKeyboard, keyboard, keyboardLayout, connectKeyboard, setConnectKeyboardStauts } =
         useContext(ConnectKbContext);
     const { deviceStatus } = useContext(MainContext);
     const { selectedSetting, setSelectedSetting } = useContext(EditorContext);
+    const isBindTestView = onlyTestMode || selectedSetting === 'test';
+    const isBindTestViewRef = useRef(isBindTestView);
+    isBindTestViewRef.current = isBindTestView;
+
+    const tryEnterBindTestFullscreen = useCallback(() => {
+        if (typeof document === 'undefined') return;
+        const root = document.documentElement;
+        if (document.fullscreenElement === root) return;
+        const fs = root.requestFullscreen?.bind(root);
+        if (fs) {
+            void Promise.resolve(fs()).catch(() => {});
+            return;
+        }
+        const webkitFs = (root as unknown as { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen;
+        if (webkitFs) webkitFs.call(root);
+    }, []);
+
+    useEffect(() => {
+        if (isBindTestView) return;
+        exitDocumentFullscreen();
+        unlockNavigatorKeyboard();
+    }, [isBindTestView]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const onFullscreenChange = () => {
+            syncBindTestKeyboardLock(isBindTestViewRef.current);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        onFullscreenChange();
+        return () => {
+            document.removeEventListener('fullscreenchange', onFullscreenChange);
+            unlockNavigatorKeyboard();
+        };
+    }, []);
+
+    useEffect(() => {
+        syncBindTestKeyboardLock(isBindTestView);
+    }, [isBindTestView]);
+
+    useEffect(() => {
+        if (!isBindTestView) return;
+        const onKeyWinBlock = (e: KeyboardEvent) => {
+            if (typeof document === 'undefined') return;
+            if (document.fullscreenElement !== document.documentElement) return;
+            if (e.code === 'MetaLeft' || e.code === 'MetaRight' || e.key === 'Meta') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+        window.addEventListener('keydown', onKeyWinBlock, true);
+        window.addEventListener('keyup', onKeyWinBlock, true);
+        return () => {
+            window.removeEventListener('keydown', onKeyWinBlock, true);
+            window.removeEventListener('keyup', onKeyWinBlock, true);
+        };
+    }, [isBindTestView]);
+
+    useLayoutEffect(() => {
+        if (!isBindTestView) return;
+        const id = requestAnimationFrame(() => {
+            tryEnterBindTestFullscreen();
+        });
+        return () => cancelAnimationFrame(id);
+    }, [isBindTestView, tryEnterBindTestFullscreen]);
+
+    useEffect(
+        () => () => {
+            unlockNavigatorKeyboard();
+            if (typeof document === 'undefined') return;
+            if (document.fullscreenElement === document.documentElement) {
+                void Promise.resolve(document.exitFullscreen()).catch(() => {});
+            }
+        },
+        [],
+    );
     const { deviceBaseInfo } = keyboard;
     const [previewCandidateIndex, setPreviewCandidateIndex] = useState(0);
 
@@ -233,10 +427,42 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     );
 
     const keyboardPreviewSrc = keyboardPreviewCandidates[previewCandidateIndex] ?? '';
+    const keyboardSkinOptions = useMemo(
+        () => normalizeKeyboardSkinOptions((keyboardLayout as { previewSkins?: unknown } | undefined)?.previewSkins),
+        [keyboardLayout],
+    );
+    const keyboardPreviewWithSkinSrc = keyboardPreviewSrc
+        ? resolveKeyboardPreviewBySkin(keyboardPreviewSrc, keyboardSkin, keyboardSkinOptions)
+        : '';
 
     useEffect(() => {
         setPreviewCandidateIndex(0);
     }, [keyboardPreviewCandidates]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const cached = window.localStorage.getItem(KEYBOARD_SKIN_STORAGE_KEY);
+        if (cached) {
+            const isValid = keyboardSkinOptions.some((item) => item.value === cached);
+            if (isValid) {
+                setKeyboardSkin(cached);
+            }
+        }
+        setKeyboardSkinHydrated(true);
+    }, [keyboardSkinOptions]);
+
+    useEffect(() => {
+        if (!keyboardSkinHydrated) return;
+        if (typeof window === 'undefined') return;
+        if (!keyboardSkinOptions.some((item) => item.value === keyboardSkin)) return;
+        window.localStorage.setItem(KEYBOARD_SKIN_STORAGE_KEY, keyboardSkin);
+    }, [keyboardSkin, keyboardSkinHydrated, keyboardSkinOptions]);
+
+    useEffect(() => {
+        if (!keyboardSkinOptions.some((item) => item.value === keyboardSkin)) {
+            setKeyboardSkin(keyboardSkinOptions[0].value);
+        }
+    }, [keyboardSkinOptions, keyboardSkin]);
 
     useEffect(() => {
         if (!keyboardSettings.length) return;
@@ -250,6 +476,14 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     if (onlyTestMode) {
         return (
             <Box
+                onPointerDownCapture={() => {
+                    if (
+                        typeof document !== 'undefined' &&
+                        document.fullscreenElement !== document.documentElement
+                    ) {
+                        tryEnterBindTestFullscreen();
+                    }
+                }}
                 sx={{
                     width: '100%',
                     height: '100%',
@@ -335,10 +569,10 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             overflow: 'hidden',
                         }}
                     >
-                        {keyboardPreviewSrc ? (
+                        {keyboardPreviewWithSkinSrc ? (
                             <Box
                                 component="img"
-                                src={keyboardPreviewSrc}
+                                src={keyboardPreviewWithSkinSrc}
                                 alt={t('2712')}
                                 onError={() => setPreviewCandidateIndex((prev) => prev + 1)}
                                 sx={{
@@ -419,6 +653,9 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             {keyboardDataInConfig.map((kb: any, index: number) => {
                                 const active = (connectedKeyboard?.productName || '') === kb.productName;
                                 const kbPreviewSrc = getKeyboardPreviewCandidates(kb.vendorId, kb.productId, kb.devMode ?? 0)[0] ?? '';
+                                const kbPreviewWithSkinSrc = active
+                                    ? resolveKeyboardPreviewBySkin(kbPreviewSrc, keyboardSkin, keyboardSkinOptions)
+                                    : kbPreviewSrc;
                                 return (
                                     <Box
                                         key={kb.id || kb.address || `${kb.productName}-${index}`}
@@ -444,10 +681,10 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                     overflow: 'hidden',
                                                 }}
                                             >
-                                                {kbPreviewSrc ? (
+                                                {kbPreviewWithSkinSrc ? (
                                                     <Box
                                                         component="img"
-                                                        src={kbPreviewSrc}
+                                                        src={kbPreviewWithSkinSrc}
                                                         alt={kb.productName || t('2713')}
                                                         sx={{
                                                             width: '100%',
@@ -480,17 +717,49 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 >
                                                     {kb.productName}
                                                 </Typography>
-                                                <Typography
-                                                    sx={{
-                                                        fontSize: 12,
-                                                        color: active ? 'rgba(255,255,255,0.95)' : '#64748b',
-                                                        whiteSpace: 'nowrap',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                    }}
-                                                >
-                                                    {kb.productName}
-                                                </Typography>
+                          
+                                                {active ? (
+                                                    <Box
+                                                        component="select"
+                                                        value={keyboardSkin}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onChange={(event) => {
+                                                            setKeyboardSkin(event.target.value);
+                                                        }}
+                                                        sx={{
+                                                            mt: '6px',
+                                                            width: '100%',
+                                                            height: '28px',
+                                                            px: '8px',
+                                                            pr: '28px',
+                                                            borderRadius: '8px',
+                                                            border: '1px solid #3B82F6',
+                                                            backgroundColor: '#fff',
+                                                            color: '#334155',
+                                                            fontSize: 12,
+                                                            fontWeight: 500,
+                                                            outline: 'none',
+                                                            appearance: 'none',
+                                                            WebkitAppearance: 'none',
+                                                            MozAppearance: 'none',
+                                                            backgroundImage:
+                                                                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%233B82F6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
+                                                            backgroundRepeat: 'no-repeat',
+                                                            backgroundPosition: 'right 8px center',
+                                                            '&:focus': {
+                                                                borderColor: '#2563EB',
+                                                                boxShadow: '0 0 0 2px rgba(59,130,246,0.2)',
+                                                            },
+                                                        }}
+                                                    >
+                                                        {keyboardSkinOptions.map((option) => (
+                                                            <option key={option.value} value={option.value}>
+                                                                {option.label}
+                                                            </option>
+                                                        ))}
+                                                    </Box>
+                                                ) : null}
                                             </Box>
 
                                             <Box
@@ -573,6 +842,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                 <SettingsContent
                     selectedSetting={selectedSetting}
                     deviceAuthorized={Boolean(deviceStatus)}
+                    tryEnterBindTestFullscreen={tryEnterBindTestFullscreen}
                 />
             </Box>
         </Box>

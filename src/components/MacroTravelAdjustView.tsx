@@ -1,15 +1,22 @@
 'use client';
 
 import { Box, Button, Slider, Typography } from '@mui/material';
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import type { LayoutKey } from '@/types/types_v1';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
+import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 
 export default function MacroTravelAdjustView() {
     const { keyboard } = useContext(ConnectKbContext);
     const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
     const travelKeys = keyboard?.travelKeys ?? [];
+    const currentLayer = keyboard?.layer ?? 0;
+    const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
+    const displayLayoutKeys = useMemo(
+        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow),
+        [layoutKeys, userKeysRow],
+    );
 
     const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
     const [travelValue, setTravelValue] = useState<number>(1.5);
@@ -31,7 +38,7 @@ export default function MacroTravelAdjustView() {
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, p: 2, flex: 1 }}>
             <TravelVirtualKeyboard
-                layoutKeys={layoutKeys}
+                layoutKeys={displayLayoutKeys}
                 travelKeys={travelKeys}
                 selectedKeys={selectedKeys}
                 travelValue={travelValue}

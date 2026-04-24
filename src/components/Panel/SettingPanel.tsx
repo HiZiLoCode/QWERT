@@ -11,7 +11,6 @@ import {
     Select,
     Switch,
     Typography,
-    Snackbar,
     Stepper,
     Step,
     StepLabel,
@@ -28,6 +27,7 @@ import FirmwareUpgrade from '@/components/common/FirmwareUpgrade';
 import DongleFirmwareUpgrade from '@/components/common/DongleFirmwareUpgrade';
 import KeyboardFirmwareUpgrade from '@/components/common/KeyboardFirmwareUpgrade';
 import { useTranslation } from '@/app/i18n';
+import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 
 /** 与 KeyboardDevice 中扩展功能区 PID 一致，用于设置项显隐 */
 const PID_EXTENDED_FUNC_LAYOUT = 0x3059;
@@ -44,6 +44,7 @@ export default function SettingPanel() {
         isUpgradeWindowOpen,
         setIsUpgradeWindowOpen
     } = useContext(ConnectKbContext);
+    const { showMessage } = useSnackbarDialog();
     const [tab, setTab] = useState<SettingTab>('settings');
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -61,9 +62,6 @@ export default function SettingPanel() {
     const [deepSleepMinutes, setDeepSleepMinutes] = useState(30);
     const sleepOptions = [1, 3, 5, 10, 20, 30, 45, 60];
     const [showResetProgress, setShowResetProgress] = useState(false);
-
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState('');
 
     const { vendorId, productId } = connectedKeyboard || {};
     const {
@@ -95,8 +93,10 @@ export default function SettingPanel() {
             setCheckingForUpdates(true);
             setTimeout(() => {
                 setCheckingForUpdates(false);
-                setSnackbarOpen(true);
-                setSnackbarMessage(t("731"));
+                showMessage({
+                    message: t("731"),
+                    type: "info",
+                });
             }, 1000);
         }
     };
@@ -135,8 +135,10 @@ export default function SettingPanel() {
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
-        setSnackbarOpen(true);
-        setSnackbarMessage(t("732"));
+        showMessage({
+            message: t("732"),
+            type: "success",
+        });
     };
 
     const normalizeSleepMinute = (value: number, fallback: number) => {
@@ -702,13 +704,6 @@ export default function SettingPanel() {
                     }}
                 />
             )}
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={3000}
-                onClose={() => setSnackbarOpen(false)}
-                message={snackbarMessage}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            />
         </Box>
     );
 }

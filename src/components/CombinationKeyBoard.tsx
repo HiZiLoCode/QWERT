@@ -129,23 +129,19 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                             key={item.value}
                             onClick={() => setModifierMask((prev) => (prev & item.value ? prev & ~item.value : prev | item.value))}
                             sx={{
-                                minWidth: '5.375rem',
-                                height: '2.125rem',
-                                borderRadius: '62.4375rem',
+                                minWidth: '5.5rem',
+                                height: '2.75rem',
+                                borderRadius: '0.625rem',
                                 textTransform: 'none',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                border: '0.0625rem solid',
-                                borderColor: active ? 'rgba(30,86,180,0.7)' : 'rgba(120,145,186,0.35)',
-                                color: active ? '#fff' : '#4b607f',
-                                background: active
-                                    ? 'linear-gradient(135deg, #3f8cff 0%, #356df0 100%)'
-                                    : 'rgba(255,255,255,0.85)',
-                                boxShadow: active ? '0 0.375rem 1rem rgba(59,130,246,0.25)' : 'none',
+                                fontSize: '0.9rem',
+                                fontWeight: 600,
+                                border: '0.0625rem solid #cfe0ff',
+                                color: active ? '#2f6fe8' : '#2d4a75',
+                                backgroundColor: active ? '#f2f7ff' : '#ffffff',
+                                boxShadow: active ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
                                 '&:hover': {
-                                    background: active
-                                        ? 'linear-gradient(135deg, #337ef0 0%, #2d62de 100%)'
-                                        : 'rgba(236,244,255,0.95)',
+                                    borderColor: '#9fc2ff',
+                                    backgroundColor: '#f7fbff',
                                 },
                             }}
                         >
@@ -185,6 +181,9 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                         boxShadow: '0 0.5rem 1.25rem rgba(59,130,246,0.25)',
                         '&:hover': {
                             background: 'linear-gradient(135deg, #337ef0 0%, #2d62de 100%)',
+                        },
+                        '&.Mui-disabled': {
+                            color: '#fff',
                         },
                     }}
                 >

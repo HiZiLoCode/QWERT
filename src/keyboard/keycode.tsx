@@ -2805,7 +2805,6 @@ export const getKeyName = (key) => {
       (customKey) =>
         customKey.code === key.code1 && customKey.code1 === key.code2
     );
-    console.log(kbKey);
 
     return kbKey ? kbKey.key : "";
   }
@@ -2815,7 +2814,6 @@ export const getKeyName = (key) => {
       (customKey) =>
         customKey.code === key.code1 && customKey.code1 === key.code2
     );
-    console.log(kbKey);
 
     return kbKey ? kbKey.icon ? kbKey.icon : kbKey.key : "";
   }

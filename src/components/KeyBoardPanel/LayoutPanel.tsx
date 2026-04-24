@@ -7,6 +7,7 @@ import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useLayoutConfig, type LayoutOptionKey } from '@/providers/LayoutProvider';
 import type { LayoutKey } from '@/types/types_v1';
+import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 
 const layoutCards: {
     titleKey: string;
@@ -216,14 +217,7 @@ export default function LayoutPanel() {
     const selectedIndex = keyboard?.selectIndex ?? -1;
 
     const mappedLayoutKeys = useMemo(() => {
-        const baseKeys = layoutKeys.map((k, idx) => {
-            const keyIndex = k.index ?? idx;
-            return {
-                ...k,
-                name: userKeys?.[keyIndex]?.name || k.name || '',
-            };
-        });
-
+        const baseKeys = mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys);
         return applyLayoutPreview(baseKeys, layoutState, keyboardLayout?.layouts?.optionKeys);
     }, [layoutKeys, userKeys, layoutState, keyboardLayout?.layouts?.optionKeys]);
 

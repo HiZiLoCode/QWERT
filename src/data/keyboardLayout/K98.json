@@ -267,7 +267,8 @@
         "brightness": true,
         "speed": false,
         "direction": false,
-        "color": true,
+        "color": false,
+        "singleColor": false,
         "palette": true
       },
       {

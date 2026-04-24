@@ -508,7 +508,6 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    console.log("初始化完成:", results);
     setKeyboardData(results.filter(Boolean));
     // initState 只负责刷新设备列表，不控制 loading
     // loading 的关闭由 setConnectKeyboardStauts 在成功获取配置后负责

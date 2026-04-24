@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import ColorPicker from "../ColorPicker";
 import { useTranslation } from "react-i18next";
 import { Box, Typography } from "@mui/material";
@@ -7,6 +7,7 @@ import { debounce } from "lodash";
 import { FunInfo } from "@/types/types_v1";
 import { ButtonRem, SliderRem } from "@/styled/ReconstructionRem";
 import TravelVirtualKeyboard from "../TravelVirtualKeyboard";
+import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
 
 const rgbToHex = (r: number, g: number, b: number) => {
     const rr = Math.max(0, Math.min(255, r));
@@ -37,6 +38,12 @@ const Matrix = () => {
     const matrixLightList = keyboardLayout?.lighting?.matrixlight ?? [];
     const layoutKeys = keyboard?.layoutKeys ?? [];
     const travelKeys = keyboard?.travelKeys ?? [];
+    const currentLayer = keyboard?.layer ?? 0;
+    const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
+    const displayLayoutKeys = useMemo(
+        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow),
+        [layoutKeys, userKeysRow],
+    );
     const [brightnessInput, setBrightnessInput] = useState('0');
     const matrixSpeedMax = Math.max(deviceBaseInfo?.matrixScreenLightMaxSpeed || 4, 1);
 
@@ -169,7 +176,7 @@ const Matrix = () => {
                 <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', width: '100%' }}>
                     <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
                         <TravelVirtualKeyboard
-                            layoutKeys={layoutKeys}
+                            layoutKeys={displayLayoutKeys}
                             travelKeys={travelKeys}
                             patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
                             selectedKeys={[]}

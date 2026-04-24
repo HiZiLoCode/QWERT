@@ -1407,7 +1407,7 @@
                 "code1": 9,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_tog.svg"
+                "icon": "/KeyType/custom_bl_toggle.svg"
             },
             {
                 "name": "Key Light Mode +",
@@ -1416,7 +1416,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_mod.svg"
+                "icon": "/KeyType/custom_bl_mode_plus.svg"
             },
             {
                 "name": "Key Light Mode -",
@@ -1425,7 +1425,7 @@
                 "code1": 11,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_rmod.svg"
+                "icon": "/KeyType/custom_bl_mode_minus.svg"
             },
             {
                 "name": "Key Light Hue +",
@@ -1434,7 +1434,7 @@
                 "code1": 12,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_hui.svg"
+                "icon": "/KeyType/custom_bl_hue_plus.svg"
             },
             {
                 "name": "Key Light Hue -",
@@ -1443,7 +1443,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_hud.svg"
+                "icon": "/KeyType/custom_bl_hue_minus.svg"
             },
             {
                 "name": "Key Light Bright +",
@@ -1452,7 +1452,7 @@
                 "code1": 14,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_vai.svg"
+                "icon": "/KeyType/custom_bl_bright_plus.svg"
             },
             {
                 "name": "Key Light Bright -",
@@ -1461,7 +1461,7 @@
                 "code1": 15,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_vad.svg"
+                "icon": "/KeyType/custom_bl_bright_minus.svg"
             },
             {
                 "name": "Key Light Speed +",
@@ -1470,7 +1470,7 @@
                 "code1": 16,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_spi.svg"
+                "icon": "/KeyType/custom_bl_speed_plus.svg"
             },
             {
                 "name": "Key Light Speed -",
@@ -1479,7 +1479,7 @@
                 "code1": 17,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_spd.svg"
+                "icon": "/KeyType/custom_bl_speed_minus.svg"
             },
             {
                 "name": "Color Board",
@@ -1488,7 +1488,7 @@
                 "code1": 18,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🎨"
+                "icon": "/KeyType/custom_bl_color_board.svg"
             },
             {
                 "name": "Custom Light 1",
@@ -1497,7 +1497,7 @@
                 "code1": 19,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define1.svg"
+                "icon": "/KeyType/custom_bl_custom_light1.svg"
             },
             {
                 "name": "Custom Light 2",
@@ -1506,7 +1506,7 @@
                 "code1": 20,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define2.svg"
+                "icon": "/KeyType/custom_bl_custom_light2.svg"
             },
             {
                 "name": "Custom Light 3",
@@ -1515,7 +1515,7 @@
                 "code1": 21,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define3.svg"
+                "icon": "/KeyType/custom_bl_custom_light3.svg"
             },
             {
                 "name": "Custom Light 4",
@@ -1524,7 +1524,7 @@
                 "code1": 22,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define4.svg"
+                "icon": "/KeyType/custom_bl_custom_light4.svg"
             },
             {
                 "name": "Custom Light 5",
@@ -1533,7 +1533,7 @@
                 "code1": 23,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define5.svg"
+                "icon": "/KeyType/custom_bl_custom_light5.svg"
             },
             {
                 "name": "Logo Light Toggle",
@@ -1830,7 +1830,7 @@
                 "code1": 56,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_mode_usb.svg"
+                "icon": "/KeyType/custom_batt_status.svg"
             },
             {
                 "name": "Battery Status",
@@ -2217,7 +2217,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_mod.svg",
+                "icon": "/KeyType/custom_bl_sleep.svg",
                 "langid": "90128"
             },
             {
@@ -2247,7 +2247,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_hud.svg",
+                "icon": "/KeyType/custom_bl_wakeup.svg",
                 "langid": "90131"
             },
             {
@@ -2297,7 +2297,7 @@
                 "code1": 18,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define1.svg",
+                "icon": "/KeyType/custom_bl_custom_light1.svg",
                 "langid": "90136"
             },
             {
@@ -2307,7 +2307,7 @@
                 "code1": 19,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define2.svg",
+                "icon": "/KeyType/custom_bl_custom_light2.svg",
                 "langid": "90137"
             },
             {
@@ -2317,7 +2317,7 @@
                 "code1": 20,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define3.svg",
+                "icon": "/KeyType/custom_bl_custom_light3.svg",
                 "langid": "90138"
             },
             {
@@ -2327,7 +2327,7 @@
                 "code1": 21,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define4.svg",
+                "icon": "/KeyType/custom_bl_custom_light4.svg",
                 "langid": "90139"
             },
             {
@@ -2337,7 +2337,7 @@
                 "code1": 22,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define5.svg",
+                "icon": "/KeyType/custom_bl_custom_light5.svg",
                 "langid": "90140"
             },
             {
@@ -2726,7 +2726,7 @@
                 "code1": 10,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_mod.svg",
+                "icon": "/KeyType/custom_bl_sleep.svg",
                 "langid": "90128"
             },
             {
@@ -2756,7 +2756,7 @@
                 "code1": 13,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_hud.svg",
+                "icon": "/KeyType/custom_bl_wakeup.svg",
                 "langid": "90131"
             },
             {
@@ -2806,7 +2806,7 @@
                 "code1": 18,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_bl_define1.svg",
+                "icon": "/KeyType/custom_bl_custom_light1.svg",
                 "langid": "90136"
             },
             {

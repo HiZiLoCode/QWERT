@@ -87,6 +87,12 @@ const SnackbarDialogContext = React.createContext<
   SnackbarDialogContextType | undefined
 >(undefined);
 
+const SNACKBAR_MESSAGE_TEXT_STYLE = {
+  fontSize: "0.875rem",
+  fontWeight: 600,
+  lineHeight: 1.4,
+} as const;
+
 function DeviceCardToast({
   title,
   message,
@@ -218,10 +224,8 @@ function DeviceCardToast({
         <Typography
           component="div"
           sx={{
-            fontSize: "0.75rem",
-            lineHeight: 1.4,
+            ...SNACKBAR_MESSAGE_TEXT_STYLE,
             color: legacyDark ? "rgba(255,255,255,0.62)" : "#ffffff",
-            fontWeight: 400,
             opacity: legacyDark ? 1 : 0.95,
             pl: legacyDark ? "28px" : 0,
           }}
@@ -398,7 +402,9 @@ export const SnackbarDialogProvider: React.FC<{
                     {sn.title}
                   </span>
                 )}
-                <span style={{ color: "#fff" }}>{sn.message}</span>
+                <span style={{ color: "#fff", ...SNACKBAR_MESSAGE_TEXT_STYLE }}>
+                  {sn.message}
+                </span>
               </div>
             }
             autoHideDuration={sn.duration}

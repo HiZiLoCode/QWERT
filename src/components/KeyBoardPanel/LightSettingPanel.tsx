@@ -9,6 +9,7 @@ import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import ColorPicker from '@/components/ColorPicker';
 import { ButtonRem, SliderRem } from '@/styled/ReconstructionRem';
 import Matrix from '@/components/Matrix';
+import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 
 type EffectItem = {
   value: number;
@@ -103,6 +104,12 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
 
   const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
   const travelKeys = keyboard?.travelKeys ?? [];
+  const currentLayer = keyboard?.layer ?? 0;
+  const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
+  const displayLayoutKeys = useMemo(
+    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow),
+    [layoutKeys, userKeysRow],
+  );
 
   const isQMK = keyboard?.keyboardType === 'QMK';
   const menus: any[] | undefined = keyboardLayout?.menus;
@@ -201,13 +208,25 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const canAdjustDirection =
     Boolean(currentLightInfo?.direction) &&
     (isPickupStaticLighting ? openLight : lightGatesEffectControls);
-  /** 拾音静态且带 palette（如单色）时允许色板，即使 JSON 里 color 为 false */
+  /** 是否允许切换到「彩色」：JSON color 为 true，或拾音静态带 palette 的例外 */
   const canEnableColorful =
     lightGatesEffectControls &&
     (Boolean(currentLightInfo?.color) ||
       (isPickupLightingModule &&
         !isPickupDynamicLighting &&
         Boolean(currentLightInfo?.palette)));
+  /** JSON 可配置：singleColor=false 时该灯效禁用「单色」按钮，仅允许彩色。 */
+  const canEnableSingleColor =
+    lightGatesEffectControls &&
+    currentLightInfo?.singleColor !== false;
+  /** 单色模式下色板是否可用：color 为 false 时仍可选单色，仅禁止切到彩色（与 canEnableColorful 解耦） */
+  const isAllOffLight =
+    currentLightInfo?.value === 0 ||
+    (typeof currentLightInfo?.label === 'string' && currentLightInfo.label.includes(t('1675')));
+  const canPickSolidColorOnPalette =
+    lightGatesEffectControls &&
+    singleColorMode &&
+    (canEnableColorful || (currentLightInfo?.color === false && !isAllOffLight));
   const isCustomEffect = selectedEffect >= 253;
   const canCustomPaint = !isQMK && lightType === 'backlight' && lightGatesEffectControls && isCustomEffect;
   const switchingCustomEffectRef = useRef(false);
@@ -297,6 +316,15 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     setSingleColorMode(true);
     updateFuncInfo({ [`${legacyPrefix}MixColor`]: 0 });
   }, [isQMK, currentLightInfo?.color, singleColorMode, legacyPrefix]);
+
+  useEffect(() => {
+    if (currentLightInfo?.singleColor !== false) return;
+    if (!singleColorMode) return;
+    setSingleColorMode(false);
+    if (!isQMK) {
+      updateFuncInfo({ [`${legacyPrefix}MixColor`]: 1 });
+    }
+  }, [currentLightInfo?.singleColor, singleColorMode, isQMK, legacyPrefix]);
 
   /** 拾音静态：禁用单色/彩色切换时强制单色，避免仍处彩色模式导致取色器不可用 */
   useEffect(() => {
@@ -588,7 +616,9 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   };
 
   const handleColorfulSwitch = async (checked: boolean) => {
-    if (!canEnableColorful) return;
+    if (!lightGatesEffectControls) return;
+    if (!checked && !canEnableSingleColor) return;
+    if (checked && !canEnableColorful) return;
 
     setSingleColorMode(!checked);
 
@@ -647,7 +677,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
         <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
           <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
             <TravelVirtualKeyboard
-              layoutKeys={layoutKeys}
+              layoutKeys={displayLayoutKeys}
               travelKeys={travelKeys}
               selectedKeys={selectedKeys}
               travelValue={1.5}
@@ -881,7 +911,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <ButtonRem
-              disabled={!canEnableColorful || pickupStaticDisableSwatch}
+              disabled={pickupStaticDisableSwatch || !canEnableSingleColor}
               onClick={() => void handleColorfulSwitch(false)}
               variant="text"
               sx={{
@@ -932,7 +962,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           }}
         >
           <ColorPicker
-            disabled={!singleColorMode || !canEnableColorful}
+            disabled={!singleColorMode || !canPickSolidColorOnPalette}
             selectColor={selectedColor}
             setSelectColor={(hex) => {
               void handleColorChange(hex);
