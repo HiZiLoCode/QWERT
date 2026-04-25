@@ -205,6 +205,39 @@ export default function KeyMappingPanel() {
         return (item?.keycodes ?? []) as KeyItem[];
     }, []);
 
+    const filteredCustomList = useMemo(() => {
+        const lighting = keyboardLayout?.lighting;
+        const baseInfo = keyboard?.deviceBaseInfo ?? connectedKeyboard?.deviceBaseInfo;
+        const hasRuntimeCapability = !!baseInfo;
+
+        const hasBacklight = hasRuntimeCapability
+            ? Boolean(baseInfo?.showLight)
+            : Array.isArray(lighting?.backlight) && lighting.backlight.length > 0;
+        const hasLogoLight = hasRuntimeCapability
+            ? Boolean(baseInfo?.showLogoLight)
+            : Array.isArray(lighting?.logolight) && lighting.logolight.length > 0;
+        const hasSideLight = hasRuntimeCapability
+            ? Boolean(baseInfo?.showLightSideLight)
+            : Array.isArray(lighting?.sidelight) && lighting.sidelight.length > 0;
+        const hasMatrixLight = hasRuntimeCapability
+            ? Boolean(baseInfo?.matrixScreen)
+            : Array.isArray(lighting?.matrixlight) && lighting.matrixlight.length > 0;
+
+        return rawCustomList.filter((item) => {
+            const code = String(item.code || '').toUpperCase();
+            const isBacklightKey = code.startsWith('KEY_LIGHT_') || code.startsWith('BL_');
+            const isLogoKey = code.startsWith('LOGO_LIGHT_') || code.startsWith('LG_');
+            const isSideKey = code.startsWith('SIDE_LIGHT_') || code.startsWith('SD_');
+            const isMatrixKey = code.startsWith('MATRIX_LIGHT_') || code.startsWith('MATRIX_');
+
+            if (isBacklightKey && !hasBacklight) return false;
+            if (isLogoKey && !hasLogoLight) return false;
+            if (isSideKey && !hasSideLight) return false;
+            if (isMatrixKey && !hasMatrixLight) return false;
+            return true;
+        });
+    }, [rawCustomList, keyboardLayout, keyboard?.deviceBaseInfo, connectedKeyboard?.deviceBaseInfo]);
+
     const macroListItems = useMemo<KeyItem[]>(() => {
         if (Array.isArray(macroProfiles) && macroProfiles.length > 0) {
             return macroProfiles.map((profile: any, index: number) => ({
@@ -231,7 +264,7 @@ export default function KeyMappingPanel() {
             case 'shortcut':
                 return shortcutList;
             case 'custom':
-                return rawCustomList;
+                return filteredCustomList;
             case 'macro':
                 return macroListItems;
             case 'combination':
@@ -239,7 +272,7 @@ export default function KeyMappingPanel() {
             default:
                 return [];
         }
-    }, [category, basicList, mediaList, mouseList, shortcutList, rawCustomList, macroListItems]);
+    }, [category, basicList, mediaList, mouseList, shortcutList, filteredCustomList, macroListItems]);
 
     const mappedLayoutKeys = useMemo(
         () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),

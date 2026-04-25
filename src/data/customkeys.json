@@ -1623,7 +1623,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_tog.svg"
+                "icon": "💡"
             },
             {
                 "name": "Side Light Mode +",
@@ -1632,7 +1632,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_mod.svg"
+                "icon": "💡➕"
             },
             {
                 "name": "Side Light Mode -",
@@ -1641,7 +1641,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_rmod.svg"
+                "icon": "💡➖"
             },
             {
                 "name": "Side Light Hue +",
@@ -1650,7 +1650,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hui.svg"
+                "icon": "🌈➕"
             },
             {
                 "name": "Side Light Hue -",
@@ -1659,7 +1659,7 @@
                 "code1": 37,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hud.svg"
+                "icon": "🌈➖"
             },
             {
                 "name": "Side Light Bright +",
@@ -1668,7 +1668,7 @@
                 "code1": 38,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vai.svg"
+                "icon": "🔆➕"
             },
             {
                 "name": "Side Light Bright -",
@@ -1677,7 +1677,7 @@
                 "code1": 39,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vad.svg"
+                "icon": "🔆➖"
             },
             {
                 "name": "Side Light Speed +",
@@ -1686,7 +1686,7 @@
                 "code1": 40,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spi.svg"
+                "icon": "⚡➕"
             },
             {
                 "name": "Side Light Speed -",
@@ -1695,7 +1695,7 @@
                 "code1": 41,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spd.svg"
+                "icon": "⚡➖"
             },
             {
                 "name": "Matrix Light Toggle",
@@ -1704,7 +1704,7 @@
                 "code1": 42,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_tog.svg"
+                "icon": "/KeyType/matrix_screen_toggle.svg"
             },
             {
                 "name": "Matrix Light Mode +",
@@ -1713,7 +1713,7 @@
                 "code1": 43,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_mod.svg"
+                "icon": "/KeyType/matrix_screen_mode_plus.svg"
             },
             {
                 "name": "Matrix Light Mode -",
@@ -1722,7 +1722,7 @@
                 "code1": 44,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_rmod.svg"
+                "icon": "/KeyType/matrix_screen_mode_minus.svg"
             },
             {
                 "name": "Matrix Light Hue +",
@@ -1731,7 +1731,7 @@
                 "code1": 45,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hui.svg"
+                "icon": "/KeyType/matrix_screen_hue_plus.svg"
             },
             {
                 "name": "Matrix Light Hue -",
@@ -1740,7 +1740,7 @@
                 "code1": 46,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hud.svg"
+                "icon": "/KeyType/matrix_screen_hue_minus.svg"
             },
             {
                 "name": "Matrix Light Bright +",
@@ -1749,7 +1749,7 @@
                 "code1": 47,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vai.svg"
+                "icon": "/KeyType/matrix_screen_bright_plus.svg"
             },
             {
                 "name": "Matrix Light Bright -",
@@ -1758,7 +1758,7 @@
                 "code1": 48,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vad.svg"
+                "icon": "/KeyType/matrix_screen_bright_minus.svg"
             },
             {
                 "name": "Matrix Light Speed +",
@@ -1767,7 +1767,7 @@
                 "code1": 49,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spi.svg"
+                "icon": "/KeyType/matrix_screen_speed_plus.svg"
             },
             {
                 "name": "Matrix Light Speed -",
@@ -1776,7 +1776,7 @@
                 "code1": 50,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spd.svg"
+                "icon": "/KeyType/matrix_screen_speed_minus.svg"
             },
             {
                 "name": "Reset",
@@ -1830,7 +1830,7 @@
                 "code1": 56,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_batt_status.svg"
+                "icon": "/KeyType/custom_mode_usb.svg"
             },
             {
                 "name": "Battery Status",
@@ -1857,7 +1857,7 @@
                 "code1": 59,
                 "code2": 0,
                 "code3": 0,
-                "icon": "💻🪟"
+                "icon": "/KeyType/custom_kye_macwin_toggle.svg"
             },
             {
                 "name": "Win Lock Toggle",
@@ -1875,7 +1875,7 @@
                 "code1": 61,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_wasd_set.svg"
+                "icon": "🎮"
             },
             {
                 "name": "Key Delay Toggle",
@@ -1884,7 +1884,7 @@
                 "code1": 62,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_scak_delay_set.svg"
+                "icon": "⏱️"
             },
             {
                 "name": "F-Row Mode Toggle",
@@ -2437,7 +2437,7 @@
                 "code1": 32,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_tog.svg",
+                "icon": "💡",
                 "langid": "90150"
             },
             {
@@ -2447,7 +2447,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_mod.svg",
+                "icon": "💡➕",
                 "langid": "90151"
             },
             {
@@ -2457,7 +2457,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_rmod.svg",
+                "icon": "💡➖",
                 "langid": "90152"
             },
             {
@@ -2467,7 +2467,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hui.svg",
+                "icon": "🌈➕",
                 "langid": "90153"
             },
             {
@@ -2477,7 +2477,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hud.svg",
+                "icon": "🌈➖",
                 "langid": "90154"
             },
             {
@@ -2487,7 +2487,7 @@
                 "code1": 37,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vai.svg",
+                "icon": "🔆➕",
                 "langid": "90155"
             },
             {
@@ -2497,7 +2497,7 @@
                 "code1": 38,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vad.svg",
+                "icon": "🔆➖",
                 "langid": "90156"
             },
             {
@@ -2507,7 +2507,7 @@
                 "code1": 39,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spi.svg",
+                "icon": "⚡➕",
                 "langid": "90157"
             },
             {
@@ -2517,7 +2517,7 @@
                 "code1": 40,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spd.svg",
+                "icon": "⚡➖",
                 "langid": "90158"
             },
             {
@@ -2617,7 +2617,7 @@
                 "code1": 51,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_wasd_set.svg",
+                "icon": "🎮",
                 "langid": "90163"
             },
             {
@@ -2627,7 +2627,7 @@
                 "code1": 52,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_scak_delay_set.svg",
+                "icon": "⏱️",
                 "langid": "90164"
             }
         ]
@@ -2906,7 +2906,7 @@
                 "code1": 28,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_tog.svg",
+                "icon": "💡",
                 "langid": "90150"
             },
             {
@@ -2916,7 +2916,7 @@
                 "code1": 29,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_mod.svg",
+                "icon": "💡➕",
                 "langid": "90151"
             },
             {
@@ -2926,7 +2926,7 @@
                 "code1": 30,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_rmod.svg",
+                "icon": "💡➖",
                 "langid": "90152"
             },
             {
@@ -2936,7 +2936,7 @@
                 "code1": 31,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hui.svg",
+                "icon": "🌈➕",
                 "langid": "90153"
             },
             {
@@ -2946,7 +2946,7 @@
                 "code1": 32,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_hud.svg",
+                "icon": "🌈➖",
                 "langid": "90154"
             },
             {
@@ -2956,7 +2956,7 @@
                 "code1": 33,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vai.svg",
+                "icon": "🔆➕",
                 "langid": "90155"
             },
             {
@@ -2966,7 +2966,7 @@
                 "code1": 34,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_vad.svg",
+                "icon": "🔆➖",
                 "langid": "90156"
             },
             {
@@ -2976,7 +2976,7 @@
                 "code1": 35,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spi.svg",
+                "icon": "⚡➕",
                 "langid": "90157"
             },
             {
@@ -2986,7 +2986,7 @@
                 "code1": 36,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_sd_spd.svg",
+                "icon": "⚡➖",
                 "langid": "90158"
             },
             {
@@ -3036,7 +3036,7 @@
                 "code1": 41,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_wasd_set.svg",
+                "icon": "🎮",
                 "langid": "90163"
             },
             {
@@ -3046,7 +3046,7 @@
                 "code1": 42,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_scak_delay_set.svg",
+                "icon": "⏱️",
                 "langid": "90164"
             }
         ]

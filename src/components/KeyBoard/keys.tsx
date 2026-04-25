@@ -46,6 +46,11 @@ export default function KeyboardKeys({
     demoHighlightTitle,
     keyBadges,
 }: KeyboardKeysProps) {
+    const isImageIcon = (value: string) => {
+        const normalized = String(value || '').trim();
+        return normalized.includes('/KeyType/') || normalized.endsWith('.svg') || normalized.endsWith('.png');
+    };
+
     return (
         <Box sx={{ position: 'relative', ...keyboardStyle, transition: 'none', animation: 'none' }}>
             {underPatterns.map((pattern, idx) => renderPattern(pattern, idx, ku, kg))}
@@ -69,6 +74,7 @@ export default function KeyboardKeys({
                       ? '2px solid #4A86F7'
                       : '1px solid #e5e7eb';
 
+                const keyDisplay = String(key.name || keyIndex + 1);
                 const keyEl = (
                     <Box
                         onClick={colorMode ? undefined : () => onToggleKey(keyIndex)}
@@ -132,23 +138,32 @@ export default function KeyboardKeys({
                                 {String(keyBadges[keyIndex])}
                             </Box>
                         )}
-                        <Typography
-                            sx={{
-                                fontSize: '11px',
-                                fontWeight: 400,
-                                lineHeight: 1,
-                                mb: showActuation ? '4px' : 0,
-                                color: nameColor,
-                                textAlign: 'center',
-                                maxWidth: '100%',
-                                px: '2px',
-                                whiteSpace: 'normal',
-                                wordBreak: 'keep-all',
-                                overflowWrap: 'normal',
-                            }}
-                        >
-                            {key.name || keyIndex + 1}
-                        </Typography>
+                        {isImageIcon(keyDisplay) ? (
+                            <Box
+                                component="img"
+                                src={keyDisplay.trim()}
+                                alt={keyDisplay}
+                                sx={{ width: '1.1rem', height: '1.1rem', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
+                            />
+                        ) : (
+                            <Typography
+                                sx={{
+                                    fontSize: '13px',
+                                    fontWeight: 'bold',
+                                    lineHeight: 1,
+                                    mb: showActuation ? '4px' : 0,
+                                    color: nameColor,
+                                    textAlign: 'center',
+                                    maxWidth: '100%',
+                                    px: '2px',
+                                    whiteSpace: 'normal',
+                                    wordBreak: 'keep-all',
+                                    overflowWrap: 'normal',
+                                }}
+                            >
+                                {keyDisplay}
+                            </Typography>
+                        )}
                         {showActuation && (
                             <Typography sx={{ fontSize: '12px', lineHeight: 1, color: '#4284ef', fontWeight: 700 }}>
                                 {getActuationLabel(actuation, travelValue)}

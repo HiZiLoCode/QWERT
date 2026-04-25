@@ -101,6 +101,10 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
   }, [boardRem, containerSize]);
 
   const getKeyLabel = (index: number) => currentLayout.codes?.[index]?.name || '';
+  const isImageIcon = (value: string) => {
+    const normalized = String(value || '').trim();
+    return normalized.includes('/KeyType/') || normalized.endsWith('.svg') || normalized.endsWith('.png');
+  };
   const getKeyCodeLabel = (index: number) => {
     const key = currentLayout.codes?.[index];
     if (!key) return '';
@@ -191,7 +195,16 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       overflowWrap: 'normal',
                     }}
                   >
-                    {keyLabel}
+                    {isImageIcon(keyLabel) ? (
+                      <Box
+                        component="img"
+                        src={String(keyLabel).trim()}
+                        alt={keyCodeLabel || keyLabel}
+                        sx={{ width: '1.35rem', height: '1.35rem', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      keyLabel
+                    )}
                   </Box>
                 </Tooltip>
               </StyledKeyWrapper>
