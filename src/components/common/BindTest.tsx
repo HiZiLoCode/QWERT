@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Box, Switch, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import TravelVirtualKeyboard from "@/components/TravelVirtualKeyboard";
+import ToggleSlider from "@/components/common/ToggleSlider";
 import { getKeyCodeFromWebCode } from "@/keyboard/keycode";
 import testKeyboard128 from "@/data/keyboardLayout/test_keyboard_128.json";
 import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
@@ -915,12 +916,12 @@ function BindTest() {
           <Typography sx={{ fontSize: "1rem", color: "rgba(100, 116, 139, 1)", fontWeight: 500 }}>
             {t("2715")}
           </Typography>
-          <Switch
+          <ToggleSlider
             checked={matrixTestEnabled}
-            onChange={(_, checked) => {
+            onChange={(checked) => {
               setMatrixTestEnabled(checked);
             }}
-            size="medium"
+            ariaLabel={t("2715")}
           />
         </Box>
       </Box>

@@ -35,7 +35,9 @@ body {
     height: 100%;
     color: var(--foreground);
     background: var(--background);
-    font-family: Harmony, Arial, Helvetica, sans-serif;
+    font-family: "HarmonyOS Sans SC", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 18px;
     user-select: none;
     /* 禁止用户选中文本 */
     -webkit-user-select: none;

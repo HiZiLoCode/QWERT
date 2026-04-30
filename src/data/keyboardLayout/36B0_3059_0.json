@@ -1,10 +1,30 @@
 {
     "name": "K98",
     "previewSkins": [
-        { "value": "blackWarrior", "label": "黑武士", "suffix": "", "image": "/keyboard/skin_9f2a7c.png" },
-        { "value": "lightShine", "label": "浅闪闪", "suffix": "", "image": "/keyboard/skin_4c1d8e.png" },
-        { "value": "strawberryPink", "label": "草莓粉", "suffix": "", "image": "/keyboard/skin_b7e3d1.png" },
-        { "value": "sapphireBlue", "label": "蓝宝石", "suffix": "", "image": "/keyboard/skin_a5d9f0.png" }
+        {
+            "value": "blackWarrior",
+            "label": "黑武士",
+            "suffix": "",
+            "image": "/keyboard/skin_9f2a7c.png"
+        },
+        {
+            "value": "lightShine",
+            "label": "浅闪闪",
+            "suffix": "",
+            "image": "/keyboard/skin_4c1d8e.png"
+        },
+        {
+            "value": "strawberryPink",
+            "label": "草莓粉",
+            "suffix": "",
+            "image": "/keyboard/skin_b7e3d1.png"
+        },
+        {
+            "value": "sapphireBlue",
+            "label": "蓝宝石",
+            "suffix": "",
+            "image": "/keyboard/skin_a5d9f0.png"
+        }
     ],
     "lighting": {
         "backlight": [
@@ -252,9 +272,9 @@
                 "value": 5,
                 "brightness": true,
                 "speed": true,
-           
+                "singleColor": false,
                 "color": false,
-                "palette": true
+                "palette": false
             },
             {
                 "name": "呼吸",

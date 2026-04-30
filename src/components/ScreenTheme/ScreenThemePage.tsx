@@ -2172,6 +2172,7 @@ export default function ScreenThemePage() {
           pt: 1,
           pb: 0.5,
           margin: "0 auto",
+          width: "100%",
         }}
       >
         <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", display: "flex", flexDirection: "column" }}>
@@ -2185,8 +2186,6 @@ export default function ScreenThemePage() {
             alignTop
             showLayerOverlay={false}
             onToggleKey={() => {}}
-            demoHighlightKeyIndex={lShiftDemoIndex >= 0 ? lShiftDemoIndex : undefined}
-            demoHighlightTitle={lShiftDemoIndex >= 0 ? t("1665") : undefined}
           />
         </Box>
       </Box>

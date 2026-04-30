@@ -39,6 +39,14 @@ export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
                 en: ['1、Solve the pickup light freezing problem', '2、Solve the screen freezing problem in Bluetooth mode', '3、Optimize the screen power-on flicker problem', '4、Adapt the no-driver upgrade package'],
             },
         },
+        {
+            version: '108',
+            date: '2026-04-21',
+            changes: {
+                zh: ['1、修改默认自定义灯效显示', '2、按规格书修改mac模式组合键', '3、Fn按下时灯效组合键显示白光', '4、点阵屏终端模式添加当前输入点闪烁指示', '5、拾音灯添加色阶模式支持'],
+                en: ['1、Modify the default custom light effect display', '2、Modify the mac mode combination key according to the specification', '3、The white light is displayed when the Fn key is pressed', '4、The current input point flicker indicator is added in the terminal mode of the dot matrix screen', '5、The pickup light adds support for color gradient mode'],
+            },
+        },
     ],
     default: [],
 };

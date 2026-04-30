@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Button, Divider, Typography } from '@mui/material';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import KeyboardKeys from './keys';
 import type { CompositeLayoutKey, TravelVirtualKeyboardProps } from './types';
 import {
@@ -13,6 +13,7 @@ import {
     KEYBOARD_CARD_BORDER_PX,
     KEYBOARD_CARD_PADDING_PX,
 } from './render';
+import { useTranslation } from '@/app/i18n';
 
 const OUTER_GUTTER_PX = 19;
 
@@ -159,10 +160,14 @@ export default function TravelVirtualKeyboard({
     currentLayer = 0,
     onSelectLayer,
     onRestoreDefault,
+    demoHighlightKeyIndex,
+    demoHighlightTitle,
     keyBadges,
+    onScaleRatioChange,
 }: TravelVirtualKeyboardProps) {
     void _scaleMin;
     void _alignTop;
+    const { t } = useTranslation('common');
 
     const ku = keyUnitPx;
     const kg = keyGapPx;
@@ -280,6 +285,10 @@ export default function TravelVirtualKeyboard({
     const underPatterns = useMemo(() => patternKeys.filter((p) => (p.layer ?? 'under') === 'under'), [patternKeys]);
     const overPatterns = useMemo(() => patternKeys.filter((p) => p.layer === 'over'), [patternKeys]);
 
+    useEffect(() => {
+        onScaleRatioChange?.(ratio);
+    }, [ratio, onScaleRatioChange]);
+
     return (
         <Box
             ref={rootRef}
@@ -288,7 +297,7 @@ export default function TravelVirtualKeyboard({
                 position: 'relative',
                 boxSizing: 'border-box',
                 display: 'flex',
-                justifyContent: 'flex-start',
+                justifyContent: 'center',
                 alignItems: 'stretch',
                 width: '100%',
                 height: '100%',
@@ -317,7 +326,7 @@ export default function TravelVirtualKeyboard({
                     </Typography>
                     {Array.from({ length: layerCount }).map((_, i) => {
                         const active = currentLayer === i;
-                        return (
+                        return ( 
                             <Button
                                 key={i}
                                 onClick={() => onSelectLayer?.(i)}
@@ -337,7 +346,7 @@ export default function TravelVirtualKeyboard({
                                     '&:hover': { background: active ? '#3b78f0' : '#f8fafc' },
                                 }}
                             >
-                                {i === 0 ? '默认层' : `层${i}`}
+                                {i === 0 ? t('2721') : t('2722', { index: i })}
                             </Button>
                         );
                     })}
@@ -363,14 +372,13 @@ export default function TravelVirtualKeyboard({
                             },
                         }}
                     >
-                        恢复默认
+                        {t('2723')}
                     </Button>
                 </Box>
             )}
             <Box
                 ref={viewportRef}
                 sx={{
-                    flex: 1,
                     minWidth: 0,
                     minHeight: 0,
                     maxWidth: '100%',
@@ -387,8 +395,8 @@ export default function TravelVirtualKeyboard({
                         flex: '0 0 auto',
                         flexShrink: 0,
                         transform: scaleTransform,
-                        transformOrigin: 'left center',
-                        backfaceVisibility: 'hidden',
+                        transformOrigin: 'center center',
+                        backfaceVisibility: 'hidden', 
                         WebkitBackfaceVisibility: 'hidden',
                         ...(scaleTransform ? { willChange: 'transform' } : {}),
                         transition: 'none',
@@ -427,11 +435,21 @@ export default function TravelVirtualKeyboard({
                             ku={ku}
                             kg={kg}
                             keyboardStyle={keyboardStyle}
+                            demoHighlightKeyIndex={demoHighlightKeyIndex}
+                            demoHighlightTitle={demoHighlightTitle}
                             keyBadges={keyBadges}
                         />
                         {!layoutKeys.length && (
-                            <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Typography sx={{ color: '#7c8ca5' }}>暂无键盘布局数据</Typography>
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <Typography sx={{ color: '#7c8ca5' }}>{t('2724')}</Typography>
                             </Box>
                         )}
                     </Box>

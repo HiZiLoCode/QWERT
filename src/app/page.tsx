@@ -3,7 +3,10 @@
 
 import Content from '@/ui/Content';
 import ConnectKbProvider, { ConnectKbContext } from '@/providers/ConnectKbProvider';
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useLayoutEffect } from 'react';
+
+/** 避免 SSR 对 useLayoutEffect 的告警；客户端用 layout 以便在绘制前设好 rem */
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import EditorProvider from '@/providers/EditorProvider';
 import ProfileProvider from '@/providers/ProfileProvider';
 import { SnackbarDialogProvider } from '@/providers/useSnackbarProvider';
@@ -20,9 +23,9 @@ function AppContent() {
   );
 }
 export default function Home() {
-  useEffect(() => {
-    const screenWidth = window.screen.width;
-    setRemBase(screenWidth);
+  useIsoLayoutEffect(() => {
+    const teardown = setRemBase(window.screen.width);
+    return () => teardown?.();
   }, []);
   return (
     <SnackbarDialogProvider>

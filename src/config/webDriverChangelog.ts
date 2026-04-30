@@ -19,13 +19,28 @@ export type WebDriverRelease = {
 
 export const WEB_DRIVER_RELEASES: WebDriverRelease[] = [
     {
-        version: '0.0.1',
-        date: '2026-04-15',
+        version: '0.0.3',
+        date: '2026-04-25',
         changes: {
-            zh: ['新增设备:QK100 MKII'],
-            en: ['Added device: QK100 MKII'],
+            zh: [
+                '1、新增键盘颜色选择功能',
+                '2、对齐按键功能图标与文字对应关系',
+                '3、光谱灯效模式下取消调色板',
+                '4、测试页面新增前端拦截',
+                '5、修复自定义轴灯无法选色问题',
+                '6、修复测试页面按键不触发问题',
+            ],
+            en: [
+                '1、Added keyboard color selection',
+                '2、Aligned key-function icons with their text labels',
+                '3、Removed the color palette in spectrum lighting mode',
+                '4、Added frontend interception on the test page',
+                '5、Fixed an issue where custom switch lighting could not select colors',
+                '6、Fixed key press not triggering on the test page',
+            ],
         },
     },
+
     // 下次发布：在数组顶部新增一条，并同步 package.json 的 version：
     {
         version: '0.0.2',
@@ -45,5 +60,12 @@ export const WEB_DRIVER_RELEASES: WebDriverRelease[] = [
             ],
         },
     },
-    
+    {
+        version: '0.0.1',
+        date: '2026-04-15',
+        changes: {
+            zh: ['新增设备:QK100 MKII'],
+            en: ['Added device: QK100 MKII'],
+        },
+    },
 ];

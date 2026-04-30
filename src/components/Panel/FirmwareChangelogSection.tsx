@@ -36,6 +36,8 @@ export type FirmwareChangelogSectionProps = {
     deviceNeedsUpgrade?: boolean;
     onCheckUpdates: () => void;
     checkingForUpdates: boolean;
+    /** 演示模式：不展示按 VID/PID 查到的量产固件说明（避免误以为来自真实设备） */
+    demoSession?: boolean;
 };
 
 export default function FirmwareChangelogSection({
@@ -47,6 +49,7 @@ export default function FirmwareChangelogSection({
     deviceNeedsUpgrade,
     onCheckUpdates,
     checkingForUpdates,
+    demoSession = false,
 }: FirmwareChangelogSectionProps) {
     const { t, i18n } = useTranslation('common');
     const [historyOpen, setHistoryOpen] = useState(false);
@@ -81,6 +84,17 @@ export default function FirmwareChangelogSection({
         py: '1.125rem',
         
     } as const;
+
+    if (demoSession) {
+        return (
+            <Box sx={cardSx}>
+                <Typography sx={{ fontSize: '0.95rem', color: '#334155', fontWeight: 600, mb: '0.5rem' }}>
+                    {t('737')}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>{t('2596')}</Typography>
+            </Box>
+        );
+    }
 
     if (!connected) {
         return (

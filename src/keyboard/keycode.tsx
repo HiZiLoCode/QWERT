@@ -2727,36 +2727,36 @@ const singleCustom = [
   { code: 46, code1: 0, key: "BL_RTOG", icon: "💡🔄" }
 ]
 const mouseKeys = [
-  { "type": 32, "code1": 0, "code2": 1, "name": "Left Button" },
-  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button" },
-  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button" },
-  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up" },
-  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down" },
-  { "type": 32, "code1": 0, "code2": 8, "name": "Forward" },
-  { "type": 32, "code1": 0, "code2": 16, "name": "Backward" }
+  { "type": 32, "code1": 0, "code2": 1, "name": "Left Button", "icon": "/KeyType/mouse_left_button.svg" },
+  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_right_button.svg" },
+  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_middle_button.svg" },
+  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_scroll_up.svg" },
+  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_scroll_down.svg" },
+  { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_forward.svg" },
+  { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_backward.svg" }
 ]
 const mediaKeys = [
   { code: 131, code1: 0, key: "Player" },
-  { code: 233, code1: 0, key: "Volume +" },
-  { code: 234, code1: 0, key: "Volume -" },
-  { code: 226, code1: 0, key: "Mute" },
-  { code: 205, code1: 0, key: "Play" },
-  { code: 183, code1: 0, key: "Stop" },
-  { code: 182, code1: 0, key: "Prev Track" },
-  { code: 181, code1: 0, key: "Next Track" },
-  { code: 131, code1: 1, key: "Multimedia" },
-  { code: 111, code1: 0, key: "Screen Bright+" },
-  { code: 112, code1: 0, key: "Screen Bright-" },
-  { code: 35, code1: 2, key: "Homepage" },
-  { code: 39, code1: 2, key: "Web-Refresh" },
-  { code: 38, code1: 2, key: "Web-Stop" },
-  { code: 37, code1: 2, key: "Web-Forward" },
-  { code: 36, code1: 2, key: "Web-Backward" },
-  { code: 42, code1: 2, key: "Web-Favorites" },
-  { code: 33, code1: 2, key: "Web-Search" },
-  { code: 146, code1: 1, key: "Calculator" },
-  { code: 148, code1: 1, key: "My Computer" },
-  { code: 138, code1: 1, key: "Mail" },
+  { code: 233, code1: 0, key: "Volume +", icon: "/KeyType/media_volume_plus.svg" },
+  { code: 234, code1: 0, key: "Volume -", icon: "/KeyType/media_volume_minus.svg" },
+  { code: 226, code1: 0, key: "Mute", icon: "/KeyType/media_mute.svg" },
+  { code: 205, code1: 0, key: "Play", icon: "/KeyType/media_play_pause.svg" },
+  { code: 183, code1: 0, key: "Stop", icon: "/KeyType/media_stop.svg" },
+  { code: 182, code1: 0, key: "Prev Track", icon: "/KeyType/media_prev_track.svg" },
+  { code: 181, code1: 0, key: "Next Track", icon: "/KeyType/media_next_track.svg" },
+  { code: 131, code1: 1, key: "Multimedia", icon: "/KeyType/media_multimedia.svg" },
+  { code: 111, code1: 0, key: "Screen Bright+", icon: "/KeyType/media_screen_bright_plus.svg" },
+  { code: 112, code1: 0, key: "Screen Bright-", icon: "/KeyType/media_screen_bright_minus.svg" },
+  { code: 35, code1: 2, key: "Homepage", icon: "/KeyType/media_homepage.svg" },
+  { code: 39, code1: 2, key: "Web-Refresh", icon: "/KeyType/media_web_refresh.svg" },
+  { code: 38, code1: 2, key: "Web-Stop", icon: "/KeyType/media_web_stop.svg" },
+  { code: 37, code1: 2, key: "Web-Forward", icon: "/KeyType/media_web_forward.svg" },
+  { code: 36, code1: 2, key: "Web-Backward", icon: "/KeyType/media_web_backward.svg" },
+  { code: 42, code1: 2, key: "Web-Favorites", icon: "/KeyType/media_web_favorites.svg" },
+  { code: 33, code1: 2, key: "Web-Search", icon: "/KeyType/media_web_search.svg" },
+  { code: 146, code1: 1, key: "Calculator", icon: "/KeyType/media_calculator.svg" },
+  { code: 148, code1: 1, key: "My Computer", icon: "/KeyType/media_my_computer.svg" },
+  { code: 138, code1: 1, key: "Mail", icon: "/KeyType/media_mail.svg" },
   { code: 207, code1: 0, key: "Siri" },
   { code: 160, code1: 0, key: "Launchpad" },
   { code: 188, code1: 0, key: "Rewind" },
@@ -2798,7 +2798,7 @@ export const getKeyName = (key) => {
   }
   else if (key.type == 0x40) {
     const kbKey = mouseKeys.find((mouseKey) => mouseKey.code1 == key.code1 && mouseKey.code2 == key.code2);
-    return kbKey?.name || "";
+    return kbKey ? (kbKey.icon ? kbKey.icon : kbKey.name) : "";
   }
   else if (key.type === 0x30) {
     const kbKey = mediaKeys.find(
@@ -2806,7 +2806,7 @@ export const getKeyName = (key) => {
         customKey.code === key.code1 && customKey.code1 === key.code2
     );
 
-    return kbKey ? kbKey.key : "";
+    return kbKey ? (kbKey.icon ? kbKey.icon : kbKey.key) : "";
   }
   else if (key.type === 0x50) {
     const keyboardMode = localStorage.getItem("keyboardMode") as any;

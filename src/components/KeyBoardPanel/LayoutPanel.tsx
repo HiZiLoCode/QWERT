@@ -1,9 +1,10 @@
 'use client';
 
-import { Box, Divider, Switch, Typography } from '@mui/material';
+import { Box, Divider, Typography } from '@mui/material';
 import { useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
+import ToggleSlider from '@/components/common/ToggleSlider';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useLayoutConfig, type LayoutOptionKey } from '@/providers/LayoutProvider';
 import type { LayoutKey } from '@/types/types_v1';
@@ -207,7 +208,11 @@ function applyLayoutPreview(
     return nextKeys;
 }
 
-export default function LayoutPanel() {
+type LayoutPanelProps = {
+    onKeyboardScaleChange?: (ratio: number) => void;
+};
+
+export default function LayoutPanel({ onKeyboardScaleChange }: LayoutPanelProps = {}) {
     const { t } = useTranslation('common');
     const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
     const { layoutState, setLayoutOption } = useLayoutConfig();
@@ -268,6 +273,7 @@ export default function LayoutPanel() {
                         showActuation={false}
                         onToggleKey={(keyIndex: number) => keyboard?.setSelectIndex?.(keyIndex)}
                         patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+                        onScaleRatioChange={onKeyboardScaleChange}
                     />
                 </Box>
             </Box>
@@ -330,36 +336,10 @@ export default function LayoutPanel() {
                                         {t(option.labelKey)}
                                     </Typography>
 
-                                    <Switch
+                                    <ToggleSlider
                                         checked={layoutState[option.key]}
                                         onChange={() => handleExclusiveToggle(option.key)}
-                                        sx={{
-                                            m: 0,
-                                            width: '3.25rem',
-                                            height: '2rem',
-                                            p: 0,
-                                            '& .MuiSwitch-switchBase': {
-                                                p: '0.25rem',
-                                                '&.Mui-checked': {
-                                                    transform: 'translateX(1.25rem)',
-                                                    color: '#ffffff',
-                                                },
-                                                '&.Mui-checked + .MuiSwitch-track': {
-                                                    backgroundColor: '#3B82F6',
-                                                    opacity: 1,
-                                                },
-                                            },
-                                            '& .MuiSwitch-thumb': {
-                                                width: '1.5rem',
-                                                height: '1.5rem',
-                                                boxShadow: '0 0.0625rem 0.1875rem rgba(15,23,42,0.15)',
-                                            },
-                                            '& .MuiSwitch-track': {
-                                                borderRadius: '999px',
-                                                backgroundColor: '#E5E7EB',
-                                                opacity: 1,
-                                            },
-                                        }}
+                                        ariaLabel={t(option.labelKey)}
                                     />
                                 </Box>
                             ))}

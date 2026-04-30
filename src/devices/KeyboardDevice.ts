@@ -182,7 +182,6 @@ export class KeyboardDevice {
     // 通信端点监听 (原有)
     const fn = (evt: HIDInputReportEvent) => {
       const data = Array.from(new Uint8Array(evt.data.buffer));
-      console.log(data);
       
       if (data[0] == 0xaa && data[1] == 0xd0) {
         const listener = this.listeners.find(
@@ -341,7 +340,6 @@ export class KeyboardDevice {
       this.startComm()
       const data = await this.api.sendDeviceData(CMD.REPORT_ID, [CMD.CMD_SET_LIGHT_ON, 0x00, 0x00, 0x00]);
       this.stopComm()
-      console.log(data);
 
       return true
     } catch {
@@ -351,7 +349,6 @@ export class KeyboardDevice {
   // 查看屏幕在线状态
   async checkLightStatus() {
     const data = await this.api.sendDeviceData(CMD.REPORT_ID, [CMD.CMD_CHECK_LIGHT_STATUS, 0x00, 0x00, 0x00]);
-    console.log(data);
     return {
       status: data[8] == 1 ? true : false,
     }

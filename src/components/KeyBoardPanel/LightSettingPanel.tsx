@@ -1,7 +1,8 @@
 'use client';
 
-import { Box, Switch, Typography } from '@mui/material';
-import { useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
+import { Box, Typography } from '@mui/material';
+import ColorizeOutlinedIcon from '@mui/icons-material/ColorizeOutlined';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { useTranslation } from '@/app/i18n';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import type { LayoutKey } from '@/types/types_v1';
@@ -9,6 +10,7 @@ import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import ColorPicker from '@/components/ColorPicker';
 import { ButtonRem, SliderRem } from '@/styled/ReconstructionRem';
 import Matrix from '@/components/Matrix';
+import ToggleSlider from '@/components/common/ToggleSlider';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 
 type EffectItem = {
@@ -92,11 +94,14 @@ function toHex(value: number) {
   return value.toString(16).padStart(2, '0');
 }
 
+const EYEDROPPER_LONG_PRESS_MS = 220;
+
 type LightSettingPanelProps = {
   forcedLightType?: 'backlight' | 'logolight' | 'sidelight' | 'matrixlight';
+  onKeyboardScaleChange?: (ratio: number) => void;
 };
 
-export default function LightSettingPanel({ forcedLightType }: LightSettingPanelProps = {}) {
+export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChange }: LightSettingPanelProps = {}) {
   const { t } = useTranslation('common');
   const isMatrixOnly = forcedLightType === 'matrixlight';
 
@@ -122,6 +127,33 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const [singleColorMode, setSingleColorMode] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#FF0000');
   const [playDirection, setPlayDirection] = useState<0 | 1>(0);
+  const [eyedropperActive, setEyedropperActive] = useState(false);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const latestMousePosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const mouseMoveRafRef = useRef<number | null>(null);
+
+  // 右键长按吸色时：用图标跟随鼠标显示，避免浏览器/React cursor 兼容问题
+  useEffect(() => {
+    if (!eyedropperActive) return;
+
+    const onMove = (e: MouseEvent) => {
+      latestMousePosRef.current = { x: e.clientX, y: e.clientY };
+      if (mouseMoveRafRef.current != null) return;
+      mouseMoveRafRef.current = requestAnimationFrame(() => {
+        mouseMoveRafRef.current = null;
+        setMousePos(latestMousePosRef.current);
+      });
+    };
+
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (mouseMoveRafRef.current != null) {
+        cancelAnimationFrame(mouseMoveRafRef.current);
+        mouseMoveRafRef.current = null;
+      }
+    };
+  }, [eyedropperActive]);
 
   const lightType = forcedLightType ?? keyboard?.lightType ?? 'backlight';
   const isPickupLightingModule = forcedLightType === 'logolight';
@@ -226,12 +258,15 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   const canPickSolidColorOnPalette =
     lightGatesEffectControls &&
     singleColorMode &&
+    currentLightInfo?.palette !== false &&
     (canEnableColorful || (currentLightInfo?.color === false && !isAllOffLight));
   const isCustomEffect = selectedEffect >= 253;
   const canCustomPaint = !isQMK && lightType === 'backlight' && lightGatesEffectControls && isCustomEffect;
   const switchingCustomEffectRef = useRef(false);
   const customPaintDragRef = useRef(false);
   const customPaintDragColorRef = useRef<string | null>(null);
+  const customPaintModeRef = useRef<'paint' | 'eyedropper' | null>(null);
+  const eyedropperPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const paintBatchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const effectChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyColors: string[] = keyboard?.keysColor ?? [];
@@ -290,7 +325,12 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     const rawSpeed = info[`${legacyPrefix}Speed`] ?? 0;
     setSpeed(rawSpeed);
 
-    setSingleColorMode((info[`${legacyPrefix}MixColor`] ?? 1) === 0);
+    // 特例：singleColor=false 的灯效固定为彩色态，不跟随 MixColor 回读，避免状态来回抖动。
+    if (currentLightInfo?.singleColor === false) {
+      setSingleColorMode(false);
+    } else {
+      setSingleColorMode((info[`${legacyPrefix}MixColor`] ?? 1) === 0);
+    }
 
     const r = info[`${legacyPrefix}RValue`] ?? 255;
     const g = info[`${legacyPrefix}GValue`] ?? 0;
@@ -306,16 +346,18 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     const normalizedDir = dirRaw === 1 ? 1 : 0;
     // 拾音灯固件方向位与 UI 方向按钮相反，这里做一次映射修正。
     setPlayDirection(isPickupLightingModule ? (normalizedDir === 1 ? 0 : 1) : normalizedDir);
-  }, [keyboard?.deviceFuncInfo, isPickupLightingModule, legacyPrefix, maxBrightness]);
+  }, [keyboard?.deviceFuncInfo, isPickupLightingModule, legacyPrefix, maxBrightness, currentLightInfo?.singleColor]);
 
   useEffect(() => {
     if (isQMK) return;
+    // 特例：singleColor=false 表示该灯效固定彩色，避免被 color=false 的通用规则强制切回单色。
+    if (currentLightInfo?.singleColor === false) return;
     if (currentLightInfo?.color !== false) return;
     if (singleColorMode) return;
 
     setSingleColorMode(true);
     updateFuncInfo({ [`${legacyPrefix}MixColor`]: 0 });
-  }, [isQMK, currentLightInfo?.color, singleColorMode, legacyPrefix]);
+  }, [isQMK, currentLightInfo?.singleColor, currentLightInfo?.color, singleColorMode, legacyPrefix]);
 
   useEffect(() => {
     if (currentLightInfo?.singleColor !== false) return;
@@ -326,10 +368,12 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     }
   }, [currentLightInfo?.singleColor, singleColorMode, isQMK, legacyPrefix]);
 
-  /** 拾音静态：禁用单色/彩色切换时强制单色，避免仍处彩色模式导致取色器不可用 */
+  /** 拾音静态：在需用取色器的灯效上强制单色，避免仍处彩色模式导致取色器不可用。
+   * 与 JSON `singleColor: false`（仅彩色，如色阶）互斥，否则会反复写 MixColor 与回读状态导致界面抽搐。 */
   useEffect(() => {
     if (!isPickupLightingModule) return;
     if (isPickupAllOff || isPickupDynamicLighting) return;
+    if (currentLightInfo?.singleColor === false) return;
     if (singleColorMode) return;
     if (isQMK) return;
     setSingleColorMode(true);
@@ -338,6 +382,7 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
     isPickupLightingModule,
     isPickupAllOff,
     isPickupDynamicLighting,
+    currentLightInfo?.singleColor,
     singleColorMode,
     isQMK,
     legacyPrefix,
@@ -352,6 +397,12 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   useEffect(() => {
     latestKeyColorsRef.current = keyColors;
   }, [keyColors]);
+
+  const tryPickColorFromKey = useCallback((keyIndex: number) => {
+    const currentColor = (latestKeyColorsRef.current[keyIndex] || '').trim();
+    if (!/^#([0-9A-Fa-f]{6})$/.test(currentColor)) return;
+    setSelectedColor(currentColor.toUpperCase());
+  }, []);
 
   useEffect(() => {
     if (!paintBatchDebounceRef.current) return;
@@ -375,14 +426,25 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
   useEffect(() => {
     if (!canCustomPaint) return;
     const endDrag = () => {
+      if (eyedropperPressTimerRef.current) {
+        clearTimeout(eyedropperPressTimerRef.current);
+        eyedropperPressTimerRef.current = null;
+      }
       customPaintDragRef.current = false;
       customPaintDragColorRef.current = null;
+      customPaintModeRef.current = null;
+      setEyedropperActive(false);
+    };
+    const onContextMenu = (e: Event) => {
+      e.preventDefault();
     };
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('blur', endDrag);
+    window.addEventListener('contextmenu', onContextMenu);
     return () => {
       window.removeEventListener('mouseup', endDrag);
       window.removeEventListener('blur', endDrag);
+      window.removeEventListener('contextmenu', onContextMenu);
     };
   }, [canCustomPaint]);
 
@@ -671,11 +733,23 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
           gap: '1.25rem',
           minHeight: 0,
           margin: '0 auto',
-          justifyContent: "center"
+          justifyContent: "center",
+          width: "100%",
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
-          <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box
+              sx={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              cursor: canCustomPaint && eyedropperActive ? 'none' : 'default',
+            }}
+          >
             <TravelVirtualKeyboard
               layoutKeys={displayLayoutKeys}
               travelKeys={travelKeys}
@@ -687,37 +761,90 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
               patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
               onMouseDown={
                 canCustomPaint
-                  ? (keyIndex) => {
-                      const currentColor = keyColors[keyIndex] || '';
-                      const dragColor =
-                        currentColor.toUpperCase() === selectedColor.toUpperCase() ? '#000000' : selectedColor;
-                      customPaintDragRef.current = true;
-                      customPaintDragColorRef.current = dragColor;
-                      paintCustomKeyWithColor(keyIndex, dragColor);
+                  ? (keyIndex, button = 0, clientX?: number, clientY?: number) => {
+                    if (typeof clientX === 'number' && typeof clientY === 'number') {
+                      latestMousePosRef.current = { x: clientX, y: clientY };
+                      setMousePos({ x: clientX, y: clientY });
                     }
+                    if (eyedropperPressTimerRef.current) {
+                      clearTimeout(eyedropperPressTimerRef.current);
+                      eyedropperPressTimerRef.current = null;
+                    }
+                    if (button === 2) {
+                      customPaintModeRef.current = null;
+                      eyedropperPressTimerRef.current = setTimeout(() => {
+                        customPaintModeRef.current = 'eyedropper';
+                        setEyedropperActive(true);
+                        tryPickColorFromKey(keyIndex);
+                      }, EYEDROPPER_LONG_PRESS_MS);
+                      return;
+                    }
+                    const currentColor = keyColors[keyIndex] || '';
+                    const dragColor =
+                      currentColor.toUpperCase() === selectedColor.toUpperCase() ? '#000000' : selectedColor;
+                    customPaintModeRef.current = 'paint';
+                    customPaintDragRef.current = true;
+                    customPaintDragColorRef.current = dragColor;
+                    paintCustomKeyWithColor(keyIndex, dragColor);
+                  }
                   : undefined
               }
               onMouseEnter={
                 canCustomPaint
                   ? (keyIndex) => {
-                      if (customPaintDragRef.current) {
-                        const dragColor = customPaintDragColorRef.current;
-                        if (dragColor) {
-                          paintCustomKeyWithColor(keyIndex, dragColor);
-                        }
+                    if (customPaintModeRef.current === 'eyedropper') {
+                      tryPickColorFromKey(keyIndex);
+                      return;
+                    }
+                    if (customPaintModeRef.current === 'paint' && customPaintDragRef.current) {
+                      const dragColor = customPaintDragColorRef.current;
+                      if (dragColor) {
+                        paintCustomKeyWithColor(keyIndex, dragColor);
                       }
                     }
+                  }
                   : undefined
               }
               onMouseUp={
                 canCustomPaint
                   ? () => {
-                      customPaintDragRef.current = false;
-                      customPaintDragColorRef.current = null;
+                    if (eyedropperPressTimerRef.current) {
+                      clearTimeout(eyedropperPressTimerRef.current);
+                      eyedropperPressTimerRef.current = null;
                     }
+                    customPaintDragRef.current = false;
+                    customPaintDragColorRef.current = null;
+                    customPaintModeRef.current = null;
+                    setEyedropperActive(false);
+                  }
                   : undefined
               }
+              onScaleRatioChange={onKeyboardScaleChange}
             />
+            {canCustomPaint && eyedropperActive ? (
+              <Box
+                sx={{
+                  position: 'fixed',
+                  left: mousePos.x,
+                  top: mousePos.y,
+                  transform: 'translate(-50%, -50%)',
+                  zIndex: 99999,
+                  pointerEvents: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(255,255,255,0.97)',
+                  border: '1px solid rgba(59,130,246,0.35)',
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.18)',
+                  color: '#2563eb',
+                }}
+              >
+                <ColorizeOutlinedIcon sx={{ fontSize: 20 }} />
+              </Box>
+            ) : null}
           </Box>
         </Box>
       </Box>
@@ -783,12 +910,13 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
               <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700 }}>
                 {t('1305')}
               </Typography>
-              <Switch
+              <ToggleSlider
                 disabled={isPickupDynamicLighting || isPickupAllOff}
                 checked={isPickupDynamicLighting || isPickupAllOff ? false : openLight}
-                onChange={(_, checked) => {
+                onChange={(checked) => {
                   void handlePickupAudioSwitch(checked);
                 }}
+                ariaLabel={t('1305')}
               />
             </Box>
           ) : null}
@@ -805,6 +933,9 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
                 color: '#3B82F6',
                 '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
                 '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
+                  border: '0.0625rem solid currentColor',
+                },
                 '& .MuiSlider-thumb': {
                   width: '2rem',
                   height: '2rem',
@@ -858,8 +989,11 @@ export default function LightSettingPanel({ forcedLightType }: LightSettingPanel
                 color: '#3B82F6',
                 '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
                 '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
+                  border: '0.0625rem solid currentColor',
+                },
                 '& .MuiSlider-thumb': {
-                  width: '1.9rem',
+                  width: '2rem',
                   height: '2rem',
                   border: '0.25rem solid #fff',
                   boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',

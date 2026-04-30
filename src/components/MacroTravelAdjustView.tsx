@@ -7,7 +7,11 @@ import type { LayoutKey } from '@/types/types_v1';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 
-export default function MacroTravelAdjustView() {
+type MacroTravelAdjustViewProps = {
+    onKeyboardScaleChange?: (ratio: number) => void;
+};
+
+export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTravelAdjustViewProps = {}) {
     const { keyboard } = useContext(ConnectKbContext);
     const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
     const travelKeys = keyboard?.travelKeys ?? [];
@@ -44,6 +48,7 @@ export default function MacroTravelAdjustView() {
                 travelValue={travelValue}
                 onToggleKey={toggleKey}
                 showActuation
+                onScaleRatioChange={onKeyboardScaleChange}
             />
             <Box
                 sx={{

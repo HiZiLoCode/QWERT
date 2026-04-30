@@ -142,6 +142,7 @@ export type LayoutKey = {
   code?: number,
   index?: number,
   name?: string,
+  icon?: string,
   mode?: number
 }
 

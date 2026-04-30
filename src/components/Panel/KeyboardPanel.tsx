@@ -1,8 +1,16 @@
 'use client';
 
-import { Box, Button, Popover, Stack, Typography } from '@mui/material';
+import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material';
 import ChevronRightOutlinedIcon from '@mui/icons-material/ChevronRightOutlined';
+import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
+import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import HighlightOutlinedIcon from '@mui/icons-material/HighlightOutlined';
+import TvOutlinedIcon from '@mui/icons-material/TvOutlined';
+import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
+import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import {
     useCallback,
     useContext,
@@ -12,6 +20,7 @@ import {
     useRef,
     useState,
     type MouseEvent,
+    type ReactNode,
 } from 'react';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import MacroTravelAdjustView from '@/components/MacroTravelAdjustView';
@@ -37,14 +46,15 @@ const KP = {
     mainPaddingRight: 0,
     sideWidth: 250,
     sideWidthMd: 200,
+    sideCollapsedWidth: 92,
     sideBreakpoint: 1700,
     sideColumnGap: 24,
     radiusDefault: 14,
     overlayBg: 'rgba(230, 230, 230, 0.5)',
     overlayBlur: '10px',
-    titleFont: { fontSize: 14, fontWeight: 500 as const },
+    titleFont: { fontSize: 18, fontWeight: 400 as const },
     titleColor: '#64748b',
-    tipsFont: { fontSize: 14, fontWeight: 400 as const },
+    tipsFont: { fontSize: 16, fontWeight: 400 as const },
     tipsColor: '#91a1b8',
     primary: '#3b82f6',
     primaryHover: '#2563eb',
@@ -58,7 +68,7 @@ const KP = {
     cardInnerGap: 15,
     previewMinHeight: 42,
     popoverWidth: 320,
-    dotSize: 8,
+    dotSize: 12,
 } as const;
 
 const DEFAULT_KEYBOARD_SKIN_OPTIONS = [
@@ -76,6 +86,25 @@ type KeyboardSkinOption = {
 };
 
 const KEYBOARD_SKIN_STORAGE_KEY = 'keyboard-panel:skin-option';
+const SETTINGS_MENU_COLLAPSED_STORAGE_KEY_MAIN = 'keyboard-panel:settings-menu-collapsed:main';
+const SETTINGS_MENU_COLLAPSED_STORAGE_KEY_TEST = 'keyboard-panel:settings-menu-collapsed:test';
+
+function readSettingsMenuCollapsedFromStorage(onlyTestMode: boolean): boolean {
+    if (typeof window === 'undefined') return false;
+    const key = onlyTestMode ? SETTINGS_MENU_COLLAPSED_STORAGE_KEY_TEST : SETTINGS_MENU_COLLAPSED_STORAGE_KEY_MAIN;
+    return window.localStorage.getItem(key) === '1';
+}
+
+function writeSettingsMenuCollapsedToStorage(onlyTestMode: boolean, collapsed: boolean) {
+    if (typeof window === 'undefined') return;
+    const key = onlyTestMode ? SETTINGS_MENU_COLLAPSED_STORAGE_KEY_TEST : SETTINGS_MENU_COLLAPSED_STORAGE_KEY_MAIN;
+    window.localStorage.setItem(key, collapsed ? '1' : '0');
+}
+
+/** 键盘缩放 ratio **低于**此值视为「空间紧」，自动收起侧栏（用户口述「阀值」指该边界） */
+const SETTINGS_MENU_AUTO_COLLAPSE_SCALE = 0.72;
+/** 滞回：离开低压区需 ratio 高于 `SCALE + HYSTERESIS`，避免在边界来回抖 */
+const SETTINGS_MENU_SCALE_HYSTERESIS = 0.04;
 
 function normalizeKeyboardSkinOptions(input: unknown): KeyboardSkinOption[] {
     if (!Array.isArray(input)) return [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
@@ -118,36 +147,28 @@ interface KeyboardPanelProps {
 function SettingsContent({
     selectedSetting,
     deviceAuthorized,
-    tryEnterBindTestFullscreen,
+    onKeyboardScaleChange,
 }: {
     selectedSetting: string;
     deviceAuthorized: boolean;
-    tryEnterBindTestFullscreen: () => void;
+    onKeyboardScaleChange?: (ratio: number) => void;
 }) {
     const { t } = useTranslation('common');
     if (selectedSetting === 'macro') {
-        return <MacroTravelAdjustView />;
+        return <MacroTravelAdjustView onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'lighting') {
-        return <LightSettingPanel />;
+        return <LightSettingPanel onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'logolighting') {
-        return <LightSettingPanel forcedLightType="logolight" />;
+        return <LightSettingPanel forcedLightType="logolight" onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'matrix') {
         return <LightSettingPanel forcedLightType="matrixlight" />;
     } else if (selectedSetting === 'keypress') {
-        return <KeyMappingPanel />;
+        return <KeyMappingPanel onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'layout') {
-        return <LayoutPanel />;
+        return <LayoutPanel onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'test') {
         return (
             <Box
-                onPointerDownCapture={() => {
-                    if (
-                        typeof document !== 'undefined' &&
-                        document.fullscreenElement !== document.documentElement
-                    ) {
-                        tryEnterBindTestFullscreen();
-                    }
-                }}
                 sx={{
                     flex: 1,
                     minHeight: 0,
@@ -184,7 +205,7 @@ function SettingsContent({
 function exitDocumentFullscreen() {
     if (typeof document === 'undefined') return;
     if (document.fullscreenElement) {
-        void Promise.resolve(document.exitFullscreen()).catch(() => {});
+        void Promise.resolve(document.exitFullscreen()).catch(() => { });
     }
 }
 
@@ -204,7 +225,7 @@ function getNavigatorKeyboard() {
 }
 
 function unlockNavigatorKeyboard() {
-    void Promise.resolve(getNavigatorKeyboard()?.unlock?.()).catch(() => {});
+    void Promise.resolve(getNavigatorKeyboard()?.unlock?.()).catch(() => { });
 }
 
 function lockNavigatorWinKeysWhenPageFullscreen() {
@@ -212,7 +233,7 @@ function lockNavigatorWinKeysWhenPageFullscreen() {
     if (document.fullscreenElement !== document.documentElement) return;
     const keyboard = getNavigatorKeyboard();
     if (!keyboard?.lock) return;
-    void Promise.resolve(keyboard.lock([...BIND_TEST_WIN_KEY_CODES])).catch(() => {});
+    void Promise.resolve(keyboard.lock([...BIND_TEST_WIN_KEY_CODES])).catch(() => { });
 }
 
 function syncBindTestKeyboardLock(isBindTestView: boolean) {
@@ -230,26 +251,21 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [keyboardSkin, setKeyboardSkin] = useState<string>(DEFAULT_KEYBOARD_SKIN_OPTIONS[0].value);
     const [keyboardSkinHydrated, setKeyboardSkinHydrated] = useState(false);
+    const [settingsMenuCollapsed, setSettingsMenuCollapsed] = useState(false);
+    const [settingsMenuCollapsedHydrated, setSettingsMenuCollapsedHydrated] = useState(false);
+    const [currentKeyboardScaleRatio, setCurrentKeyboardScaleRatio] = useState<number | null>(null);
+    const [settingsMenuScaleLocked, setSettingsMenuScaleLocked] = useState(false);
+    /** 因缩放自动收起后：禁止主动展开、换页不展开，直到窗口/视口发生 resize */
+    const [sidebarAutoStashUntilResize, setSidebarAutoStashUntilResize] = useState(false);
+    const lastScaleZoneRef = useRef<'below' | 'above' | null>(null);
     const { keyboardData, connectedKeyboard, keyboard, keyboardLayout, connectKeyboard, setConnectKeyboardStauts } =
         useContext(ConnectKbContext);
     const { deviceStatus } = useContext(MainContext);
     const { selectedSetting, setSelectedSetting } = useContext(EditorContext);
+    const prevSelectedSettingRef = useRef(selectedSetting);
     const isBindTestView = onlyTestMode || selectedSetting === 'test';
     const isBindTestViewRef = useRef(isBindTestView);
     isBindTestViewRef.current = isBindTestView;
-
-    const tryEnterBindTestFullscreen = useCallback(() => {
-        if (typeof document === 'undefined') return;
-        const root = document.documentElement;
-        if (document.fullscreenElement === root) return;
-        const fs = root.requestFullscreen?.bind(root);
-        if (fs) {
-            void Promise.resolve(fs()).catch(() => {});
-            return;
-        }
-        const webkitFs = (root as unknown as { webkitRequestFullscreen?: () => void }).webkitRequestFullscreen;
-        if (webkitFs) webkitFs.call(root);
-    }, []);
 
     useEffect(() => {
         if (isBindTestView) return;
@@ -293,19 +309,107 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     }, [isBindTestView]);
 
     useLayoutEffect(() => {
-        if (!isBindTestView) return;
-        const id = requestAnimationFrame(() => {
-            tryEnterBindTestFullscreen();
-        });
-        return () => cancelAnimationFrame(id);
-    }, [isBindTestView, tryEnterBindTestFullscreen]);
+        setSettingsMenuCollapsed(readSettingsMenuCollapsedFromStorage(onlyTestMode));
+        setSettingsMenuCollapsedHydrated(true);
+    }, [onlyTestMode]);
+
+    useEffect(() => {
+        if (!settingsMenuCollapsedHydrated) return;
+        writeSettingsMenuCollapsedToStorage(onlyTestMode, settingsMenuCollapsed);
+    }, [onlyTestMode, settingsMenuCollapsed, settingsMenuCollapsedHydrated]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (!sidebarAutoStashUntilResize) return;
+        const onViewportResize = () => {
+            setSidebarAutoStashUntilResize(false);
+        };
+        window.addEventListener('resize', onViewportResize);
+        window.visualViewport?.addEventListener('resize', onViewportResize);
+        return () => {
+            window.removeEventListener('resize', onViewportResize);
+            window.visualViewport?.removeEventListener('resize', onViewportResize);
+        };
+    }, [sidebarAutoStashUntilResize]);
+
+    useEffect(() => {
+        if (prevSelectedSettingRef.current !== selectedSetting) {
+            prevSelectedSettingRef.current = selectedSetting;
+            setCurrentKeyboardScaleRatio(null);
+            lastScaleZoneRef.current = null;
+            if (sidebarAutoStashUntilResize) {
+                setSettingsMenuCollapsed(true);
+                setSettingsMenuScaleLocked(true);
+            } else {
+                setSettingsMenuScaleLocked(false);
+            }
+            return;
+        }
+
+        if (currentKeyboardScaleRatio == null) {
+            if (!sidebarAutoStashUntilResize) {
+                setSettingsMenuScaleLocked(false);
+            }
+            return;
+        }
+
+        const collapseTrigger = SETTINGS_MENU_AUTO_COLLAPSE_SCALE - SETTINGS_MENU_SCALE_HYSTERESIS;
+        const expandTrigger = SETTINGS_MENU_AUTO_COLLAPSE_SCALE + SETTINGS_MENU_SCALE_HYSTERESIS;
+        const currentZone = lastScaleZoneRef.current;
+
+        let nextZone: 'below' | 'above' | null = currentZone;
+        if (currentZone == null) {
+            nextZone = currentKeyboardScaleRatio < SETTINGS_MENU_AUTO_COLLAPSE_SCALE ? 'below' : 'above';
+        } else if (currentZone === 'above' && currentKeyboardScaleRatio < collapseTrigger) {
+            nextZone = 'below';
+        } else if (currentZone === 'below' && currentKeyboardScaleRatio > expandTrigger) {
+            nextZone = 'above';
+        }
+        if (nextZone == null || nextZone === currentZone) {
+            if (!sidebarAutoStashUntilResize) {
+                if (currentKeyboardScaleRatio >= SETTINGS_MENU_AUTO_COLLAPSE_SCALE) {
+                    setSettingsMenuScaleLocked(false);
+                } else {
+                    setSettingsMenuScaleLocked(true);
+                }
+            }
+            return;
+        }
+        const previousZone = lastScaleZoneRef.current;
+        lastScaleZoneRef.current = nextZone;
+
+        if (nextZone === 'below') {
+            setSettingsMenuCollapsed(true);
+            setSettingsMenuScaleLocked(true);
+            setSidebarAutoStashUntilResize(true);
+            return;
+        }
+
+        // 经滞回从低压区回到安全区：自动展开（null→above 首帧不处理，避免覆盖 localStorage 的收起偏好）
+        if (nextZone === 'above' && previousZone === 'below') {
+            setSettingsMenuCollapsed(false);
+            setSettingsMenuScaleLocked(false);
+            setSidebarAutoStashUntilResize(false);
+            return;
+        }
+
+        if (!sidebarAutoStashUntilResize) {
+            if (currentKeyboardScaleRatio >= SETTINGS_MENU_AUTO_COLLAPSE_SCALE) {
+                setSettingsMenuScaleLocked(false);
+            }
+        }
+    }, [selectedSetting, currentKeyboardScaleRatio, sidebarAutoStashUntilResize]);
+
+    const handleKeyboardScaleChange = useCallback((ratio: number) => {
+        setCurrentKeyboardScaleRatio(ratio);
+    }, []);
 
     useEffect(
         () => () => {
             unlockNavigatorKeyboard();
             if (typeof document === 'undefined') return;
             if (document.fullscreenElement === document.documentElement) {
-                void Promise.resolve(document.exitFullscreen()).catch(() => {});
+                void Promise.resolve(document.exitFullscreen()).catch(() => { });
             }
         },
         [],
@@ -377,14 +481,24 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
 
         const tabs = [
             { id: 'keypress', label: t('2702'), keyboardType: true },
-            { id: 'layout', label: t('2703'), keyBoardLayer },
-            { id: 'lighting', label: t('2704'), keyboardType: true },
-            { id: 'logolighting', label: t('2705'), keyboardType: true },
             { id: 'Led', label: t('2706'), keyboardType: !!deviceBaseInfo?.isLed },
+            { id: 'lighting', label: t('2704'), keyboardType: true },
+            { id: 'layout', label: t('2703'), keyBoardLayer },
+            { id: 'logolighting', label: t('2705'), keyboardType: true },
             { id: 'matrix', label: t('2707'), keyboardType: !!deviceBaseInfo?.matrixScreen },
         ];
         return tabs.filter((tab) => (tab.keyboardType ?? true) && (tab.keyBoardLayer ?? true));
     }, [connectedKeyboard, keyboardData, deviceBaseInfo, t, onlyTestMode]);
+
+    const settingIconMap: Record<string, ReactNode> = {
+        keypress: <KeyboardOutlinedIcon sx={{ fontSize: 18 }} />,
+        layout: <AppsOutlinedIcon sx={{ fontSize: 18 }} />,
+        lighting: <LightbulbOutlinedIcon sx={{ fontSize: 18 }} />,
+        logolighting: <HighlightOutlinedIcon sx={{ fontSize: 18 }} />,
+        Led: <TvOutlinedIcon sx={{ fontSize: 18 }} />,
+        matrix: <GridViewOutlinedIcon sx={{ fontSize: 18 }} />,
+        test: <ScienceOutlinedIcon sx={{ fontSize: 18 }} />,
+    };
 
     const getKeyboardPreviewCandidates = useCallback((vid?: number, pid?: number, devMode: number = 0) => {
         if (typeof vid !== 'number' || typeof pid !== 'number') return [];
@@ -476,14 +590,6 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     if (onlyTestMode) {
         return (
             <Box
-                onPointerDownCapture={() => {
-                    if (
-                        typeof document !== 'undefined' &&
-                        document.fullscreenElement !== document.documentElement
-                    ) {
-                        tryEnterBindTestFullscreen();
-                    }
-                }}
                 sx={{
                     width: '100%',
                     height: '100%',
@@ -511,15 +617,16 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
         >
             <Box
                 sx={{
-                    width: `${KP.sideWidth}px`,
+                    width: settingsMenuCollapsed ? `${KP.sideCollapsedWidth}px` : `${KP.sideWidth}px`,
                     flexShrink: 0,
                     height: '100%',
                     minHeight: 0,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: `${KP.sideColumnGap}px`,
+                    transition: 'width 0.2s ease-out',
                     [`@media (max-width: ${KP.sideBreakpoint}px)`]: {
-                        width: `${KP.sideWidthMd}px`,
+                        width: settingsMenuCollapsed ? `${KP.sideCollapsedWidth}px` : `${KP.sideWidthMd}px`,
                     },
                 }}
             >
@@ -540,24 +647,66 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                     sx={{
                         ...sidePanelSx,
                         p: `${KP.cardPadding}px`,
-                        cursor: 'pointer',
+                        cursor: settingsMenuCollapsed ? 'default' : 'pointer',
                         zIndex: 11,
                         flexShrink: 0,
                         display: 'flex',
                         flexDirection: 'column',
+                        alignItems: 'center',
                         gap: `${KP.cardInnerGap}px`,
+                        transition: 'padding 0.2s ease-out',
                     }}
-                    onClick={handleOpenMenu}
+                    onClick={settingsMenuCollapsed ? undefined : handleOpenMenu}
                 >
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2708')}</Typography>
-                        <ChevronRightOutlinedIcon sx={{ color: '#94a3b8', fontSize: 24 }} />
+                    <Box sx={{ display: 'flex', justifyContent: settingsMenuCollapsed ? 'center' : 'space-between', alignItems: 'center', width: '100%', height: 30 }}>
+                        {settingsMenuCollapsed ? (
+                            <IconButton
+                                size="small"
+                                disabled={sidebarAutoStashUntilResize || settingsMenuScaleLocked}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSettingsMenuCollapsed(false);
+                                }}
+                                sx={{
+                                    width: 30,
+                                    height: 30,
+                                    borderRadius: '8px',
+                                    color: '#7d93b0',
+                                    border: '1px solid rgba(125,147,176,0.35)',
+                                    '&:hover': { color: '#4a86f7', borderColor: '#9fc2ff', backgroundColor: 'rgba(74,134,247,0.08)' },
+                                }}
+                            >
+                                <ChevronRightOutlinedIcon sx={{ fontSize: 18 }} />
+                            </IconButton>
+                        ) : (
+                            <>
+                                <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2708')}</Typography>
+                                <IconButton
+                                    size="small"
+                                    disabled={settingsMenuScaleLocked}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        setSettingsMenuCollapsed(true);
+                                    }}
+                                    sx={{
+                                        width: 30,
+                                        height: 30,
+                                        borderRadius: '8px',
+                                        color: '#7d93b0',
+                                        border: '1px solid rgba(125,147,176,0.35)',
+                                        '&:hover': { color: '#4a86f7', borderColor: '#9fc2ff', backgroundColor: 'rgba(74,134,247,0.08)' },
+                                    }}
+                                >
+                                    <ChevronLeftOutlinedIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                            </>
+                        )}
                     </Box>
-
                     <Box
+                        onClick={settingsMenuCollapsed ? handleOpenMenu : undefined}
                         sx={{
                             width: '100%',
-                            height: '84px',
+                            height: settingsMenuCollapsed ? '54px' : '84px',
                             borderRadius: '8px',
                             background: 'linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)',
                             border: '1px solid #dbe7f6',
@@ -567,6 +716,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             color: '#8ea3bd',
                             fontSize: '11px',
                             overflow: 'hidden',
+                            ...(settingsMenuCollapsed ? { cursor: 'pointer' } : {}),
                         }}
                     >
                         {keyboardPreviewWithSkinSrc ? (
@@ -592,19 +742,21 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             />
                         )}
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        <Typography sx={{ fontSize: '12px', lineHeight: 1.1, color: '#5f7da3', fontWeight: 600 }}>
-                            {connectedKeyboard?.productName || 'QK100 MKII'}
-                        </Typography>
-                        <Box
-                            sx={{
-                                width: `${KP.dotSize}px`,
-                                height: `${KP.dotSize}px`,
-                                borderRadius: '50%',
-                                backgroundColor: '#35c27b',
-                            }}
-                        />
-                    </Box>
+                    {!settingsMenuCollapsed ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            <Typography sx={{ fontSize: '18px', lineHeight: 1.1, color: '#5f7da3', fontWeight: 600 }}>
+                                {connectedKeyboard?.productName || 'QK100 MKII'}
+                            </Typography>
+                            <Box
+                                sx={{
+                                    width: `${KP.dotSize}px`,
+                                    height: `${KP.dotSize}px`,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#35c27b',
+                                }}
+                            />
+                        </Box>
+                    ) : null}
                 </Box>
 
                 <Popover
@@ -707,8 +859,8 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                             <Box sx={{ flex: 1, mx: '10px', minWidth: 0 }}>
                                                 <Typography
                                                     sx={{
-                                                        fontSize: 14,
-                                                        fontWeight: 600,
+                                                        fontSize: KP.titleFont.fontSize,
+                                                        fontWeight: KP.titleFont.fontWeight,
                                                         color: active ? '#fff' : '#0f172a',
                                                         whiteSpace: 'nowrap',
                                                         overflow: 'hidden',
@@ -717,7 +869,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 >
                                                     {kb.productName}
                                                 </Typography>
-                          
+
                                                 {active ? (
                                                     <Box
                                                         component="select"
@@ -789,13 +941,33 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                         flexDirection: 'column',
                         padding: `${KP.submenuContainerPaddingY}px ${KP.submenuContainerPaddingX}px`,
                         gap: `${KP.submenuContainerGap}px`,
+                        transition: 'padding 0.2s ease-out, gap 0.2s ease-out',
                     }}
                 >
                     <Box sx={{ width: '100%' }}>
-                        <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2710')}</Typography>
-                        <Typography sx={{ ...KP.tipsFont, color: KP.tipsColor, mt: '6px' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: settingsMenuCollapsed ? 'center' : 'flex-start', height: 30 }}>
+                            <Typography
+                                sx={{
+                                    ...KP.titleFont,
+                                    color: KP.titleColor,
+                                    visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
+                                }}
+                            >
+                                {t('2710')}
+                            </Typography>
+                        </Box>
+                        {/* <Typography
+                            sx={{
+                                ...KP.tipsFont,
+                                color: KP.tipsColor,
+                                mt: '6px',
+                                height: '20px',
+                                visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
+                                overflow: 'hidden',
+                            }}
+                        >
                             {t('2711')}
-                        </Typography>
+                        </Typography> */}
                     </Box>
 
                     <Stack
@@ -805,44 +977,84 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             flex: 1,
                             minHeight: 0,
                             overflow: 'auto',
+                            alignItems: 'center',
                         }}
                     >
                         {keyboardSettings.map((setting) => {
                             const active = selectedSetting === setting.id;
                             return (
-                                <Button
+                                <Tooltip
                                     key={setting.id}
-                                    fullWidth
-                                    onClick={() => handleSettingSelect(setting.id)}
-                                    sx={{
-                                        height: '42px',
-                                        px: `${KP.submenuPaddingX}px`,
-                                        borderRadius: '10px',
-                                        justifyContent: 'center',
-                                        fontSize: '16px',
-                                        fontWeight: active ? 600 : 500,
-                                        textTransform: 'none',
-                                        color: active ? '#ffffff' : '#7d93b0',
-                                        backgroundColor: active ? '#4a86f7' : 'transparent',
-                                        transition: 'background-color 0.2s ease-out, color 0.2s ease-out',
-                                        '&:hover': {
-                                            backgroundColor: active ? '#3b78f0' : 'rgba(74, 134, 247, 0.08)',
-                                            color: active ? '#ffffff' : '#4a86f7',
+                                    title={settingsMenuCollapsed ? setting.label : ''}
+                                    placement="right"
+                                    arrow
+                                    disableHoverListener={!settingsMenuCollapsed}
+                                    disableFocusListener={!settingsMenuCollapsed}
+                                    disableTouchListener={!settingsMenuCollapsed}
+                                    slotProps={{
+                                        tooltip: {
+                                            sx: {
+                                                ml: '8px',
+                                                px: '10px',
+                                                py: '6px',
+                                                borderRadius: '8px',
+                                                fontSize: '13px',
+                                                fontWeight: 500,
+                                                color: '#ffffff',
+                                                backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                                                boxShadow: '0 8px 20px rgba(15, 23, 42, 0.18)',
+                                            },
+                                        },
+                                        arrow: {
+                                            sx: {
+                                                color: 'rgba(15, 23, 42, 0.92)',
+                                            },
                                         },
                                     }}
                                 >
-                                    {setting.label}
-                                </Button>
+                                    <Button
+                                        fullWidth
+                                        title={settingsMenuCollapsed ? undefined : setting.label}
+                                        onClick={() => handleSettingSelect(setting.id)}
+                                        startIcon={settingIconMap[setting.id]}
+                                        sx={{
+                                            minWidth: 0,
+                                            width: settingsMenuCollapsed ? 44 : '100%',
+                                            height: '42px',
+                                            px: settingsMenuCollapsed ? 0 : `${KP.submenuPaddingX}px`,
+                                            borderRadius: '10px',
+                                            justifyContent: settingsMenuCollapsed ? 'center' : 'flex-start',
+                                            gap: settingsMenuCollapsed ? 0 : '10px',
+                                            fontSize: '16px',
+                                            fontWeight: active ? 600 : 500,
+                                            textTransform: 'none',
+                                            color: active ? '#ffffff' : '#7d93b0',
+                                            backgroundColor: active ? '#4a86f7' : 'transparent',
+                                            transition: 'background-color 0.2s ease-out, color 0.2s ease-out, width 0.2s ease-out',
+                                            '& .MuiButton-startIcon': {
+                                                mr: settingsMenuCollapsed ? 0 : 1,
+                                                ml: 0,
+                                                '& svg': { fontSize: settingsMenuCollapsed ? 20 : 18 },
+                                            },
+                                            '&:hover': {
+                                                backgroundColor: active ? '#3b78f0' : 'rgba(74, 134, 247, 0.08)',
+                                                color: active ? '#ffffff' : '#4a86f7',
+                                            },
+                                        }}
+                                    >
+                                        {!settingsMenuCollapsed ? setting.label : null}
+                                    </Button>
+                                </Tooltip>
                             );
                         })}
                     </Stack>
                 </Box>
             </Box>
-            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingBottom:43 }}>
+            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingBottom: 43 }}>
                 <SettingsContent
                     selectedSetting={selectedSetting}
                     deviceAuthorized={Boolean(deviceStatus)}
-                    tryEnterBindTestFullscreen={tryEnterBindTestFullscreen}
+                    onKeyboardScaleChange={handleKeyboardScaleChange}
                 />
             </Box>
         </Box>

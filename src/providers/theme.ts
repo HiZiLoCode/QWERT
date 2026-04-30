@@ -25,9 +25,12 @@ declare module '@mui/material/styles' {
 
 // Light 主题
 export const lightTheme: Theme = createTheme({
-  spacing: factor => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
+  spacing: (factor: number) => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
   typography: {
     htmlFontSize: 16, // base rem
+    fontFamily:
+      '"HarmonyOS Sans SC","Noto Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif',
+    fontWeightRegular: 400,
   },
   palette: {
     mode: 'light',
@@ -59,9 +62,12 @@ export const lightTheme: Theme = createTheme({
 
 // Dark 主题
 export const darkTheme: Theme = createTheme({
-  spacing: factor => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
+  spacing: (factor: number) => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
   typography: {
-    htmlFontSize: 16, // base rem
+    htmlFontSize: 18, // base rem
+    fontFamily:
+      '"HarmonyOS Sans SC","Noto Sans SC",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif',
+    fontWeightRegular: 400,
   },
   palette: {
     mode: 'dark',

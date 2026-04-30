@@ -1,11 +1,12 @@
 'use client';
 
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Tooltip, styled } from '@mui/material';
+import { Box, styled } from '@mui/material';
 import type { LayoutKey, KeyboardKey } from '@/types/types_v1';
 import keyboardLayout from '@/data/keyboardLayout/full_keyboard.json';
 import keyboardLayoutDe from '@/data/keyboardLayout/full_keyboard_de.json';
 import { getKeyByKeyNameValue, getKeyName } from '@/keyboard/keycode';
+import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 
 const KEY_UNIT_REM = 3.5;
 const KEY_GAP_REM = 0.2;
@@ -153,27 +154,7 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                 onClick={() => handleSelect(index)}
                 style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}
               >
-                <Tooltip
-                  placement="top"
-                  title={keyCodeLabel || keyLabel}
-                  enterDelay={180}
-                  disableInteractive
-                  slotProps={{
-                    tooltip: {
-                      sx: {
-                        fontSize: '0.95rem',
-                        fontWeight: 600,
-                        color: '#6f84a8',
-                        px: 16,
-                        py: 12,
-                        borderRadius: '0.75rem',
-                        border: '0.0625rem solid rgba(197,211,232,0.9)',
-                        bgcolor: 'rgba(255,255,255,0.98)',
-                        boxShadow: '0 0.25rem 0.875rem rgba(128,155,197,0.24)',
-                      },
-                    },
-                  }}
-                >
+                <UnifiedTooltip title={keyCodeLabel || keyLabel}>
                   <Box
                     sx={{
                       width: '100%',
@@ -206,7 +187,7 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       keyLabel
                     )}
                   </Box>
-                </Tooltip>
+                </UnifiedTooltip>
               </StyledKeyWrapper>
             );
           })}

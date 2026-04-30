@@ -1477,7 +1477,7 @@
       "code1": 0,
       "code2": 51,
       "index": 73,
-      "name": ", ;",
+      "name": ": ;",
       "color": "mod",
       "state": 1
     },
@@ -1486,7 +1486,7 @@
       "code1": 0,
       "code2": 52,
       "index": 74,
-      "name": "\"",
+      "name": "\" '",
       "color": "mod",
       "state": 1
     },

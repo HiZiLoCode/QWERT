@@ -8,10 +8,13 @@ export function mergeLayoutKeysWithUserKeyNames(
   if (!layoutKeys.length || !userKeys?.length) return layoutKeys;
   return layoutKeys.map((k, idx) => {
     const keyIndex = k.index ?? idx;
-    const name = userKeys[keyIndex]?.name;
+    const userKey = userKeys[keyIndex] as (KeyboardKey & { icon?: string }) | undefined;
+    const name = userKey?.name;
+    const icon = userKey?.icon;
     return {
       ...k,
       name: name || k.name || "",
+      icon: icon || k.icon || "",
     };
   });
 }

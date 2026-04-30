@@ -4,6 +4,7 @@ import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { EditorContext } from '@/providers/EditorProvider';
 import { useContext } from 'react';
+import packageInfo from '../../package.json';
 
 /** 与 ticktype0407CodeNew `configure/side/sidebar.tsx`、`common/menu.tsx`、`Lang.tsx` 对齐（本文件使用 px） */
 const SIDE = {
@@ -267,7 +268,7 @@ export default function Sidebar() {
                             textAlign: 'center',
                         }}
                     >
-                        IO v1.0.0
+                        IO v {packageInfo.version}
                     </Box>
                 </Box>
             </Box>

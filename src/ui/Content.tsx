@@ -2,12 +2,16 @@
 
 import HeroSection from '@/components/HeroSection';
 import Main from '@/components/Main';
+import { Box, Typography } from '@mui/material';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { EditorContext } from '@/providers/EditorProvider';
+import { useViewportMask } from '@/hooks/useViewportMask';
+import { useTranslation } from '@/app/i18n';
 import { startMonitoring, usbDetect } from "@/keyboard/usb-hid";
 import { useContext, useEffect, useRef } from 'react';
 
 export default function Content() {
+  const { t } = useTranslation('common');
   const {
     loading,
     setLoading,
@@ -26,6 +30,8 @@ export default function Content() {
   // 当前已连接键盘地址（仅此设备断开时回到首页）
   const connectedKeyboardAddressRef = useRef<string | null>(null);
   const demoKeyboardRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const showViewportMask = useViewportMask({ containerRef: contentRef, isAuthView: loading, enabled: !loading });
   // 避免不必要的触发
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -58,7 +64,7 @@ export default function Content() {
         return;
       }
 
-      if (updateRef.current) return; 
+      if (updateRef.current) return;
       console.log('[USB Remove] 设备断开:', device);
       const removedAddress = device?._address;
       const isCurrentKeyboardRemoved =
@@ -110,5 +116,46 @@ export default function Content() {
   useEffect(() => {
     if (loading) onChangeTab("keyboard");
   }, [loading]);
-  return loading ? <HeroSection /> : <Main />;
+  return (
+    <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
+      {loading ? <HeroSection /> : <Main />}
+      {!loading && showViewportMask ? (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1400,
+            pointerEvents: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            background: "url(/assets/cfg-bg-LnUK4o-L.webp) center top / cover no-repeat",
+            backdropFilter: 'blur(3px)',
+            gap: '0.75rem',
+            px: '1.25rem',
+          }}
+        >
+          <Box
+            component="img"
+            src="/window-too-small-cat.svg"
+            alt={t('2595')}
+            sx={{
+              width: 'min(42rem, 82vw)',
+              maxHeight: '58vh',
+              objectFit: 'contain',
+              opacity: 0.92,
+              userSelect: 'none',
+            }}
+          />
+          <Typography sx={{ color: '#64748b', fontSize: '2rem', fontWeight: 600, lineHeight: 1.2 }}>
+            {t('2593')}
+          </Typography>
+          <Typography sx={{ color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>
+            {t('2594')}
+          </Typography>
+        </Box>
+      ) : null}
+    </Box>
+  );
 }

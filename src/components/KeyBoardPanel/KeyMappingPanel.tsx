@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Button, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { useContext, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
@@ -13,6 +13,7 @@ import type { LayoutKey } from '@/types/types_v1';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
+import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 
 /**
  * 与配置页截图：侧栏约为主键盘区宽度的 15%–20%；大块留白与浅灰底卡片。
@@ -97,7 +98,7 @@ const KeyButton = ({
 
     return (
         <Box sx={{ display: 'inline-block', m: '4px' }}>
-            <Tooltip title={displayLabel} arrow placement="top">
+            <UnifiedTooltip title={displayLabel} arrow placement="top">
             <ButtonRem
                 variant="text"
                 onMouseEnter={() => setHover(true)}
@@ -144,7 +145,7 @@ const KeyButton = ({
                     </span>
                 )}
             </ButtonRem>
-            </Tooltip>
+            </UnifiedTooltip>
         </Box>
     );
 };
@@ -168,7 +169,11 @@ const CATEGORIES: Category[] = [
 
 const LAYER_COUNT = 4;
 
-export default function KeyMappingPanel() {
+type KeyMappingPanelProps = {
+    onKeyboardScaleChange?: (ratio: number) => void;
+};
+
+export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPanelProps = {}) {
     const { connectedKeyboard, keyboard, macroList, keyboardLayout } = useContext(ConnectKbContext);
     const { macroProfiles } = macroList;
     const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
@@ -380,6 +385,7 @@ export default function KeyMappingPanel() {
             <Box
                 sx={{
                     height: "50%",
+                    width: "100%",
                     minHeight: `${MAP.topAreaMinHeight}px`,
                     margin: "0 auto",
                     display: "flex",
@@ -408,6 +414,7 @@ export default function KeyMappingPanel() {
                     onToggleKey={(keyIndex: number) => {
                         keyboard?.setSelectIndex?.(keyIndex);
                     }}
+                    onScaleRatioChange={onKeyboardScaleChange}
                 />
                 </Box>
             </Box>

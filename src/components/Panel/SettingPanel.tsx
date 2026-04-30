@@ -9,7 +9,6 @@ import {
     FormControl,
     MenuItem,
     Select,
-    Switch,
     Typography,
     Stepper,
     Step,
@@ -26,6 +25,7 @@ import FirmwareChangelogSection from './FirmwareChangelogSection';
 import FirmwareUpgrade from '@/components/common/FirmwareUpgrade';
 import DongleFirmwareUpgrade from '@/components/common/DongleFirmwareUpgrade';
 import KeyboardFirmwareUpgrade from '@/components/common/KeyboardFirmwareUpgrade';
+import ToggleSlider from '@/components/common/ToggleSlider';
 import { useTranslation } from '@/app/i18n';
 import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 
@@ -75,6 +75,7 @@ export default function SettingPanel() {
     } = keyboard || {};
 
     const firmwareChangelogKeySegment = deviceBaseInfo?.keyboardID ?? 0;
+    const isDemoFirmwareSession = connectedKeyboard?.api?.address === 'demo';
 
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
     const [checkingForUpdates, setCheckingForUpdates] = useState(false);
@@ -173,15 +174,6 @@ export default function SettingPanel() {
 
     const supportsNumLockMode =
         (connectedKeyboard?.productId ?? productId ?? 0) === PID_EXTENDED_FUNC_LAYOUT;
-
-    const switchSx = {
-        '& .MuiSwitch-switchBase.Mui-checked': { color: '#fff' },
-        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-            backgroundColor: '#3b82f6',
-            opacity: 1,
-        },
-        '& .MuiSwitch-track': { backgroundColor: '#e2e8f0', opacity: 1 },
-    } as const;
 
     const selectSx = {
         minWidth: '7.5rem',
@@ -295,8 +287,8 @@ export default function SettingPanel() {
                         textTransform: 'none',
                         borderRadius: '0.45rem',
                         height: '3rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
+                        fontSize: '1rem',
+                        fontWeight: 400,
                         color: tab === 'settings' ? '#fff' : '#596d88',
                         bgcolor: tab === 'settings' ? '#3B82F6' : 'transparent',
                         border: '0.0625rem solid',
@@ -315,8 +307,8 @@ export default function SettingPanel() {
                         textTransform: 'none',
                         borderRadius: '0.45rem',
                         height: '3rem',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
+                        fontSize: '1rem',
+                        fontWeight: 400,
                         color: tab === 'firmware' ? '#fff' : '#596d88',
                         bgcolor: tab === 'firmware' ? '#3B82F6' : 'transparent',
                         border: '0.0625rem solid',
@@ -348,13 +340,13 @@ export default function SettingPanel() {
                                 title={t('770')}
                                 description={[t('771'), t('1492')]}
                                 right={
-                                    <Switch
+                                    <ToggleSlider
                                         checked={nkroEnabled}
-                                        onChange={(_, checked) => {
+                                        onChange={(checked) => {
                                             setNkroEnabled(checked);
                                             updateFuncInfo({ sixKeysOrAllKeys: checked ? 1 : 0 });
                                         }}
-                                        sx={switchSx}
+                                        ariaLabel={t('770')}
                                     />
                                 }
                             />
@@ -365,24 +357,24 @@ export default function SettingPanel() {
                                 title={t('772')}
                                 description={[t('773')]}
                                 right={
-                                    <Switch
+                                    <ToggleSlider
                                         checked={winDisabled}
                                         disabled={platformIndicator === 'mac'}
-                                        onChange={(_, checked) => {
+                                        onChange={(checked) => {
                                             setWinDisabled(checked);
                                             updateFuncInfo({ winLock: checked ? 1 : 0 });
                                         }}
-                                        sx={switchSx}
+                                        ariaLabel={t('772')}
                                     />
                                 }
                             />
                         </SettingCard>
-                        <SettingCard>
+                        {/* <SettingCard>
                             <Row
-                                title={`当前模式：${platformIndicator === 'mac' ? 'MAC' : 'WIN'}`}
+                                title={t('2585', { mode: platformIndicator === 'mac' ? 'MAC' : 'WIN' })}
                                 description={[t('2578')]}
                             />
-                        </SettingCard>
+                        </SettingCard> */}
 
                         {supportsNumLockMode && (
                             <SettingCard>
@@ -390,13 +382,13 @@ export default function SettingPanel() {
                                     title={t('2502')}
                                     description={[t('2503')]}
                                     right={
-                                        <Switch
+                                        <ToggleSlider
                                             checked={numLockInvert}
-                                            onChange={(_, checked) => {
+                                            onChange={(checked) => {
                                                 setNumLockInvert(checked);
                                                 updateFuncInfo({ numLockMode: checked ? 1 : 0 });
                                             }}
-                                            sx={switchSx}
+                                            ariaLabel={t('2502')}
                                         />
                                     }
                                 />
@@ -408,13 +400,13 @@ export default function SettingPanel() {
                                 title={t('798')}
                                 description={[t('2515')]}
                                 right={
-                                    <Switch
+                                    <ToggleSlider
                                         checked={snapTap}
-                                        onChange={(_, checked) => {
+                                        onChange={(checked) => {
                                             setSnapTap(checked);
                                             updateFuncInfo({ snapTap: checked ? 1 : 0 });
                                         }}
-                                        sx={switchSx}
+                                        ariaLabel={t('798')}
                                     />
                                 }
                             />
@@ -541,6 +533,7 @@ export default function SettingPanel() {
                             deviceNeedsUpgrade={Boolean(deviceNeedsUpgrade)}
                             onCheckUpdates={checkForUpdates}
                             checkingForUpdates={checkingForUpdates}
+                            demoSession={isDemoFirmwareSession}
                         />
                         <WebDriverChangelogSection />
                     </Box>

@@ -1,7 +1,8 @@
-import { Box, Tooltip, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import type { LayoutKey } from '@/types/types_v1';
 import type { CompositeLayoutKey, PatternKey } from './types';
 import { getActuationLabel, getCompositeKeyClipPath, getNameColor, renderPattern } from './render';
+import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 
 type KeyboardKeysProps = {
     layoutKeys: LayoutKey[];
@@ -11,7 +12,7 @@ type KeyboardKeysProps = {
     selectedKeys: number[];
     travelValue: number;
     onToggleKey: (keyIndex: number) => void;
-    onMouseDown?: (keyIndex: number) => void;
+    onMouseDown?: (keyIndex: number, button?: number, clientX?: number, clientY?: number) => void;
     onMouseEnter?: (keyIndex: number) => void;
     onMouseUp?: () => void;
     showActuation?: boolean;
@@ -74,19 +75,22 @@ export default function KeyboardKeys({
                       ? '2px solid #4A86F7'
                       : '1px solid #e5e7eb';
 
-                const keyDisplay = String(key.name || keyIndex + 1);
+                const keyName = String(key.name ?? '').trim();
+                const keyDisplay = String(key.icon || key.name || keyIndex + 1);
+                // 图标型按键：展示一个 hover 提示，避免只看到 icon 不知道含义
+                const iconTooltipTitle = isImageIcon(keyDisplay) && keyName ? keyName : undefined;
                 const keyEl = (
                     <Box
                         onClick={colorMode ? undefined : () => onToggleKey(keyIndex)}
                         onMouseDown={(e) => {
                             if (colorMode && e.button === 0) {
                                 e.preventDefault();
-                                onMouseDown?.(keyIndex);
+                                onMouseDown?.(keyIndex, e.button, e.clientX, e.clientY);
                                 return;
                             }
                             if (e.button === 2) {
                                 e.preventDefault();
-                                onMouseDown?.(keyIndex);
+                                onMouseDown?.(keyIndex, e.button, e.clientX, e.clientY);
                             }
                         }}
                         onMouseEnter={() => onMouseEnter?.(keyIndex)}
@@ -103,7 +107,7 @@ export default function KeyboardKeys({
                             background: keyBg,
                             clipPath: clipPath ?? undefined,
                             color: nameColor,
-                            cursor: 'pointer',
+                            cursor: colorMode ? 'inherit' : 'pointer',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
@@ -142,8 +146,8 @@ export default function KeyboardKeys({
                             <Box
                                 component="img"
                                 src={keyDisplay.trim()}
-                                alt={keyDisplay}
-                                sx={{ width: '1.1rem', height: '1.1rem', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
+                                alt={keyName || keyDisplay}
+                                sx={{ width: '1.8rem', height: '1.8rem', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
                             />
                         ) : (
                             <Typography
@@ -175,9 +179,21 @@ export default function KeyboardKeys({
                 const rowKey = `${key.row ?? 0}-${key.col ?? 0}-${idx}`;
                 if (isDemoHighlight && demoHighlightTitle) {
                     return (
-                        <Tooltip key={rowKey} title={demoHighlightTitle} arrow placement="top">
+                        <UnifiedTooltip key={rowKey} title={demoHighlightTitle} placement="top" arrow>
                             {keyEl}
-                        </Tooltip>
+                        </UnifiedTooltip>
+                    );
+                }
+                if (iconTooltipTitle) {
+                    return (
+                        <UnifiedTooltip
+                            key={rowKey}
+                            title={iconTooltipTitle}
+                            placement="top"
+                            arrow
+                        >
+                            {keyEl}
+                        </UnifiedTooltip>
                     );
                 }
                 return (

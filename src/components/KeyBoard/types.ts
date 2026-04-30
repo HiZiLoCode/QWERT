@@ -46,7 +46,7 @@ export type TravelVirtualKeyboardProps = {
     colorMode?: boolean;
     keyColors?: string[];
     showActuation?: boolean;
-    onMouseDown?: (keyIndex: number) => void;
+    onMouseDown?: (keyIndex: number, button?: number, clientX?: number, clientY?: number) => void;
     onMouseEnter?: (keyIndex: number) => void;
     onMouseUp?: () => void;
     fitToContainer?: boolean;
@@ -70,6 +70,8 @@ export type TravelVirtualKeyboardProps = {
     demoHighlightTitle?: string;
     /** 可选：按键右下角角标（如测试次数） */
     keyBadges?: Record<number, string | number>;
+    /** 可选：键盘在容器内计算后的缩放比变化回调 */
+    onScaleRatioChange?: (ratio: number) => void;
 };
 
 export type CompositeLayoutKey = LayoutKey & {

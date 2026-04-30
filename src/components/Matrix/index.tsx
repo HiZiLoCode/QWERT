@@ -170,6 +170,7 @@ const Matrix = () => {
                     gap: '1.25rem',
                     minHeight: 0,
                     margin: '0 auto',
+                    width: "100%",
                     justifyContent: "center"
                 }}
             >
