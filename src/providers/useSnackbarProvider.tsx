@@ -4,17 +4,13 @@ import * as React from "react";
 import {
   Snackbar as MUI_Snackbar,
   Fade,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Button,
   Paper,
   Box,
   Typography,
   IconButton,
   Portal,
 } from "@mui/material";
+import UnifiedConfirmDialog from "@/components/common/UnifiedConfirmDialog";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { SnackbarOrigin } from "@mui/material/Snackbar";
@@ -80,6 +76,8 @@ interface SnackbarDialogContextType {
     cancelText?: string;
     onConfirm: () => void;
     onCancel: () => void;
+    /** 仅确认、不可 ESC/点遮罩关闭 */
+    confirmOnly?: boolean;
   }) => void;
 }
 
@@ -328,6 +326,7 @@ export const SnackbarDialogProvider: React.FC<{
     cancelText: "取消",
     onConfirm: () => {},
     onCancel: () => {},
+    confirmOnly: false,
   });
 
   const showDialog: SnackbarDialogContextType["showDialog"] = ({
@@ -337,8 +336,17 @@ export const SnackbarDialogProvider: React.FC<{
     cancelText = "取消",
     onConfirm,
     onCancel,
+    confirmOnly = false,
   }) => {
-    setDialogProps({ title, content, confirmText, cancelText, onConfirm, onCancel });
+    setDialogProps({
+      title,
+      content,
+      confirmText,
+      cancelText,
+      onConfirm,
+      onCancel,
+      confirmOnly,
+    });
     setDialogOpen(true);
   };
 
@@ -421,39 +429,22 @@ export const SnackbarDialogProvider: React.FC<{
         );
       })}
 
-      {/* Dialog */}
-      <Dialog
+      <UnifiedConfirmDialog
         open={dialogOpen}
-        onClose={() => {
+        title={dialogProps.title}
+        content={dialogProps.content}
+        confirmText={dialogProps.confirmText}
+        cancelText={dialogProps.cancelText}
+        confirmOnly={dialogProps.confirmOnly}
+        onConfirm={() => {
+          dialogProps.onConfirm();
+          setDialogOpen(false);
+        }}
+        onCancel={() => {
           dialogProps.onCancel();
           setDialogOpen(false);
         }}
-      >
-        <DialogTitle>{dialogProps.title}</DialogTitle>
-        <DialogContent>
-          <p>{dialogProps.content}</p>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              dialogProps.onCancel();
-              setDialogOpen(false);
-            }}
-            color="secondary"
-          >
-            {dialogProps.cancelText}
-          </Button>
-          <Button
-            onClick={() => {
-              dialogProps.onConfirm();
-              setDialogOpen(false);
-            }}
-            color="primary"
-          >
-            {dialogProps.confirmText}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      />
     </SnackbarDialogContext.Provider>
   );
 };

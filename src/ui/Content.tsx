@@ -8,10 +8,12 @@ import { EditorContext } from '@/providers/EditorProvider';
 import { useViewportMask } from '@/hooks/useViewportMask';
 import { useTranslation } from '@/app/i18n';
 import { startMonitoring, usbDetect } from "@/keyboard/usb-hid";
+import { MainContext } from '@/providers/MainProvider';
 import { useContext, useEffect, useRef } from 'react';
 
 export default function Content() {
   const { t } = useTranslation('common');
+  const { screenFirmwareOtaBlocking } = useContext(MainContext);
   const {
     loading,
     setLoading,
@@ -31,7 +33,8 @@ export default function Content() {
   const connectedKeyboardAddressRef = useRef<string | null>(null);
   const demoKeyboardRef = useRef(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const showViewportMask = useViewportMask({ containerRef: contentRef, isAuthView: loading, enabled: !loading });
+  /** 连接前（Hero）与主界面都参与检测；isAuthView 仅切换宽度阈值，不再在 loading 时关闭 hook */
+  const showViewportMask = useViewportMask({ containerRef: contentRef, isAuthView: loading, enabled: true });
   // 避免不必要的触发
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -61,6 +64,10 @@ export default function Content() {
       // 🔑 关键：升级窗口打开时，不处理设备断开事件
       if (upgradeWindowRef.current) {
         console.log('[USB Remove] 升级窗口已打开，跳过设备断开处理');
+        return;
+      }
+      if (screenFirmwareOtaBlocking) {
+        console.log('[USB Remove] 屏幕固件 OTA 进行中，跳过 remove 对键盘列表的处理（避免与 MainProvider 误清空叠加）');
         return;
       }
 
@@ -105,7 +112,7 @@ export default function Content() {
       usbDetect.off("remove", handleUsbRemove);
       usbDetect.off('change', handleUsbChange)
     };
-  }, [setLoading]);
+  }, [setLoading, screenFirmwareOtaBlocking]);
   updateRef.current = updateMode;
   upgradeWindowRef.current = isUpgradeWindowOpen;
   connectedKeyboardAddressRef.current = connectedKeyboard?.api?.address ?? null;
@@ -119,7 +126,7 @@ export default function Content() {
   return (
     <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
       {loading ? <HeroSection /> : <Main />}
-      {!loading && showViewportMask ? (
+      {showViewportMask ? (
         <Box
           sx={{
             position: 'fixed',
@@ -141,8 +148,8 @@ export default function Content() {
             src="/window-too-small-cat.svg"
             alt={t('2595')}
             sx={{
-              width: 'min(42rem, 82vw)',
-              maxHeight: '58vh',
+              width: 'min(60rem, 82vw)',
+              maxHeight: '76vh',
               objectFit: 'contain',
               opacity: 0.92,
               userSelect: 'none',
@@ -151,7 +158,7 @@ export default function Content() {
           <Typography sx={{ color: '#64748b', fontSize: '2rem', fontWeight: 600, lineHeight: 1.2 }}>
             {t('2593')}
           </Typography>
-          <Typography sx={{ color: '#64748b', fontSize: '1rem', lineHeight: 1.5 }}>
+          <Typography sx={{ color: '#64748b', fontSize: '1.5rem', lineHeight: 1.5 }}>
             {t('2594')}
           </Typography>
         </Box>

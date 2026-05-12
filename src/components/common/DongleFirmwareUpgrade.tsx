@@ -449,7 +449,8 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
           usagePage: DONGLE_CONFIG.usagePage,
         }]
       });
-
+      console.log(devices);
+      
       if (devices.length === 0) {
         throw new Error(t("1253")); // '未选择设备'
       }

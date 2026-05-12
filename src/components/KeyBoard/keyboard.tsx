@@ -164,6 +164,7 @@ export default function TravelVirtualKeyboard({
     demoHighlightTitle,
     keyBadges,
     onScaleRatioChange,
+    disableKeyHoverScale = false,
 }: TravelVirtualKeyboardProps) {
     void _scaleMin;
     void _alignTop;
@@ -438,6 +439,7 @@ export default function TravelVirtualKeyboard({
                             demoHighlightKeyIndex={demoHighlightKeyIndex}
                             demoHighlightTitle={demoHighlightTitle}
                             keyBadges={keyBadges}
+                            disableKeyHoverScale={disableKeyHoverScale}
                         />
                         {!layoutKeys.length && (
                             <Box

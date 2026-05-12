@@ -148,7 +148,7 @@ const UpgradeNotification: React.FC = () => {
             {t('1244')}
           </Typography>
 
-          <Typography variant="body2" sx={{ mb: '0.625rem' }}>
+          <Typography variant="body2" sx={{ mb: '0.625rem', fontSize: '1rem' }}>
             {t('1245')}: v{deviceUpgradeVersion}，{t('1246')}
           </Typography>
 

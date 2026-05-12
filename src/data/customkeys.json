@@ -1180,7 +1180,7 @@
                 "code1": 0,
                 "code2": 4,
                 "code3": 0,
-                "icon": "/KeyType/mouse_middle_button.svg"
+                "icon": "/KeyType/mouse_scroll_down.svg"
             },
             {
                 "name": "Right Button",
@@ -1190,7 +1190,7 @@
                 "code1": 0,
                 "code2": 2,
                 "code3": 0,
-                "icon": "/KeyType/mouse_right_button.svg"
+                "icon": "/KeyType/mouse_middle_button.svg"
             },
             {
                 "name": "Forward",
@@ -1200,7 +1200,7 @@
                 "code1": 0,
                 "code2": 8,
                 "code3": 0,
-                "icon": "/KeyType/mouse_forward.svg"
+                "icon": "/KeyType/mouse_right_button.svg"
             },
             {
                 "name": "Backward",
@@ -1210,7 +1210,7 @@
                 "code1": 0,
                 "code2": 16,
                 "code3": 0,
-                "icon": "/KeyType/mouse_backward.svg"
+                "icon": "/KeyType/mouse_forward.svg"
             },
             {
                 "name": "Scroll Up",
@@ -1220,7 +1220,7 @@
                 "code1": 5,
                 "code2": 1,
                 "code3": 0,
-                "icon": "/KeyType/mouse_scroll_up.svg"
+                "icon": "/KeyType/mouse_backward.svg"
             },
             {
                 "name": "Scroll Down",
@@ -1230,7 +1230,7 @@
                 "code1": 6,
                 "code2": 1,
                 "code3": 0,
-                "icon": "/KeyType/mouse_scroll_down.svg"
+                "icon": "/KeyType/mouse_scroll_up.svg"
             }
         ]
     },

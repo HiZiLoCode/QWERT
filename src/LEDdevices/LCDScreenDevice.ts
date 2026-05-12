@@ -7,7 +7,7 @@ import {
 export const connectDeviceHID = async (filters: FilterDevice[] = []): Promise<DeviceComm | undefined> => {
   const devices = await WebHid.devices(false, filters);
   if (devices.length > 1) {
-    const sortDevices = devices.sort((a, b) => a.vendorId - b.vendorId)
+    const sortDevices = devices.sort((a, b) => a.vendorId - b.vendorId);
     return new DeviceComm(new LCDScreenAPI(sortDevices[0].address));
   } else if (devices.length == 1) {
     return new DeviceComm(new LCDScreenAPI(devices[0].address));
@@ -24,7 +24,10 @@ export const shiftHIFrom16Bit = (value: number): number => {
   return value >> 8; // 右移8位以获取高位字节
 };
 
-
+/** 0x14 读屏幕功能区摘要（与实机应答 data[9] 对齐） */
+export type LcdScreenFuncInfo = {
+  upgrade_status: number;
+};
 
 // 设备通讯接口
 export class DeviceComm {
@@ -77,6 +80,33 @@ export class DeviceComm {
     return this.api.sendDeviceData(data);
   }
 
+  /** 已打开的屏幕 WebHID，可与 OTA 传输共用同一设备（不再 request 0x1919） */
+  getScreenHidDevice(): HIDDevice | undefined {
+    try {
+      return this.api.getScreenHidDevice();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** OTA 会话前后调用：丢弃 HidDeivce 内残留 input 队列，减轻二次升级错位 */
+  clearOtaStaleBuffers() {
+    try {
+      this.api.clearOtaStaleBuffers();
+    } catch {
+      /* */
+    }
+  }
+
+  /** 二次 OTA 前：清 LCD 指令队列 + 读缓冲（与 WebHidUpgradeClient 共用 HID 时必调） */
+  resetLcdStateForOta() {
+    try {
+      this.api.resetLcdStateForOta();
+    } catch {
+      /* */
+    }
+  }
+
   // 获取设备信息
   async getDeviceInfo() {
 
@@ -124,12 +154,28 @@ export class DeviceComm {
     console.log(data, 'getScreenSize');
 
     return {
+      // 固件版本号
+      firmware_version: shiftTo16Bit([data[14], data[15]]),
       width: shiftTo16Bit([data[20], data[21]]),
       height: shiftTo16Bit([data[22], data[23]]),
-      maxSereen:data[25]
+      maxSereen: data[25]
     }
   }
-
+  async getScreenFuncInfo(): Promise<LcdScreenFuncInfo> {
+    // 通讯开始
+    const beginBuffer: number[] = new Array(65).fill(0);
+    beginBuffer[1] = 0xAA;
+    beginBuffer[2] = 0x10;
+    await this.setData(beginBuffer);
+    const buffer: number[] = new Array(65).fill(0);
+    buffer[1] = 0xAA;
+    buffer[2] = 0x14;
+    buffer[6] = 0x38;
+    const data = await this.setData(buffer);
+    return {
+      upgrade_status: data[9] ?? 0,
+    };
+  }
   // 同步时间
   async syncTime() {
     // 通讯开始

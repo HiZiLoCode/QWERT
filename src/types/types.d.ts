@@ -346,4 +346,6 @@ export type screenInfo = {
     width: number;
     height: number;
     maxSereen: number;
+    /** 来自 getScreenSize()，与 LCD 通讯协议一致 */
+    firmware_version?: number;
 }

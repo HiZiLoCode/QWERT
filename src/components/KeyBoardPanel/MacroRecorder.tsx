@@ -10,6 +10,7 @@ import {
     Snackbar,
     Alert,
 } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
@@ -94,6 +95,7 @@ function fromV1Profiles(v1: V1MacroProfile[]): MacroProfile[] {
 // ─── 主组件 ───────────────────────────────────────────────────────────────────
 const MacroRecorder: React.FC = () => {
     const { t } = useTranslation('common');
+    const theme = useTheme();
 
     // 接入 ConnectKbContext
     const { connectedKeyboard, keyboard, macroList } = useContext(ConnectKbContext);
@@ -115,6 +117,12 @@ const MacroRecorder: React.FC = () => {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const selectedMacro = macros[selectedMacroIndex];
+    const panelCardSx = {
+        border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
+        background: alpha(theme.palette.background.paper, 0.72),
+        borderRadius: '0.75rem',
+        boxShadow: `0 0 1.3125rem ${alpha(theme.palette.primary.main, 0.2)}`,
+    } as const;
 
     // localStorage key（与 ConnectKbProvider 保持一致）
     const storageKey = `macro_profile_${keyboard?.version ?? 'default'}`;
@@ -418,17 +426,14 @@ const MacroRecorder: React.FC = () => {
             <Box sx={{ display: 'flex', gap: '1rem', height: '100%', flex: 1 }}>
                 {/* 左侧 M0-M15 按钮 4x4 网格 */}
                 <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089' }}>
+                    <Typography sx={{ fontSize: '1rem', color: 'text.secondary' }}>
                         {t('1679')}
                     </Typography>
                     <Box
                         sx={{
                             width: '17rem',
-                            border: '0.0625rem solid rgba(153,169,191,.25)',
-                            background: 'rgba(255,255,255,.42)',
+                            ...panelCardSx,
                             p: 10,
-                            borderRadius: '0.75rem',
-                            boxShadow: 'rgba(176, 206, 255, 0.5) 0rem 0rem 1.3125rem',
                             display: 'flex',
                             flexDirection: 'column',
                             flex: 1,
@@ -453,15 +458,15 @@ const MacroRecorder: React.FC = () => {
                                         height: '2.25rem',
                                         padding: '0.375rem 0.75rem',
                                         minWidth: 'unset',
-                                        color: selectedMacroIndex === macro.index ? '#fff' : '#66778f',
-                                        background: selectedMacroIndex === macro.index ? '#3B82F6' : 'transparent',
-                                        border: `0.0625rem solid ${selectedMacroIndex === macro.index ? '#3B82F6' : 'rgba(153,169,191,.25)'}`,
+                                        color: selectedMacroIndex === macro.index ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                                        background: selectedMacroIndex === macro.index ? theme.palette.primary.main : 'transparent',
+                                        border: `0.0625rem solid ${selectedMacroIndex === macro.index ? theme.palette.primary.main : alpha(theme.palette.divider, 0.6)}`,
                                         fontWeight: 500,
                                         transition: 'all 0.2s',
                                         '&:hover': {
-                                            background: selectedMacroIndex === macro.index ? '#2f70dc' : 'rgba(59,130,246,.10)',
-                                            color: selectedMacroIndex === macro.index ? '#fff' : '#3B82F6',
-                                            borderColor: '#3B82F6',
+                                            background: selectedMacroIndex === macro.index ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.1),
+                                            color: selectedMacroIndex === macro.index ? theme.palette.primary.contrastText : theme.palette.primary.main,
+                                            borderColor: theme.palette.primary.main,
                                         },
                                     }}
                                 >
@@ -482,11 +487,11 @@ const MacroRecorder: React.FC = () => {
                                 textTransform: 'none',
                                 fontSize: '0.7rem',
                                 height: '1.75rem',
-                                bgcolor: '#f0f0f0',
-                                color: '#5f7089',
-                                border: '0.0625rem solid rgba(153,169,191,.25)',
+                                bgcolor: alpha(theme.palette.background.paper, 0.92),
+                                color: 'text.secondary',
+                                border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
                                 fontWeight: 500,
-                                '&:hover': { bgcolor: '#e8e8e8' },
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
                             }}
                         >
                             {t('1680')}
@@ -498,11 +503,11 @@ const MacroRecorder: React.FC = () => {
                                 textTransform: 'none',
                                 fontSize: '0.7rem',
                                 height: '1.75rem',
-                                bgcolor: '#f0f0f0',
-                                color: '#5f7089',
-                                border: '0.0625rem solid rgba(153,169,191,.25)',
+                                bgcolor: alpha(theme.palette.background.paper, 0.92),
+                                color: 'text.secondary',
+                                border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
                                 fontWeight: 500,
-                                '&:hover': { bgcolor: '#e8e8e8' },
+                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
                             }}
                         >
                             {t('1681')}
@@ -515,16 +520,13 @@ const MacroRecorder: React.FC = () => {
                     </Box>
 
                     {/* 编辑面板 */}
-                    <Box sx={{ flex: 1, display: 'flex' }}>
+                    <Box sx={{ flex: 1, display: 'flex',gap: '.75rem' }}>
                         {/* 工具栏 */}
                         <Box
                             sx={{
                                 gap: '.5rem',
                                 overflow: 'auto',
-                                border: '0.0625rem solid rgba(153,169,191,.25)',
-                                background: 'rgba(255,255,255,.42)',
-                                borderRadius: '0.75rem',
-                                boxShadow: 'rgba(176, 206, 255, 0.5) 0rem 0rem 1.3125rem',
+                                ...panelCardSx,
                                 px: '0.75rem',
                                 py: '1rem',
                                 display: 'flex',
@@ -538,8 +540,8 @@ const MacroRecorder: React.FC = () => {
                                 borderRadius: "1rem",
                                 display: "flex",
                                 flexDirection: "column",
-                                color: "#64748b",
-                                border: "0.0625rem solid #64748b",
+                                color: theme.palette.text.secondary,
+                                border: `0.0625rem solid ${alpha(theme.palette.text.secondary, 0.45)}`,
                                 gap: ".5rem"
                             }}>
                                 <Box>
@@ -547,17 +549,17 @@ const MacroRecorder: React.FC = () => {
                                         onClick={() => setStandardDelay(true)}
                                         disabled={isRecording}
                                         sx={{
-                                            fontSize: '0.65rem',
-                                            height: '1.5rem',
+                                            fontSize: '0.875rem',
+                                            height: '1rem',
                                             px: '0.5rem',
                                             minWidth: 'unset',
                                             textTransform: 'none',
                                             borderRadius: '0.3rem',
                                             fontWeight: 500,
-                                            color: standardDelay ? '#fff' : '#5f7089',
-                                            bgcolor: standardDelay ? '#3B82F6' : 'transparent',
-                                            border: `0.0625rem solid ${standardDelay ? '#3B82F6' : 'rgba(153,169,191,.35)'}`,
-                                            '&:hover': { bgcolor: standardDelay ? '#2f70dc' : 'rgba(59,130,246,.08)' },
+                                            color: standardDelay ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                                            bgcolor: standardDelay ? theme.palette.primary.main : 'transparent',
+                                            border: `0.0625rem solid ${standardDelay ? theme.palette.primary.main : alpha(theme.palette.divider, 0.7)}`,
+                                            '&:hover': { bgcolor: standardDelay ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.08) },
                                         }}
                                     >
                                         {t('1682')}
@@ -566,24 +568,24 @@ const MacroRecorder: React.FC = () => {
                                         onClick={() => setStandardDelay(false)}
                                         disabled={isRecording}
                                         sx={{
-                                            fontSize: '0.65rem',
-                                            height: '1.5rem',
+                                            fontSize: '0.875rem',
+                                            height: '1rem',
                                             px: '0.5rem',
                                             minWidth: 'unset',
                                             textTransform: 'none',
                                             borderRadius: '0.3rem',
                                             fontWeight: 500,
-                                            color: !standardDelay ? '#fff' : '#5f7089',
-                                            bgcolor: !standardDelay ? '#3B82F6' : 'transparent',
-                                            border: `0.0625rem solid ${!standardDelay ? '#3B82F6' : 'rgba(153,169,191,.35)'}`,
-                                            '&:hover': { bgcolor: !standardDelay ? '#2f70dc' : 'rgba(59,130,246,.08)' },
+                                            color: !standardDelay ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                                            bgcolor: !standardDelay ? theme.palette.primary.main : 'transparent',
+                                            border: `0.0625rem solid ${!standardDelay ? theme.palette.primary.main : alpha(theme.palette.divider, 0.7)}`,
+                                            '&:hover': { bgcolor: !standardDelay ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.08) },
                                         }}
                                     >
                                         {t('1683')}
                                     </ButtonRem>
                                 </Box>
                                 <Box sx={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', visibility: standardDelay ? 'visible' : 'hidden', height: '1.5rem', alignItems: 'center' }}>
-                                    <Typography sx={{ fontSize: '0.65rem', color: '#5f7089', whiteSpace: 'nowrap' }}>
+                                    <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
                                         {t('1684')}
                                     </Typography>
                                     <TextField
@@ -607,7 +609,7 @@ const MacroRecorder: React.FC = () => {
                                             '& .MuiOutlinedInput-root': { height: '1.5rem' },
                                         }}
                                     />
-                                    <Typography sx={{ fontSize: '0.65rem', color: '#5f7089' }}>ms</Typography>
+                                    <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>ms</Typography>
                                 </Box>
                             </Box>
 
@@ -620,7 +622,7 @@ const MacroRecorder: React.FC = () => {
                                             setPendingActions(null);
                                         }}
                                         sx={{
-                                            fontSize: '0.65rem', height: '1.5rem', px: '0.5rem', minWidth: 'unset',
+                                            fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
                                             textTransform: 'none', color: '#16a34a',
                                             border: '0.0625rem solid rgba(22,163,74,0.35)', borderRadius: '0.3rem',
                                             bgcolor: 'rgba(22,163,74,0.06)', '&:hover': { bgcolor: 'rgba(22,163,74,0.14)' },
@@ -637,7 +639,7 @@ const MacroRecorder: React.FC = () => {
                                             setPendingActions(null);
                                         }}
                                         sx={{
-                                            fontSize: '0.65rem', height: '1.5rem', px: '0.5rem', minWidth: 'unset',
+                                            fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
                                             textTransform: 'none', color: '#f59e0b',
                                             border: '0.0625rem solid rgba(245,158,11,0.35)', borderRadius: '0.3rem',
                                             bgcolor: 'rgba(245,158,11,0.06)', '&:hover': { bgcolor: 'rgba(245,158,11,0.14)' },
@@ -657,7 +659,7 @@ const MacroRecorder: React.FC = () => {
                                         pushToKeyboard(updated);
                                     }}
                                     sx={{
-                                        fontSize: '0.65rem', height: '1.5rem', px: '0.5rem', minWidth: 'unset',
+                                        fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
                                         textTransform: 'none', color: '#e05555',
                                         border: '0.0625rem solid rgba(224,85,85,0.35)', borderRadius: '0.3rem',
                                         bgcolor: 'rgba(224,85,85,0.06)', '&:hover': { bgcolor: 'rgba(224,85,85,0.14)' },
@@ -673,15 +675,15 @@ const MacroRecorder: React.FC = () => {
                                     variant="contained"
                                     onClick={isRecording ? handleStopRecording : handleStartRecording}
                                     sx={{
-                                        fontSize: '0.65rem', height: '1.5rem', px: '0.625rem',
+                                        fontSize: '0.875rem', height: '1rem', px: '0.625rem',
                                         minWidth: '100%', textTransform: 'none', borderRadius: '0.3rem', fontWeight: 500,
-                                        bgcolor: isRecording ? '#e05555' : '#3B82F6',
-                                        '&:hover': { bgcolor: isRecording ? '#c94444' : '#2f70dc' },
+                                        bgcolor: isRecording ? theme.palette.error.main : theme.palette.primary.main,
+                                        '&:hover': { bgcolor: isRecording ? theme.palette.error.dark : theme.palette.primary.dark },
                                     }}
                                 >
                                     {isRecording
-                                        ? <><StopRoundedIcon sx={{ fontSize: '0.85rem', mr: '0.25rem' }} />{t('563')}</>
-                                        : <><PlayArrowRoundedIcon sx={{ fontSize: '0.85rem', mr: '0.25rem' }} />{t('564')}</>
+                                        ? <><StopRoundedIcon sx={{ fontSize: '1.25rem', mr: '0.25rem' }} />{t('563')}</>
+                                        : <><PlayArrowRoundedIcon sx={{ fontSize: '1.25rem', mr: '0.25rem' }} />{t('564')}</>
                                     }
                                 </ButtonRem>
                             </Box>
@@ -693,16 +695,13 @@ const MacroRecorder: React.FC = () => {
                                 ref={scrollContainerRef}
                                 sx={{
                                     flex: 1,
-                                    border: '0.0625rem solid rgba(153,169,191,.25)',
-                                    background: 'rgba(255,255,255,.42)',
-                                    borderRadius: '0.75rem',
-                                    boxShadow: 'rgba(176, 206, 255, 0.5) 0rem 0rem 1.3125rem',
+                                    ...panelCardSx,
                                     p: '1rem',
                                     overflow: 'auto',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     '&::-webkit-scrollbar': { width: '0.375rem' },
-                                    '&::-webkit-scrollbar-thumb': { backgroundColor: '#ddd', borderRadius: '0.25rem' },
+                                    '&::-webkit-scrollbar-thumb': { backgroundColor: alpha(theme.palette.text.secondary, 0.35), borderRadius: '0.25rem' },
                                     '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
                                 }}
                             >
@@ -749,8 +748,8 @@ const MacroRecorder: React.FC = () => {
                                                                         boxShadow: snapshot.isDragging ? '0 4px 12px rgba(59,130,246,0.2)' : '0 1px 2px rgba(0,0,0,0.06)',
                                                                         transform: snapshot.isDragging ? 'scale(1.06) rotate(1deg)' : 'scale(1)',
                                                                         transition: 'box-shadow 0.15s ease, transform 0.15s ease',
-                                                                        minWidth: '2.5rem',
-                                                                        minHeight: '.75rem',
+                                                                        minWidth: '3rem',
+                                                                        minHeight: '1rem',
                                                                         '&:hover': {
                                                                             borderColor: action.type === 'delay' ? '#93c5fd' : '#cbd5e1',
                                                                             boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
@@ -784,7 +783,7 @@ const MacroRecorder: React.FC = () => {
                                                                             display: 'flex',
                                                                             alignItems: 'center',
                                                                             justifyContent: 'center',
-                                                                            fontSize: '0.55rem',
+                                                                            fontSize: '0.875rem',
                                                                             fontWeight: 700,
                                                                             cursor: 'pointer',
                                                                             opacity: 0,

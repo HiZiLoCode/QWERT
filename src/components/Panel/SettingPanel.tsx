@@ -18,11 +18,15 @@ import {
 } from '@mui/material';
 import { useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
+import { MainContext } from '@/providers/MainProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import ResetProgress from '../ResetProgress';
 import WebDriverChangelogSection from './WebDriverChangelogSection';
 import FirmwareChangelogSection from './FirmwareChangelogSection';
+import ScreenFirmwareChangelogSection from './ScreenFirmwareChangelogSection';
+import { getScreenFirmwareFile, getScreenImageFile, getScreenUpgradeVersion } from '@/config/deviceInfo';
 import FirmwareUpgrade from '@/components/common/FirmwareUpgrade';
+import ScreenFirmwareUpgrade from '@/components/common/ScreenFirmwareUpgrade';
 import DongleFirmwareUpgrade from '@/components/common/DongleFirmwareUpgrade';
 import KeyboardFirmwareUpgrade from '@/components/common/KeyboardFirmwareUpgrade';
 import ToggleSlider from '@/components/common/ToggleSlider';
@@ -44,6 +48,7 @@ export default function SettingPanel() {
         isUpgradeWindowOpen,
         setIsUpgradeWindowOpen
     } = useContext(ConnectKbContext);
+    const { deviceComm, deviceStatus, screenInfo } = useContext(MainContext);
     const { showMessage } = useSnackbarDialog();
     const [tab, setTab] = useState<SettingTab>('settings');
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -51,7 +56,7 @@ export default function SettingPanel() {
     const [nkroEnabled, setNkroEnabled] = useState(false);
     const [winDisabled, setWinDisabled] = useState(false);
     const [platformIndicator, setPlatformIndicator] = useState<'win' | 'mac'>('win');
-    const [keyWasd, setKeyWasd] = useState(false);
+    const [_keyWasd, setKeyWasd] = useState(false);
     const [snapTap, setSnapTap] = useState(false);
     const [, setFMode] = useState(false);
     const [, setScrollMode] = useState(false);
@@ -62,6 +67,7 @@ export default function SettingPanel() {
     const [deepSleepMinutes, setDeepSleepMinutes] = useState(30);
     const sleepOptions = [1, 3, 5, 10, 20, 30, 45, 60];
     const [showResetProgress, setShowResetProgress] = useState(false);
+    const [lcdVersionHex, setLcdVersionHex] = useState('');
 
     const { vendorId, productId } = connectedKeyboard || {};
     const {
@@ -77,9 +83,38 @@ export default function SettingPanel() {
     const firmwareChangelogKeySegment = deviceBaseInfo?.keyboardID ?? 0;
     const isDemoFirmwareSession = connectedKeyboard?.api?.address === 'demo';
 
+    const fwVid = connectedKeyboard?.vendorId ?? vendorId ?? deviceVID ?? 0;
+    const fwPid = connectedKeyboard?.productId ?? productId ?? devicePID ?? 0;
+    const screenFwPath = useMemo(
+        () => (fwVid && fwPid ? getScreenFirmwareFile(fwVid, fwPid, firmwareChangelogKeySegment) : ''),
+        [fwVid, fwPid, firmwareChangelogKeySegment]
+    );
+    const screenImagePath = useMemo(
+        () => (fwVid && fwPid ? getScreenImageFile(fwVid, fwPid, firmwareChangelogKeySegment) : ''),
+        [fwVid, fwPid, firmwareChangelogKeySegment]
+    );
+    const screenUpgradeVersionCfg = useMemo(
+        () => (fwVid && fwPid ? getScreenUpgradeVersion(fwVid, fwPid, firmwareChangelogKeySegment) : ''),
+        [fwVid, fwPid, firmwareChangelogKeySegment]
+    );
+    const screenVerFromContext = useMemo(() => {
+        if (screenInfo?.firmware_version == null) return '';
+        return Number(screenInfo.firmware_version).toString(16).toUpperCase();
+    }, [screenInfo]);
+    const screenDeviceVersion = lcdVersionHex || screenVerFromContext;
+    const lcdReady = Boolean(deviceComm && deviceStatus && screenDeviceVersion);
+    const screenNeedsUpgrade = Boolean(
+        screenUpgradeVersionCfg &&
+            screenDeviceVersion &&
+            parseInt(screenDeviceVersion, 10) < parseInt(screenUpgradeVersionCfg, 10)
+    );
+
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
     const [checkingForUpdates, setCheckingForUpdates] = useState(false);
     const [upgradeStepDialogOpen, setUpgradeStepDialogOpen] = useState(false);
+    const [screenUpdateDialogOpen, setScreenUpdateDialogOpen] = useState(false);
+    const [isScreenUpgradeOpen, setIsScreenUpgradeOpen] = useState(false);
+    const [checkingScreenUpdates, setCheckingScreenUpdates] = useState(false);
 
     const upgradeSteps = [
         t("727"),
@@ -102,9 +137,29 @@ export default function SettingPanel() {
         }
     };
 
+    const checkScreenForUpdates = () => {
+        if (screenNeedsUpgrade) {
+            setScreenUpdateDialogOpen(true);
+        } else {
+            setCheckingScreenUpdates(true);
+            setTimeout(() => {
+                setCheckingScreenUpdates(false);
+                showMessage({
+                    message: t("731"),
+                    type: "info",
+                });
+            }, 1000);
+        }
+    };
+
     const handleDownloadUpdate = () => {
         setUpdateDialogOpen(false);
         setIsUpgradeWindowOpen?.(true);
+    };
+
+    const handleScreenDownloadUpdate = () => {
+        setScreenUpdateDialogOpen(false);
+        setIsScreenUpgradeOpen(true);
     };
 
     const getDeviceType = () => {
@@ -149,6 +204,29 @@ export default function SettingPanel() {
 
     const isDemoMode = Boolean(connectedKeyboard?.api?.test);
     const funcInfo = keyboard?.deviceFuncInfo ?? {};
+
+    useEffect(() => {
+        if (tab !== 'firmware' || !deviceComm) {
+            if (tab !== 'firmware') setLcdVersionHex('');
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const s = await deviceComm.getScreenSize();
+                console.log(s, 's');
+                
+                if (!cancelled && s?.firmware_version != null) {
+                    setLcdVersionHex(Number(s.firmware_version).toString(16).toUpperCase());
+                }
+            } catch {
+                if (!cancelled) setLcdVersionHex('');
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [tab, deviceComm]);
 
     useEffect(() => {
         setNkroEnabled((funcInfo?.sixKeysOrAllKeys ?? 0) === 1);
@@ -535,6 +613,21 @@ export default function SettingPanel() {
                             checkingForUpdates={checkingForUpdates}
                             demoSession={isDemoFirmwareSession}
                         />
+                        {screenFwPath ? (
+                            <ScreenFirmwareChangelogSection
+                                vendorId={fwVid}
+                                productId={fwPid}
+                                keySegment={firmwareChangelogKeySegment}
+                                deviceVersion={screenDeviceVersion}
+                                deviceUpgradeVersion={screenUpgradeVersionCfg || undefined}
+                                deviceNeedsUpgrade={screenNeedsUpgrade}
+                                onCheckUpdates={checkScreenForUpdates}
+                                checkingForUpdates={checkingScreenUpdates}
+                                demoSession={isDemoFirmwareSession}
+                                lcdReady={lcdReady}
+                                keyboardForScreen={connectedKeyboard}
+                            />
+                        ) : null}
                         <WebDriverChangelogSection />
                     </Box>
                 )}
@@ -542,7 +635,7 @@ export default function SettingPanel() {
             <Dialog onClose={() => setResetConfirmOpen(false)} open={resetConfirmOpen}>
                 <DialogTitle>{t("712")}</DialogTitle>
                 <IconButton
-                    aria-label="close"
+                    aria-label={t("742")}
                     onClick={() => setResetConfirmOpen(false)}
                     sx={{ position: 'absolute', right: '0.0625rem', top: '0.0625rem', color: 'grey.500' }}
                 />
@@ -561,21 +654,33 @@ export default function SettingPanel() {
                 onClose={() => setUpdateDialogOpen(false)}
                 PaperProps={{
                     sx: {
-                        width: '22.5rem',
-                        height: '12.5rem',
-                        maxWidth: '22.5rem',
-                        maxHeight: '12.5rem',
+                        width: '40.125rem',
+                        maxWidth: '95vw',
                         borderRadius: '0.75rem',
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '1.5rem', fontSize: '1.1rem', fontWeight: 700, color: '#5d6f8a' }}>{t("720")}</DialogTitle>
-                <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', px: '1.5rem' }}>
-                    <Typography variant="body1" align="center" sx={{ color: '#7a8ca7', fontSize: '0.9rem' }}>
-                        {t("722")} v{deviceUpgradeVersion}?
+                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#5d6f8a' }}>
+                    {t("712")}
+                </DialogTitle>
+                <DialogContent sx={{ px: '1.5rem', pt: '0.75rem', pb: '0.5rem' }}>
+                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center' }}>
+                        {t('2730')}
+                        <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                            {t('2731')}
+                        </Box>
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2732')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2733')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2734')}
                     </Typography>
                 </DialogContent>
-                <DialogActions sx={{ justifyContent: 'center', pb: '1.5rem', gap: '1rem' }}>
+                <DialogActions sx={{ justifyContent: 'center', pb: '1.5rem', gap: '1rem', px: '1.5rem' }}>
                     <ButtonRem
                         variant="contained"
                         onClick={handleDownloadUpdate}
@@ -584,11 +689,11 @@ export default function SettingPanel() {
                             height: '2.2rem',
                             bgcolor: '#3B82F6',
                             color: '#fff',
-                            fontSize: '0.85rem',
+                            fontSize: '1.125rem',
                             '&:hover': { bgcolor: '#2f70dc' }
                         }}
                     >
-                        {t("723")}
+                        {t('2735')}
                     </ButtonRem>
                     <ButtonRem
                         variant="outlined"
@@ -596,13 +701,76 @@ export default function SettingPanel() {
                         sx={{
                             minWidth: '6rem',
                             height: '2.2rem',
-                            borderColor: '#3B82F6',
-                            color: '#3B82F6',
-                            fontSize: '0.85rem',
-                            '&:hover': { borderColor: '#2f70dc', bgcolor: 'rgba(59,130,246,0.04)' }
+                            borderColor: 'rgba(148, 163, 184, 0.65)',
+                            color: '#64748b',
+                            fontSize: '1.125rem',
+                            '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
                         }}
                     >
-                        {t("724")}
+                        {t("714")}
+                    </ButtonRem>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog
+                open={screenUpdateDialogOpen}
+                onClose={() => setScreenUpdateDialogOpen(false)}
+                PaperProps={{
+                    sx: {
+                        width: '40.125rem',
+                        maxWidth: '95vw',
+                        borderRadius: '0.75rem',
+                    }
+                }}
+            >
+                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#5d6f8a' }}>
+                    {t('2800')}
+                </DialogTitle>
+                <DialogContent sx={{ px: '1.5rem', pt: '0.75rem', pb: '0.5rem' }}>
+                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center' }}>
+                        {t('2730')}
+                        <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                            {t('2731')}
+                        </Box>
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2732')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2733')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                        {t('2734')}
+                    </Typography>
+                </DialogContent>
+                <DialogActions sx={{ justifyContent: 'center', pb: '1.5rem', gap: '1rem', px: '1.5rem' }}>
+                    <ButtonRem
+                        variant="contained"
+                        onClick={handleScreenDownloadUpdate}
+                        sx={{
+                            minWidth: '6rem',
+                            height: '2.2rem',
+                            bgcolor: '#3B82F6',
+                            color: '#fff',
+                            fontSize: '1.125rem',
+                            '&:hover': { bgcolor: '#2f70dc' }
+                        }}
+                    >
+                        {t('2735')}
+                    </ButtonRem>
+                    <ButtonRem
+                        variant="outlined"
+                        onClick={() => setScreenUpdateDialogOpen(false)}
+                        sx={{
+                            minWidth: '6rem',
+                            height: '2.2rem',
+                            borderColor: 'rgba(148, 163, 184, 0.65)',
+                            color: '#64748b',
+                            fontSize: '1.125rem',
+                            '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
+                        }}
+                    >
+                        {t("714")}
                     </ButtonRem>
                 </DialogActions>
             </Dialog>
@@ -697,6 +865,25 @@ export default function SettingPanel() {
                     }}
                 />
             )}
+            {screenFwPath ? (
+                <ScreenFirmwareUpgrade
+                    isOpen={isScreenUpgradeOpen}
+                    onClose={() => setIsScreenUpgradeOpen(false)}
+                    lcdConnected={Boolean(deviceComm && deviceStatus)}
+                    screenDeviceComm={deviceComm}
+                    keyboardHidForExit={connectedKeyboard?.api?.getHID()?.getWebHidDevice?.()}
+                    keyboardForLightOff={connectedKeyboard}
+                    keyboardForScreen={connectedKeyboard ?? undefined}
+                    deviceInfo={{
+                        firmwareFile: screenFwPath,
+                        imageFile: screenImagePath || undefined,
+                        currentVersion: screenDeviceVersion || undefined,
+                        upgradeVersion: screenUpgradeVersionCfg || undefined,
+                        vendorId: fwVid,
+                        productId: fwPid,
+                    }}
+                />
+            ) : null}
         </Box>
     );
 }

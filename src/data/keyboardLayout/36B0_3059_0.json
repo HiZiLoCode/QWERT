@@ -29,8 +29,9 @@
     "lighting": {
         "backlight": [
             {
-                "name": "流光溢彩",
+                "name": "流光",
                 "lang": "221",
+                "effectCategory": "dynamic",
                 "value": 1,
                 "brightness": true,
                 "speed": true,
@@ -43,18 +44,21 @@
                 "palette": true
             },
             {
-                "name": "五彩缤纷",
+                "name": "幻彩",
                 "lang": "222",
+                "effectCategory": "dynamic",
                 "value": 2,
                 "brightness": true,
                 "speed": true,
                 "direction": false,
+                "singleColor": false,
                 "color": false,
-                "palette": true
+                "palette": false
             },
             {
                 "name": "呼吸",
                 "lang": "223",
+                "effectCategory": "dynamic",
                 "value": 3,
                 "brightness": true,
                 "speed": true,
@@ -65,6 +69,7 @@
             {
                 "name": "常亮",
                 "lang": "224",
+                "effectCategory": "static",
                 "value": 4,
                 "brightness": true,
                 "speed": false,
@@ -73,8 +78,9 @@
                 "palette": true
             },
             {
-                "name": "踏雪无痕",
+                "name": "余辉",
                 "lang": "225",
+                "effectCategory": "interactive",
                 "value": 5,
                 "brightness": true,
                 "speed": true,
@@ -83,8 +89,9 @@
                 "palette": true
             },
             {
-                "name": "泛起涟漪",
+                "name": "涟漪",
                 "lang": "226",
+                "effectCategory": "interactive",
                 "value": 6,
                 "brightness": true,
                 "speed": true,
@@ -93,8 +100,9 @@
                 "palette": true
             },
             {
-                "name": "旋转乾坤",
+                "name": "风车",
                 "lang": "227",
+                "effectCategory": "dynamic",
                 "value": 7,
                 "brightness": true,
                 "speed": true,
@@ -107,8 +115,9 @@
                 "palette": true
             },
             {
-                "name": "流星赶月",
+                "name": "垂流",
                 "lang": "228",
+                "effectCategory": "dynamic",
                 "value": 8,
                 "brightness": true,
                 "speed": true,
@@ -121,8 +130,9 @@
                 "palette": true
             },
             {
-                "name": "龙腾虎跃",
+                "name": "跑马灯",
                 "lang": "229",
+                "effectCategory": "dynamic",
                 "value": 9,
                 "brightness": true,
                 "speed": true,
@@ -131,8 +141,9 @@
                 "palette": true
             },
             {
-                "name": "泉涌奔流",
+                "name": "泉涌",
                 "lang": "230",
+                "effectCategory": "dynamic",
                 "value": 10,
                 "brightness": true,
                 "speed": true,
@@ -145,28 +156,21 @@
                 "palette": true
             },
             {
-                "name": "大鹏展翅",
-                "lang": "231",
-                "value": 11,
-                "brightness": true,
-                "speed": true,
-                "direction": false,
-                "color": true,
-                "palette": true
-            },
-            {
-                "name": "百花齐放",
+                "name": "糖果",
                 "lang": "232",
+                "effectCategory": "dynamic",
                 "value": 12,
                 "brightness": true,
                 "speed": true,
                 "direction": false,
+                "singleColor": false,
                 "color": false,
-                "palette": true
+                "palette": false
             },
             {
-                "name": "落雨纷纷",
+                "name": "雨滴",
                 "lang": "233",
+                "effectCategory": "dynamic",
                 "value": 13,
                 "brightness": true,
                 "speed": true,
@@ -175,18 +179,9 @@
                 "palette": true
             },
             {
-                "name": "一触即发",
-                "lang": "234",
-                "value": 14,
-                "brightness": true,
-                "speed": true,
-                "direction": false,
-                "color": true,
-                "palette": true
-            },
-            {
-                "name": "横扫千军",
+                "name": "横闪",
                 "lang": "235",
+                "effectCategory": "interactive",
                 "value": 15,
                 "brightness": true,
                 "speed": true,
@@ -195,8 +190,9 @@
                 "palette": true
             },
             {
-                "name": "收放自如",
+                "name": "瞬闪",
                 "lang": "236",
+                "effectCategory": "interactive",
                 "value": 16,
                 "brightness": true,
                 "speed": true,
@@ -205,8 +201,9 @@
                 "palette": true
             },
             {
-                "name": "双龙出海",
+                "name": "双溯",
                 "lang": "237",
+                "effectCategory": "dynamic",
                 "value": 17,
                 "brightness": true,
                 "speed": true,
@@ -215,8 +212,9 @@
                 "palette": true
             },
             {
-                "name": "合纵连横",
+                "name": "纵横",
                 "lang": "238",
+                "effectCategory": "interactive",
                 "value": 18,
                 "brightness": true,
                 "speed": true,
@@ -225,8 +223,9 @@
                 "palette": true
             },
             {
-                "name": "两泉其美",
+                "name": "星漾",
                 "lang": "239",
+                "effectCategory": "dynamic",
                 "value": 19,
                 "brightness": true,
                 "speed": true,
@@ -234,19 +233,11 @@
                 "color": true,
                 "palette": true
             },
-            {
-                "name": "蜻蜓点水",
-                "lang": "240",
-                "value": 20,
-                "brightness": true,
-                "speed": true,
-                "direction": false,
-                "color": true,
-                "palette": true
-            },
+
             {
                 "name": "自定义灯效",
                 "lang": "241",
+                "effectCategory": "static",
                 "value": 253,
                 "brightness": true,
                 "speed": false,

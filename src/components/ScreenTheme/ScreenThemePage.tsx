@@ -410,12 +410,11 @@ export default function ScreenThemePage() {
   });
 
   const layoutKeys = keyboard?.layoutKeys ?? [];
-  const currentLayer = keyboard?.layer ?? 0;
-  const userKeys = keyboard?.userKeys?.[currentLayer] ?? [];
+  const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
 
   const mappedLayoutKeys = useMemo(
-    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),
-    [layoutKeys, userKeys],
+    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys),
+    [layoutKeys, defaultLayerUserKeys],
   );
 
   const lShiftDemoIndex = useMemo(() => findLeftShiftKeyIndex(layoutKeys), [layoutKeys]);

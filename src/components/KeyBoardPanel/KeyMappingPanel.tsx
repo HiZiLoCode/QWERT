@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Button, Typography } from '@mui/material';
-import { useContext, useEffect, useMemo, useState, type DragEvent } from 'react';
+import { useContext, useMemo, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
@@ -24,7 +24,7 @@ const MAP = {
     sectionGapVertical: 24,
     /** 侧栏占该行宽约 18%，并限制在常见屏宽下的像素范围 */
     sideColumnFlex: '0 0 18%',
-    sideColumnMinWidth: 100,
+    sideColumnMinWidth: 264,
     sideColumnMaxWidth: 264,
     layerTitleSize: 16,
     layerBtnHeight: 28,
@@ -40,7 +40,7 @@ const MAP = {
     categoryRadius: 12,
     categoryTitleSize: 15,
     categoryItemHeight: 38,
-    categoryItemRadius: 8,
+    categoryItemRadius: 26,
     categoryGap: 6,
     contentPadding: 24,
     contentRadius: 12,
@@ -99,52 +99,52 @@ const KeyButton = ({
     return (
         <Box sx={{ display: 'inline-block', m: '4px' }}>
             <UnifiedTooltip title={displayLabel} arrow placement="top">
-            <ButtonRem
-                variant="text"
-                onMouseEnter={() => setHover(true)}
-                onMouseLeave={() => setHover(false)}
-                draggable
-                onDragStart={dragStart}
-                sx={{
-                    width: '80px',
-                    minWidth: '44px',
-                    height: '56px',
-                    borderRadius: '0.625rem',
-                    textTransform: 'none',
-                    fontSize: '0.9rem',
-                    fontWeight: 600,
-                    border: '0.0625rem solid #cfe0ff',
-                    color: hover ? '#2f6fe8' : '#2d4a75',
-                    backgroundColor: hover ? '#f2f7ff' : '#ffffff',
-                    boxShadow: hover ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
-                    wordBreak: 'keep-all',
-                    overflowWrap: 'break-word',
-                    whiteSpace: 'nowrap',
-                    padding: '6px 12px',
-                    '&:hover': {
-                        borderColor: '#9fc2ff',
-                        backgroundColor: '#f7fbff',
-                    },
-                }}
-                onClick={changeKey}
-            >
-                {keyItem.icon ? (
-                    isImageIcon ? (
-                        <Box
-                            component="img"
-                            src={iconValue}
-                            alt={displayLabel}
-                            sx={{ width: 28, height: 28, objectFit: 'contain' }}
-                        />
+                <ButtonRem
+                    variant="text"
+                    onMouseEnter={() => setHover(true)}
+                    onMouseLeave={() => setHover(false)}
+                    draggable
+                    onDragStart={dragStart}
+                    sx={{
+                        width: '80px',
+                        minWidth: '44px',
+                        height: '56px',
+                        borderRadius: '0.625rem',
+                        textTransform: 'none',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        border: '0.0625rem solid #cfe0ff',
+                        color: hover ? '#2f6fe8' : '#2d4a75',
+                        backgroundColor: hover ? '#f2f7ff' : '#ffffff',
+                        boxShadow: hover ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'break-word',
+                        whiteSpace: 'nowrap',
+                        padding: '6px 12px',
+                        '&:hover': {
+                            borderColor: '#9fc2ff',
+                            backgroundColor: '#f7fbff',
+                        },
+                    }}
+                    onClick={changeKey}
+                >
+                    {keyItem.icon ? (
+                        isImageIcon ? (
+                            <Box
+                                component="img"
+                                src={iconValue}
+                                alt={displayLabel}
+                                sx={{ width: 28, height: 28, objectFit: 'contain' }}
+                            />
+                        ) : (
+                            <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
+                        )
                     ) : (
-                        <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
-                    )
-                ) : (
-                    <span style={{ transform: 'scale(0.6)', width: '128px', whiteSpace: 'pre-wrap', display: 'flex' }}>
-                        {displayLabel}
-                    </span>
-                )}
-            </ButtonRem>
+                        <span style={{ transform: 'scale(0.6)', width: '128px', whiteSpace: 'pre-wrap', display: 'flex' }}>
+                            {displayLabel}
+                        </span>
+                    )}
+                </ButtonRem>
             </UnifiedTooltip>
         </Box>
     );
@@ -183,7 +183,6 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
     const { selectedSetting } = useContext(EditorContext);
     const { t } = useTranslation('common');
     const [category, setCategory] = useState<CategoryId>('basic');
-    const [originalKeys, setOriginalKeys] = useState<Map<number, any>>(new Map());
 
     const basicList = useMemo(() => {
         const item = (customKeys as any[]).find((g) => g.label === 'Basic');
@@ -334,38 +333,37 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
         keyboard?.saveUserKeys?.();
     };
 
-    useEffect(() => {
-        const initial = new Map<number, any>();
-        layoutKeys.forEach((key, idx) => {
-            const keyIndex = key.index ?? idx;
-            initial.set(keyIndex, userKeys?.[keyIndex]);
-        });
-        setOriginalKeys(initial);
-    }, [layoutKeys, userKeys]);
-
     const handleRestoreKey = async () => {
-        if (selectedIndex < 0) return;
+        /** 整层恢复：不依赖选中键（刷新后 selectIndex 常为 -1）。读固件默认矩阵后 setRestoreDefaultKeys。 */
+        const device = connectedKeyboard as {
+            test?: boolean;
+            startComm?: () => Promise<unknown>;
+            getDefaultKeyMatrixData?: (layer: number) => Promise<any[]>;
+            setRestoreDefaultKeys?: (layer: number, defaultKeys: any[]) => Promise<unknown>;
+        } | null | undefined;
 
-        const defaultLayerKeys = (keyboard as any)?.defaultKeys?.[currentLayer];
-        if (defaultLayerKeys) {
-            await (connectedKeyboard as any)?.setRestoreDefaultKeys?.(currentLayer, defaultLayerKeys);
-            keyboard?.updateUserKeys?.(defaultLayerKeys, 0, currentLayer);
-            keyboard?.saveUserKeys?.();
+        if (
+            !device ||
+            device.test === true ||
+            typeof device.getDefaultKeyMatrixData !== 'function' ||
+            typeof device.setRestoreDefaultKeys !== 'function'
+        ) {
             return;
         }
 
-        const originalKey = originalKeys.get(selectedIndex);
-        if (!originalKey) return;
+        try {
+            if (typeof device.startComm === 'function') {
+                await device.startComm();
+            }
+            const freshDefaults = await device.getDefaultKeyMatrixData(currentLayer);
+            if (!Array.isArray(freshDefaults) || freshDefaults.length === 0) return;
 
-        keyboard?.updateUserKey?.(originalKey, selectedIndex, 0, currentLayer);
-        await connectedKeyboard?.setKeyMatrixData?.(
-            currentLayer,
-            selectedIndex,
-            originalKey.type,
-            originalKey.code1,
-            originalKey.code2
-        );
-        keyboard?.saveUserKeys?.();
+            await device.setRestoreDefaultKeys(currentLayer, freshDefaults);
+            keyboard?.updateUserKeys?.(freshDefaults, 0, currentLayer);
+            keyboard?.saveUserKeys?.();
+        } catch {
+            // 读默认矩阵或整层下发失败则忽略
+        }
     };
 
     return (
@@ -399,31 +397,28 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                 }}
             >
                 <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <TravelVirtualKeyboard
-                    layoutKeys={mappedLayoutKeys}
-                    patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
-                    travelKeys={[]}
-                    selectedKeys={selectedIndex >= 0 ? [selectedIndex] : []}
-                    travelValue={0}
-                    showActuation={false}
-                    showLayerOverlay={selectedSetting === 'keypress'}
-                    layerCount={LAYER_COUNT}
-                    currentLayer={currentLayer}
-                    onSelectLayer={(i: number) => keyboard?.setLayer?.(i)}
-                    onRestoreDefault={() => void handleRestoreKey()}
-                    onToggleKey={(keyIndex: number) => {
-                        keyboard?.setSelectIndex?.(keyIndex);
-                    }}
-                    onScaleRatioChange={onKeyboardScaleChange}
-                />
+                    <TravelVirtualKeyboard
+                        layoutKeys={mappedLayoutKeys}
+                        patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+                        travelKeys={[]}
+                        selectedKeys={selectedIndex >= 0 ? [selectedIndex] : []}
+                        travelValue={0}
+                        showActuation={false}
+                        showLayerOverlay={selectedSetting === 'keypress'}
+                        layerCount={LAYER_COUNT}
+                        currentLayer={currentLayer}
+                        onSelectLayer={(i: number) => keyboard?.setLayer?.(i)}
+                        onRestoreDefault={() => void handleRestoreKey()}
+                        onToggleKey={(keyIndex: number) => {
+                            keyboard?.setSelectIndex?.(keyIndex);
+                        }}
+                        onScaleRatioChange={onKeyboardScaleChange}
+                    />
                 </Box>
             </Box>
 
             <Box
                 sx={{
-                    flex: 1,
-                    mx: 167,
-                    minHeight: 0,
                     display: 'flex',
                     flexDirection: 'column',
                     p: `${MAP.sectionShellPadding}px`,
@@ -431,120 +426,139 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                     backgroundColor: MAP.sectionShellBg,
                     border: MAP.sectionShellBorder,
                     boxShadow: MAP.sectionShellShadow,
+                    alignItems: "center",
+                    maxWidth: 1800,
+                    minWidth: 1200,
+                    maxHeight: 500,
+                    height: '100%',
+                    width: '100%',
+                    margin: '0 auto',
+                    minHeight: 0,
                 }}
             >
                 <Box
                     sx={{
-                        flex: 1,
                         display: 'flex',
-                        gap: `25px`,
-                        minHeight: 0,
-                        alignItems: 'stretch',
+                        flex: 1,
+                        minHeight: "300px",
+                        width: "100%",
                     }}
                 >
-                    <Box
-                        sx={{
-                            flex: MAP.sideColumnFlex,
-                            minWidth: `${MAP.sideColumnMinWidth}px`,
-                            maxWidth: `${MAP.sideColumnMaxWidth}px`,
-                            border: MAP.cardBorder,
-                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
-                            p: `${MAP.categoryPadding}px`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: `${MAP.categoryGap}px`,
-                            borderRadius: `${MAP.categoryRadius}px`,
-                            boxShadow: MAP.cardShadow,
-                            overflow: 'auto',
-                            '&::-webkit-scrollbar': { width: '8px' },
-                            '&::-webkit-scrollbar-thumb': {
-                                background: 'rgba(122,142,170,.42)',
-                                borderRadius: '8px',
-                            },
-                            '&::-webkit-scrollbar-track': {
-                                background: 'rgba(209,222,242,.35)',
-                                borderRadius: '8px',
-                            },
-                        }}
-                    >
-                        <Typography
+                    <Box sx={{ display: 'flex', gap: '20px', width: '100%', height: '100%' }}>
+                        <Box
                             sx={{
-                                fontSize: `${MAP.categoryTitleSize}px`,
-                                color: MAP.textTitle,
-                                fontWeight: 700,
-                                mb: '4px',
+                                flex: MAP.sideColumnFlex,
+                                minWidth: `${MAP.sideColumnMinWidth}px`,
+                                maxWidth: `${MAP.sideColumnMaxWidth}px`,
+                                '@media (max-width: 1700px)': {
+                                    width: '220px',
+                                    minWidth: '220px',
+                                    maxWidth: '220px',
+                                    flex: '0 0 220px',
+                                },
+                                border: MAP.cardBorder,
+                                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
+                                p: `${MAP.categoryPadding}px`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: `${MAP.categoryGap}px`,
+                                borderRadius: `${MAP.categoryRadius}px`,
+                                boxShadow: MAP.cardShadow,
+                                overflow: 'auto',
+                                '&::-webkit-scrollbar': { width: '8px' },
+                                '&::-webkit-scrollbar-thumb': {
+                                    background: 'rgba(122,142,170,.42)',
+                                    borderRadius: '8px',
+                                },
+                                '&::-webkit-scrollbar-track': {
+                                    background: 'rgba(209,222,242,.35)',
+                                    borderRadius: '8px',
+                                },
                             }}
                         >
-                            {t('1670')}
-                        </Typography>
-                        {CATEGORIES.map((c) => {
-                            const active = c.id === category;
-                            return (
-                                <Button
-                                    key={c.id}
-                                    fullWidth
-                                    onClick={() => setCategory(c.id)}
-                                    sx={{
-                                        height: `${MAP.categoryItemHeight}px`,
-                                        borderRadius: `${MAP.categoryItemRadius}px`,
-                                        textTransform: 'none',
-                                        justifyContent: 'center',
-                                        fontSize: '14px',
-                                        fontWeight: active ? 600 : 500,
-                                        color: active ? '#fff' : '#66778f',
-                                        background: active ? MAP.primary : 'transparent',
-                                        '&:hover': {
-                                            background: active ? MAP.primaryHover : 'rgba(59,130,246,.10)',
-                                            color: active ? '#fff' : MAP.primary,
-                                        },
-                                    }}
-                                >
-                                    {t(c.labelKey)}
-                                </Button>
-                            );
-                        })}
-                    </Box>
+                            <Typography
+                                sx={{
+                                    fontSize: `${MAP.categoryTitleSize}px`,
+                                    color: MAP.textTitle,
+                                    fontWeight: 700,
+                                    mb: '4px',
+                                }}
+                            >
+                                {t('1670')}
+                            </Typography>
+                            {CATEGORIES.map((c) => {
+                                const active = c.id === category;
+                                return (
+                                    <Button
+                                        key={c.id}
+                                        fullWidth
+                                        onClick={() => setCategory(c.id)}
+                                        sx={{
+                                            height: `${MAP.categoryItemHeight}px`,
+                                            borderRadius: `${MAP.categoryItemRadius}px`,
+                                            textTransform: 'none',
+                                            justifyContent: 'center',
+                                            fontSize: '14px',
+                                            fontWeight: active ? 600 : 500,
+                                            color: active ? '#fff' : '#66778f',
+                                            background: active ? MAP.primary : 'transparent',
+                                            '&:hover': {
+                                                background: active ? MAP.primaryHover : 'rgba(59,130,246,.10)',
+                                                color: active ? '#fff' : MAP.primary,
+                                                transform: active ? 'scale(1)' : 'scale(1.05)',
+                                            },
+                                            '&:active': {
+                                                backgroundColor: active ? MAP.primaryHover : 'rgba(59, 130, 246, 0.08)',
+                                                transform: active ? 'scale(1)' : 'scale(.95)',
+                                                transition: 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
+                                            },
+                                        }}
+                                    >
+                                        {t(c.labelKey)}
+                                    </Button>
+                                );
+                            })}
+                        </Box>
 
-                    <Box
-                        sx={{
-                            flex: 1,
-                            minWidth: 0,
-                            width: "70%",
-                            border: MAP.cardBorder,
-                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
-                            p: `${MAP.contentPadding}px`,
-                            overflow: 'auto',
-                            borderRadius: `${MAP.contentRadius}px`,
-                            boxShadow: MAP.cardShadow,
-                            '&::-webkit-scrollbar': { width: '8px' },
-                            '&::-webkit-scrollbar-thumb': {
-                                background: 'rgba(122,142,170,.35)',
-                                borderRadius: '8px',
-                            },
-                        }}
-                    >
-                        {category === 'basic' ? (
-                            <FullKeyboard disabled={selectedIndex < 0} onSelectKey={applyKey as any} />
-                        ) : category === 'combination' ? (
-                            <CombinationKeyBoard disabled={selectedIndex < 0} onSave={applyCombination} />
-                        ) : category === 'macro' ? (
-                            <Box sx={{ width: '100%', height: '100%' }}>
-                                <MacroRecorder />
-                            </Box>
-                        ) : (
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '4px' }}>
-                                {selectedPool.map((key, idx) => (
-                                    <KeyButton
-                                        key={`${key.code}-${idx}`}
-                                        keyItem={key}
-                                        onSelectKey={(item) => void applyKey(item)}
-                                    />
-                                ))}
-                            </Box>
-                        )}
+                        <Box
+                            sx={{
+                                width: "100%",
+                                border: MAP.cardBorder,
+                                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
+                                p: `${MAP.contentPadding}px`,
+                                overflow: 'auto',
+                                borderRadius: `${MAP.contentRadius}px`,
+                                boxShadow: MAP.cardShadow,
+                                '&::-webkit-scrollbar': { width: '8px' },
+                                '&::-webkit-scrollbar-thumb': {
+                                    background: 'rgba(122,142,170,.35)',
+                                    borderRadius: '8px',
+                                },
+                            }}
+                        >
+                            {category === 'basic' ? (
+                                <FullKeyboard disabled={selectedIndex < 0} onSelectKey={applyKey as any} />
+                            ) : category === 'combination' ? (
+                                <CombinationKeyBoard disabled={selectedIndex < 0} onSave={applyCombination} />
+                            ) : category === 'macro' ? (
+                                <Box sx={{ width: '100%', height: '100%' }}>
+                                    <MacroRecorder />
+                                </Box>
+                            ) : (
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '4px' }}>
+                                    {selectedPool.map((key, idx) => (
+                                        <KeyButton
+                                            key={`${key.code}-${idx}`}
+                                            keyItem={key}
+                                            onSelectKey={(item) => void applyKey(item)}
+                                        />
+                                    ))}
+                                </Box>
+                            )}
+                        </Box>
                     </Box>
                 </Box>
             </Box>
-        </Box>
+        </Box >
     );
 }

@@ -6,12 +6,18 @@ type UseViewportMaskOptions = {
   enabled: boolean;
 };
 
-const ENTER_WIDTH_AUTH = 1280;
-const EXIT_WIDTH_AUTH = 1320;
-const ENTER_WIDTH_MAIN = 1020;
-const EXIT_WIDTH_MAIN = 1060;
+/** 授权页：视口宽度 ≤ 此值视为过窄，与高度、overflow 一起可触发「窗口过小」遮罩 */
+const ENTER_WIDTH_AUTH = 1080;
+/** 授权页：宽度 ≥ 此值且满足 recovered 条件后才关闭遮罩（与 ENTER 滞回，减少抖动） */
+const EXIT_WIDTH_AUTH = 1160;
+/** 主界面（改键/灯光/设置等）：宽度 ≤ 此值视为过窄，与 overflow、高度为「或」关系触发遮罩 */
+const ENTER_WIDTH_MAIN = 1340;
+const EXIT_WIDTH_MAIN = 1380;
+/** 视口高度 ≤ 此值视为过矮，参与触发遮罩 */
 const ENTER_HEIGHT = 690;
+/** 视口高度 ≥ 此值才认为高度已恢复，配合宽度与 overflow 关闭遮罩 */
 const EXIT_HEIGHT = 730;
+/** 判断横向是否溢出时允许的像素容差，避免 scrollWidth≈clientWidth 的取整抖动 */
 const OVERFLOW_EPS = 2;
 
 function getViewportSize() {

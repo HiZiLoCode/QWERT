@@ -976,7 +976,8 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             gap: `${KP.submenuGap}px`,
                             flex: 1,
                             minHeight: 0,
-                            overflow: 'auto',
+                            overflow :'hidden',
+                            overflowY :'auto',
                             alignItems: 'center',
                         }}
                     >
@@ -1014,7 +1015,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                 >
                                     <Button
                                         fullWidth
-                                        title={settingsMenuCollapsed ? undefined : setting.label}
+                                        aria-label={setting.label}
                                         onClick={() => handleSettingSelect(setting.id)}
                                         startIcon={settingIconMap[setting.id]}
                                         sx={{
@@ -1039,6 +1040,12 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                             '&:hover': {
                                                 backgroundColor: active ? '#3b78f0' : 'rgba(74, 134, 247, 0.08)',
                                                 color: active ? '#ffffff' : '#4a86f7',
+                                                transform: active ? 'scale(1)' : 'scale(1.05)',
+                                            },
+                                            '&:active': {
+                                                backgroundColor: active ? '#3b78f0' : 'rgba(59, 130, 246, 0.08)',
+                                                transform: active ? 'scale(1)' : 'scale(.95)',
+                                                transition: 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
                                             },
                                         }}
                                     >

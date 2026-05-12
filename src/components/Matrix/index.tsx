@@ -38,11 +38,10 @@ const Matrix = () => {
     const matrixLightList = keyboardLayout?.lighting?.matrixlight ?? [];
     const layoutKeys = keyboard?.layoutKeys ?? [];
     const travelKeys = keyboard?.travelKeys ?? [];
-    const currentLayer = keyboard?.layer ?? 0;
-    const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
+    const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
     const displayLayoutKeys = useMemo(
-        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow),
-        [layoutKeys, userKeysRow],
+        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys),
+        [layoutKeys, defaultLayerUserKeys],
     );
     const [brightnessInput, setBrightnessInput] = useState('0');
     const matrixSpeedMax = Math.max(deviceBaseInfo?.matrixScreenLightMaxSpeed || 4, 1);
@@ -183,6 +182,7 @@ const Matrix = () => {
                             selectedKeys={[]}
                             travelValue={1.5}
                             onToggleKey={() => { }}
+                            disableKeyHoverScale
                             colorMode={false}
                             keyColors={[]}
                         />

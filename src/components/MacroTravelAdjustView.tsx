@@ -48,6 +48,7 @@ export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTr
                 travelValue={travelValue}
                 onToggleKey={toggleKey}
                 showActuation
+                disableKeyHoverScale
                 onScaleRatioChange={onKeyboardScaleChange}
             />
             <Box

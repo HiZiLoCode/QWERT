@@ -101,7 +101,7 @@ export const connectHID = async (
 
   try {
     const devices = selectedDevices ?? await WebHid.devices(requestAuthorize);
-    
+
     // devices.
     if (devices?.length > 0) {
       return new KeyboardDevice(new KeyboardAPI(devices[0].address, devices[0].productId === 12290 ? 1 : 0));
@@ -182,7 +182,7 @@ export class KeyboardDevice {
     // 通信端点监听 (原有)
     const fn = (evt: HIDInputReportEvent) => {
       const data = Array.from(new Uint8Array(evt.data.buffer));
-      
+
       if (data[0] == 0xaa && data[1] == 0xd0) {
         const listener = this.listeners.find(
           (listener) => listener.name == "devNotify"
@@ -217,7 +217,7 @@ export class KeyboardDevice {
       if (data[0] == 0xaa && data[1] == 0x55) {
         // 查找通知监听器并触发
         console.log(this.listeners);
-        
+
         const listener = this.listeners.find(
           (listener) => listener.name == "consumerNotify"
         );
@@ -241,7 +241,7 @@ export class KeyboardDevice {
 
       // 查找键盘监听器并触发
       const listener = this.listeners.find((listener) => listener.name == "8KdevNotify")
-      
+
       if (listener) {
         listener.fn(data);
       }
@@ -260,7 +260,7 @@ export class KeyboardDevice {
 
       // 查找固件升级监听器并触发
       const listener = this.listeners.find((listener) => listener.name == "8KUpgradeNotify");
-        
+
       if (listener) {
         console.log("[8KUpgradeEndpoint] 触发固件升级监听器");
         listener.fn(data);
@@ -277,8 +277,8 @@ export class KeyboardDevice {
     try {
       const conf = await import(`@/data/keyboardLayout/${deviceLayout}.json`);
       return conf;
-    }catch (error) {
-      
+    } catch (error) {
+
     }
   }
 
@@ -344,6 +344,17 @@ export class KeyboardDevice {
       return true
     } catch {
       return false
+    }
+  }
+  // 屏幕熄灭
+  async lightOff() {
+    try {
+      this.startComm();
+      await this.api.sendDeviceData(CMD.REPORT_ID, [CMD.CMD_SET_LIGHT_OFF, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
+      this.stopComm();
+      return true;
+    } catch {
+      return false;
     }
   }
   // 查看屏幕在线状态
@@ -988,25 +999,27 @@ export class KeyboardDevice {
       const [type, code1, code2] = keyData.slice(i * 3, i * 3 + 3);
       if (type == 0x10 || type == 0x50 || type == 0x30) {
         const code = getKeyCode(type, code1, code2);
-        const name = getKeyName({ type, code1, code2 });
+        const { name, icon } = getKeyName({ type, code1, code2 });
         newKeyInfos.push({
           type,
           code1,
           code2,
           code,
           name,
+          icon,
           profile: 1,
           layer: 0,
           index: i,
         });
       } else {
-        const name = getKeyName({ type, code1, code2 }) || "";
+        const { name, icon } = getKeyName({ type, code1, code2 });
         newKeyInfos.push({
           type: type,
           code1: code1,
           code2: code2,
           code: 0,
-          name,
+          name: name || "",
+          icon,
           profile: 1,
           layer: 0,
           index: i,
@@ -1067,19 +1080,20 @@ export class KeyboardDevice {
           code1,
           code2,
           code,
-          name,
+          ...name,
           profile: 1,
           layer: 0,
           index: i,
         });
       } else {
-        const name = getKeyName({ type, code1, code2 }) || "";
+        const { name, icon } = getKeyName({ type, code1, code2 });
         newKeyInfos.push({
           type: type,
           code1: code1,
           code2: code2,
           code: 0,
-          name,
+          name: name || "",
+          icon,
           profile: 1,
           layer: 0,
           index: i,
@@ -2210,15 +2224,16 @@ export class KeyboardDevice {
       if (type == 0x10 || type == 0xf0) {
         const code = getKeyCode(type, code1, code2);
         const name = getKeyName({ type, code1, code2 });
-        newKeyInfos.push({ type, code1, code2, code, name, i, profile, layer });
+        newKeyInfos.push({ type, code1, code2, code, ...name, i, profile, layer });
       } else {
-        const name = getKeyName({ type, code1, code2 }) || "";
+        const { name, icon } = getKeyName({ type, code1, code2 });
         newKeyInfos.push({
           type: type,
           code1: code1,
           code2: code2,
           code: 0,
-          name,
+          name: name || "",
+          icon,
           index: i,
           profile,
           layer,
@@ -2274,13 +2289,14 @@ export class KeyboardDevice {
           layer,
         });
       } else {
-        const name = getKeyName({ type, code1, code2 }) || "";
+        const { name, icon } = getKeyName({ type, code1, code2 });
         newKeyInfos.push({
           type,
           code1,
           code2,
           code: -1,
-          name,
+          name: name || "",
+          icon,
           index: i,
           profile,
           layer,
@@ -2445,10 +2461,10 @@ export class KeyboardDevice {
       };
       dksKeys.push({
         point: data.slice(offset, offset + 4),
-        action0: { ...key0, name: getKeyName(key0) },
-        action1: { ...key1, name: getKeyName(key1) },
-        action2: { ...key2, name: getKeyName(key2) },
-        action3: { ...key3, name: getKeyName(key3) },
+        action0: { ...key0, ...getKeyName(key0) },
+        action1: { ...key1, ...getKeyName(key1) },
+        action2: { ...key2, ...getKeyName(key2) },
+        action3: { ...key3, ...getKeyName(key3) },
         point0: {
           action0: point0 & 0b111,
           action1: (point0 >> 3) & 0b111,
@@ -2508,7 +2524,7 @@ export class KeyboardDevice {
         code1: data[offset + 1],
         code2: data[offset + 2],
       };
-      tglKeys.push({ ...key, name: getKeyName(key) });
+      tglKeys.push({ ...key, ...getKeyName(key) });
     }
     return tglKeys;
   }

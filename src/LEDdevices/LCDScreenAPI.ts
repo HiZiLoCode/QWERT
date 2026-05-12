@@ -151,6 +151,51 @@ export class LCDScreenAPI {
     return cache[this.address].hid;
   }
 
+  /** 已连接屏幕的底层 HID，用于与 OTA 协议共用同一 handle（无需再选 0x1919） */
+  getScreenHidDevice(): HIDDevice | undefined {
+    if (this.test) return undefined;
+    try {
+      return this.getHID().getWebHidDevice();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** 清空 WebHid 读缓冲，避免 OTA 成功后二次升级读到残留 IN */
+  clearOtaStaleBuffers() {
+    if (this.test) return;
+    try {
+      this.getHID().clearOtaStaleBuffers();
+    } catch {
+      /* */
+    }
+  }
+
+  /**
+   * 与 WebHID OTA 共用同一设备前/后调用：丢弃主连接指令队列里未执行的项、解除 isFlushing 粘死，并清 HidDeivce 读缓冲。
+   * 须在「无并发 setData」场景调用（如升级流程里已 setDownLoad 禁止轮询）。
+   */
+  resetLcdStateForOta() {
+    if (this.test) return;
+    const w = globalCommandQueue[this.address];
+    if (w) {
+      // 无论是否正在 flush：队里「尚未开始执行」的项必须清掉，否则二次 OTA 会在传图中途被旧 setData 插队
+      const pending = w.commandQueue.splice(0);
+      for (const it of pending) {
+        try {
+          it.rej(new Error('LCD queue reset for OTA'));
+        } catch {
+          /* */
+        }
+      }
+      // 仅当 flush 卡在 await HID、且没有刚被丢弃的排队项时，解除 isFlushing，避免队列永久占死
+      if (w.isFlushing && w.commandQueue.length === 0 && pending.length === 0) {
+        w.isFlushing = false;
+      }
+    }
+    this.clearOtaStaleBuffers();
+  }
+
   async webhid_read_command(sinceTime = 0): Promise<Uint8Array> {
     return this.getHID().readP(sinceTime);
   }

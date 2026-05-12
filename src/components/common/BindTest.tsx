@@ -363,12 +363,12 @@ function BindTest() {
   }, [matrixTestEnabled, deviceLayoutKeys, testKeyboardLayoutKeys]);
   const travelKeys = keyboard?.travelKeys ?? [];
   const patternKeys = matrixTestEnabled ? [] : (keyboardLayout?.layouts?.patternKeys ?? []);
-  const currentLayer = keyboard?.layer ?? 0;
-  const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
-  const displayLayoutKeys = useMemo(() => {
+  /** 非矩阵测试：仅合并默认层键名（与实机矩阵一致）；矩阵测试勿合并设备 userKeys（索引与 test 布局不一致会错位） */
+  const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
+  const mappedLayoutKeys = useMemo(() => {
     if (matrixTestEnabled) return layoutKeys;
-    return mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow);
-  }, [matrixTestEnabled, layoutKeys, userKeysRow]);
+    return mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys);
+  }, [matrixTestEnabled, layoutKeys, defaultLayerUserKeys]);
 
   const keyIndexByCode = useMemo(() => {
     const map = new Map<number, number[]>();
@@ -801,7 +801,7 @@ function BindTest() {
         }}
       >
         <TravelVirtualKeyboard
-          layoutKeys={displayLayoutKeys}
+          layoutKeys={mappedLayoutKeys}
           travelKeys={travelKeys}
           patternKeys={patternKeys}
           selectedKeys={selectedKeys}

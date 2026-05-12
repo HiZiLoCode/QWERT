@@ -20,6 +20,32 @@ export type FirmwareRelease = {
     };
 };
 
+/** 屏幕固件说明（与 FIRMWARE_CHANGELOG_BY_DEVICE 相同 key 规则） */
+export const SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
+    '0x36B0_0x3059_0': [
+        {
+            version: '68',
+            date: '2026-05-01',
+            changes: {
+                zh: ['1、示例：屏幕固件说明条目（请在 firmwareChangelog 中按机型维护）'],
+                en: ['1、Example: screen firmware release note (maintain per device in firmwareChangelog)'],
+            },
+        },
+    ],
+    default: [],
+};
+
+export function getScreenFirmwareReleasesForDevice(
+    vendorId: number,
+    productId: number,
+    keySegment: number = 0
+): FirmwareRelease[] {
+    const k = deviceInfoKey(vendorId, productId, keySegment);
+    const list = SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE[k];
+    if (list?.length) return list;
+    return SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE.default ?? [];
+}
+
 /** 设备 key → 该机型固件版本列表（含可选的「目标升级版本」说明，新在前） */
 export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [

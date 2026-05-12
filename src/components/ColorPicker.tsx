@@ -83,19 +83,20 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
   };
 
   return (
-    <Box sx={{ position: 'relative', p: 0, mt: 0 }}>
+    <Box sx={{ position: 'relative', p: 0, mt: 0, overflow: 'visible' }}>
       {disabled && (
         <Box
           sx={{
             position: 'absolute',
-            width: '100%',
-            height: '100%',
-            left: 0,
-            top: 0,
+            inset: '-1rem',
+            p: '0.5rem',
+            boxSizing: 'border-box',
             opacity: 0.5,
             backgroundColor: 'grey.200',
             zIndex: 20,
             cursor: 'not-allowed',
+            pointerEvents: 'auto',
+            touchAction: 'none',
           }}
         />
       )}

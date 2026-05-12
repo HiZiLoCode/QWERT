@@ -13,6 +13,7 @@ import {
   getLabelForByte,
 } from "./key-code/key2code";
 import { KeyboardKey } from "../types/types_v1";
+import customKeysCatalog from "../data/customkeys.json";
 
 // 德语键名称映射
 const germanKeyNames: Record<number, string> = {
@@ -2728,12 +2729,12 @@ const singleCustom = [
 ]
 const mouseKeys = [
   { "type": 32, "code1": 0, "code2": 1, "name": "Left Button", "icon": "/KeyType/mouse_left_button.svg" },
-  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_right_button.svg" },
-  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_middle_button.svg" },
-  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_scroll_up.svg" },
-  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_scroll_down.svg" },
-  { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_forward.svg" },
-  { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_backward.svg" }
+  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_middle_button.svg" },
+  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_scroll_down.svg" },
+  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_right_button.svg" },
+  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_forward.svg" },
+  { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_backward.svg" },
+  { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_scroll_up.svg" }
 ]
 const mediaKeys = [
   { code: 131, code1: 0, key: "Player" },
@@ -2764,41 +2765,74 @@ const mediaKeys = [
   { code: 175, code1: 0, key: "Select" },
   { code: 176, code1: 0, key: "Eject" },
 ];
-export const getKeyName = (key) => {
+export type KeyNameResult = {
+  name: string;
+  icon?: string;
+};
+
+const isAssetIconPath = (value: string) => {
+  const normalized = String(value || "").trim();
+  return normalized.includes("/KeyType/") || normalized.endsWith(".svg") || normalized.endsWith(".png");
+};
+
+const shortcutIconByTypeCode = new Map<string, string>();
+const shortcutGroup = (customKeysCatalog as any[]).find((group) => group?.label === "Shortcut");
+(shortcutGroup?.keycodes || []).forEach((item: any) => {
+  if (item?.icon) {
+    shortcutIconByTypeCode.set(`${item.type}-${item.code1}-${item.code2}`, item.icon);
+  }
+});
+
+export const getKeyName = (key: any): KeyNameResult => {
   if (key.type === 0x10) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
     if (key.code1) {
       const modifiers = getSideModifierNames(key.code1);
-      return [...modifiers, localizedKeyName].join("");
+      return { name: [...modifiers, localizedKeyName].join("") };
     }
-    return localizedKeyName;
+    return { name: localizedKeyName };
   }
   else if (key.type === 0x12) {
     const localizedKeyName = getLocalizedKeyName(key.code2);
+    const shortcutIcon = shortcutIconByTypeCode.get(`${key.type}-${key.code1}-${key.code2}`);
+    if (isAssetIconPath(localizedKeyName)) {
+      if (key.code1) {
+        const modifiers = getSideModifierNames(key.code1);
+        return { name: modifiers.join(""), icon: localizedKeyName };
+      }
+      return { name: "", icon: localizedKeyName };
+    }
     if (key.code1) {
       const modifiers = getSideModifierNames(key.code1);
-      return [...modifiers, localizedKeyName].join("");
+      return { name: [...modifiers, localizedKeyName].join(""), icon: shortcutIcon };
     }
-    return localizedKeyName;
+    return { name: localizedKeyName, icon: shortcutIcon };
   }
   else if (key.type === 0x60 || key.type === 0x61) {
-    return "M" + (key.code1 + 1);
+    return { name: "M" + (key.code1 + 1) };
   }
   else if (key.type === 0x20) {
     const lang = getCurrentLanguage();
-    if (key.code1 == 0x81) {
-      return lang.startsWith('de') ? "Ein/Aus" : "Power";
-    }
-    else if (key.code1 == 0x82) {
-      return lang.startsWith('de') ? "Ruhezustand" : "Sleep";
-    }
-    else if (key.code1 == 0x83) {
-      return lang.startsWith('de') ? "Aufwecken" : "WakeUp";
-    }
+    const systemKeyMap: Record<number, { name: string; icon?: string }> = {
+      0x81: {
+        name: lang.startsWith("de") ? "Ein/Aus" : "Power",
+        icon: "/KeyType/shortcut_power.svg",
+      },
+      0x82: {
+        name: lang.startsWith("de") ? "Ruhezustand" : "Sleep",
+        icon: "/KeyType/shortcut_sleep.svg",
+      },
+      0x83: {
+        name: lang.startsWith("de") ? "Aufwecken" : "WakeUp",
+        icon: "/KeyType/shortcut_wake.svg",
+      },
+    };
+
+    return systemKeyMap[key.code1] || { name: "" };
   }
   else if (key.type == 0x40) {
     const kbKey = mouseKeys.find((mouseKey) => mouseKey.code1 == key.code1 && mouseKey.code2 == key.code2);
-    return kbKey ? (kbKey.icon ? kbKey.icon : kbKey.name) : "";
+    return kbKey ? { name: kbKey.name, icon: kbKey.icon } : { name: "" };
   }
   else if (key.type === 0x30) {
     const kbKey = mediaKeys.find(
@@ -2806,7 +2840,7 @@ export const getKeyName = (key) => {
         customKey.code === key.code1 && customKey.code1 === key.code2
     );
 
-    return kbKey ? (kbKey.icon ? kbKey.icon : kbKey.key) : "";
+    return kbKey ? { name: kbKey.key, icon: kbKey.icon } : { name: "" };
   }
   else if (key.type === 0x50) {
     const keyboardMode = localStorage.getItem("keyboardMode") as any;
@@ -2815,10 +2849,10 @@ export const getKeyName = (key) => {
         customKey.code === key.code1 && customKey.code1 === key.code2
     );
 
-    return kbKey ? kbKey.icon ? kbKey.icon : kbKey.key : "";
+    return kbKey ? { name: kbKey.key, icon: kbKey.icon } : { name: "" };
   }
 
-  return "";
+  return { name: "" };
 };
 
 export const getKeyCode = (type, code1, code2) => {

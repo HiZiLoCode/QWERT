@@ -72,6 +72,8 @@ export type TravelVirtualKeyboardProps = {
     keyBadges?: Record<number, string | number>;
     /** 可选：键盘在容器内计算后的缩放比变化回调 */
     onScaleRatioChange?: (ratio: number) => void;
+    /** 为 true 时禁用按键 hover 缩放（灯光/点阵/轴行程/拾音等调节界面） */
+    disableKeyHoverScale?: boolean;
 };
 
 export type CompositeLayoutKey = LayoutKey & {

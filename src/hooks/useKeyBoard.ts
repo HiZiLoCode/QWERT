@@ -16,6 +16,30 @@ import {
 import { emptyProfile } from "../keyboard/defaultData";
 import { ProfileContext } from "../providers/ProfileProvider";
 
+function isIconPathValue(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return normalized.includes("/KeyType/") || normalized.endsWith(".svg") || normalized.endsWith(".png");
+}
+
+function normalizeKeyIcon<T extends { name?: unknown; icon?: unknown }>(key: T): T {
+  if (!key) return key;
+  if (typeof key.icon === "string" && key.icon.trim()) return key;
+  if (isIconPathValue(key.name)) {
+    return {
+      ...key,
+      icon: String(key.name).trim(),
+    };
+  }
+  return key;
+}
+
+function normalizeKeyList<T extends { name?: unknown; icon?: unknown }>(keys: T[]): T[] {
+  if (!Array.isArray(keys) || keys.length === 0) return keys;
+  return keys.map((k) => normalizeKeyIcon(k));
+}
+
 export default function useKeyboard() {
   const [version, setVersion] = useState(0);
   const [keyboardType, setKeyboardType] = useState('');
@@ -583,15 +607,19 @@ export default function useKeyboard() {
       setAdvancedTwoKey([...advancedTwoKey]);
     },
     updateAllUserKeys: (allUserKeys: Record<string, KeyboardKey[]>) => {
-      setUserKeys({ ...allUserKeys });
+      const normalized = Object.fromEntries(
+        Object.entries(allUserKeys).map(([layerKey, keys]) => [layerKey, normalizeKeyList(keys || [])])
+      ) as Record<string, KeyboardKey[]>;
+      setUserKeys(normalized);
     },
     updateUserKeys: (
       keys: KeyboardKey[],
       profileIndex: number = 0,
       layer: number = 0
     ) => {
+      const normalizedKeys = normalizeKeyList(keys || []);
       setUserKeys((userKeys) => {
-        return { ...userKeys, [layer]: [...keys] };
+        return { ...userKeys, [layer]: [...normalizedKeys] };
       });
     },
     updateUserKey: (
@@ -605,7 +633,7 @@ export default function useKeyboard() {
         setSelectIndex(index);
       }
       const newLayerKeys = [...(userKeys[layer] ?? [])];
-      newLayerKeys[targetIndex] = key;
+      newLayerKeys[targetIndex] = normalizeKeyIcon(key);
       setUserKeys((prev) => ({ ...prev, [layer]: newLayerKeys }));
     },
 

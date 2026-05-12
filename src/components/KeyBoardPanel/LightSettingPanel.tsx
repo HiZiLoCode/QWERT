@@ -12,6 +12,7 @@ import { ButtonRem, SliderRem } from '@/styled/ReconstructionRem';
 import Matrix from '@/components/Matrix';
 import ToggleSlider from '@/components/common/ToggleSlider';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
+import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 
 type EffectItem = {
   value: number;
@@ -22,6 +23,22 @@ type EffectGroup = {
   title: string;
   items: EffectItem[];
 };
+
+/** 布局 JSON `lighting.backlight[].effectCategory`，用于静态 / 动态 / 互动 三栏分组 */
+function backlightHasExplicitCategories(effects: any[]): boolean {
+  return effects.some(
+    (e: any) =>
+      e?.effectCategory === 'static' ||
+      e?.effectCategory === 'dynamic' ||
+      e?.effectCategory === 'interactive',
+  );
+}
+
+/** 动态 + 互动：拾音等逻辑里与「非静态灯效」一致处理 */
+function isAnimatedEffectCategory(effect: any): boolean {
+  const c = effect?.effectCategory;
+  return c === 'dynamic' || c === 'interactive';
+}
 
 function resolveLightEffectLabel(
   effect: any,
@@ -103,17 +120,17 @@ type LightSettingPanelProps = {
 
 export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChange }: LightSettingPanelProps = {}) {
   const { t } = useTranslation('common');
+  const { showDialog, showMessage } = useSnackbarDialog();
   const isMatrixOnly = forcedLightType === 'matrixlight';
 
   const { connectedKeyboard, keyboard, keyboardLayout } = useContext(ConnectKbContext);
 
   const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
   const travelKeys = keyboard?.travelKeys ?? [];
-  const currentLayer = keyboard?.layer ?? 0;
-  const userKeysRow = keyboard?.userKeys?.[currentLayer] ?? [];
+  const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
   const displayLayoutKeys = useMemo(
-    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeysRow),
-    [layoutKeys, userKeysRow],
+    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys),
+    [layoutKeys, defaultLayerUserKeys],
   );
 
   const isQMK = keyboard?.keyboardType === 'QMK';
@@ -203,18 +220,33 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     if (found) return found;
     // 布局里未声明 value=0 的「全灭」时，effectGroups 仍会展示全灭项；这里占位避免判空导致拾音等逻辑异常
     if (selectedEffect === 0) {
-      return { value: 0, brightness: false, speed: false, direction: false, color: false };
+      return {
+        value: 0,
+        brightness: false,
+        speed: false,
+        direction: false,
+        color: false,
+        effectCategory: 'static',
+      };
     }
     return null;
   }, [lightEffects, selectedEffect]);
 
-  /** 与「动态灯效」分组规则一致：非 color-only 静态、且非全灭类，视为动态（拾音下关闭音频响应开关）。 */
+  /** 动态 + 互动灯效；有 `effectCategory` 时以字段为准，否则沿用 color 推断（兼容旧布局）。 */
   const isPickupDynamicLighting = useMemo(() => {
     if (!isPickupLightingModule || !currentLightInfo) return false;
     const isOff =
       currentLightInfo.value === 0 ||
       (typeof currentLightInfo.label === 'string' && currentLightInfo.label.includes(t('1675')));
-    return !(currentLightInfo.color === false || isOff);
+    if (isOff) return false;
+    if (
+      currentLightInfo.effectCategory === 'static' ||
+      currentLightInfo.effectCategory === 'dynamic' ||
+      currentLightInfo.effectCategory === 'interactive'
+    ) {
+      return isAnimatedEffectCategory(currentLightInfo);
+    }
+    return !(currentLightInfo.color === false);
   }, [isPickupLightingModule, currentLightInfo, t]);
 
   /** 拾音「全灭」：与分组里全灭项一致（value=0 或文案含全灭）。 */
@@ -288,14 +320,43 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       ];
     }
 
+    const isOffEntry = (e: any) =>
+      e.value === 0 || (typeof e.label === 'string' && e.label.includes(t('1675')));
+
+    if (lightType === 'backlight' && backlightHasExplicitCategories(lightEffects)) {
+      const staticRaw = lightEffects.filter((e: any) => e.effectCategory === 'static');
+      const dynamicRaw = lightEffects.filter((e: any) => e.effectCategory === 'dynamic');
+      const interactiveRaw = lightEffects.filter((e: any) => e.effectCategory === 'interactive');
+      const hasOffInStatic = staticRaw.some(isOffEntry);
+      const staticEffects = hasOffInStatic
+        ? staticRaw
+        : [
+          {
+            value: 0,
+            label: t('1675'),
+            brightness: false,
+            speed: false,
+            direction: false,
+            color: false,
+            effectCategory: 'static',
+          },
+          ...staticRaw,
+        ];
+      return [
+        { title: t('1672'), items: staticEffects.length ? staticEffects : lightEffects.slice(0, 1) },
+        { title: t('1674'), items: dynamicRaw },
+        { title: t('2736'), items: interactiveRaw },
+      ];
+    }
+
     const staticEffectsRaw = lightEffects.filter((e: any) => {
-      const isOff = e.value === 0 || (typeof e.label === 'string' && e.label.includes(t('1675')));
+      const isOff = isOffEntry(e);
       return e.color === false || isOff;
     });
-    const hasOff = staticEffectsRaw.some((e: any) => e.value === 0 || (typeof e.label === 'string' && e.label.includes(t('1675'))));
+    const hasOff = staticEffectsRaw.some(isOffEntry);
     const staticEffects = hasOff ? staticEffectsRaw : [{ value: 0, label: t('1675') }, ...staticEffectsRaw];
     const dynamicEffects = lightEffects.filter((e: any) => {
-      const isOff = e.value === 0 || (typeof e.label === 'string' && e.label.includes(t('1675')));
+      const isOff = isOffEntry(e);
       return !(e.color === false || isOff);
     });
 
@@ -303,7 +364,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       { title: t('1672'), items: staticEffects.length ? staticEffects : lightEffects.slice(0, 1) },
       { title: t('1674'), items: dynamicEffects },
     ];
-  }, [lightEffects, t]);
+  }, [lightEffects, lightType, t]);
 
   useEffect(() => {
     const info = keyboard?.deviceFuncInfo;
@@ -611,7 +672,12 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
         const isOff =
           effectMeta.value === 0 ||
           (typeof effectMeta.label === 'string' && effectMeta.label.includes(t('1675')));
-        const isDynamicEffect = !(effectMeta.color === false || isOff);
+        const isDynamicEffect =
+          effectMeta.effectCategory === 'static' ||
+            effectMeta.effectCategory === 'dynamic' ||
+            effectMeta.effectCategory === 'interactive'
+            ? isAnimatedEffectCategory(effectMeta)
+            : !(effectMeta.color === false || isOff);
         if (isDynamicEffect || isOff) closePickupAudio = true;
       }
     }
@@ -703,6 +769,24 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     });
   };
 
+  /** 自定义灯效：将所有键的自定义点亮设为灭并立即下发到当前自定义槽位 */
+  const handleCustomKeyLightsResetAllOff = () => {
+    if (!canCustomPaint) return;
+    if (paintBatchDebounceRef.current) {
+      clearTimeout(paintBatchDebounceRef.current);
+      paintBatchDebounceRef.current = null;
+    }
+    const allOff = new Array(128).fill('#000000');
+    latestKeyColorsRef.current = allOff;
+    keyboard?.setKeysColor?.(allOff);
+    flushCustomColorsToDevice(allOff);
+    showMessage({
+      message: t('2727'),
+      type: 'success',
+      duration: 3000,
+    });
+  };
+
   const handlePickupAudioSwitch = async (checked: boolean) => {
     if (isPickupLightingModule && (isPickupDynamicLighting || isPickupAllOff)) return;
     setOpenLight(checked);
@@ -739,7 +823,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
           <Box
-              sx={{
+            sx={{
               flex: 1,
               minHeight: 0,
               minWidth: 0,
@@ -756,6 +840,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               selectedKeys={selectedKeys}
               travelValue={1.5}
               onToggleKey={toggleKey}
+              disableKeyHoverScale
               colorMode={canCustomPaint}
               keyColors={keyColors}
               patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
@@ -848,7 +933,41 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           </Box>
         </Box>
       </Box>
-      <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem', mx: 167, width: '80%' }}>
+      <Box
+        sx={{
+          mx: 167,
+          width: '71%',
+          alignSelf: 'center',
+          py: 10,
+          textAlign: 'left',
+          display: 'flex',
+          justifyContent: 'flex-end',
+
+        }}
+      >
+        <Typography
+          component="div"
+          sx={{
+            fontSize: '0.875rem',
+            lineHeight: 1.65,
+            color: '#64748b',
+            whiteSpace: 'pre-line',
+            visibility: canCustomPaint ? 'visible' : 'hidden',
+            userSelect: canCustomPaint ? 'text' : 'none',
+          }}
+        >
+          {t('2728')}
+        </Typography>
+      </Box>
+      <Box sx={{
+        flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem', maxWidth: "112.5rem",
+        minWidth: "75rem",
+        maxHeight: "31.25rem",
+        height: '100%',
+        width: '100%',
+        margin: '0 auto',
+        minHeight: 0,
+      }}>
         <Box
           sx={{
             borderRadius: '0.875rem',
@@ -863,7 +982,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               <Typography sx={{ fontSize: '1.125rem', fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
                 {group.title}
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 8 }}>
                 {group.items.map((item) => {
                   const active = selectedEffect === item.value;
                   return (
@@ -875,7 +994,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                       sx={{
                         height: '2.125rem',
                         borderRadius: '0.5rem',
-                        fontSize: '0.875rem',
+                        fontSize: '1rem',
                         textTransform: 'none',
                         color: active ? '#fff' : '#5f7089',
                         backgroundColor: active ? '#3B82F6' : '',
@@ -1083,6 +1202,40 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               {t('1691')}
             </ButtonRem>
           </Box>
+
+          {canCustomPaint ? (
+            <ButtonRem
+              variant="text"
+              fullWidth
+              onClick={() => {
+                showDialog({
+                  title: t('631'),
+                  content: t('2719'),
+                  confirmText: t('1111'),
+                  cancelText: t('635'),
+                  onConfirm: () => handleCustomKeyLightsResetAllOff(),
+                  onCancel: () => { },
+                });
+              }}
+              sx={{
+                mt: 14,
+                height: '2.25rem',
+                borderRadius: '0.55rem',
+                fontSize: '.95rem',
+                textTransform: 'none',
+                color: '#5f7089',
+                border: '0.0625rem solid rgba(148,163,184,0.55)',
+                backgroundColor: 'rgba(255,255,255,.45)',
+                '&:hover': {
+                  borderColor: '#3B82F6',
+                  color: '#3B82F6',
+                  backgroundColor: 'rgba(59,130,246,.08)',
+                },
+              }}
+            >
+              {t('610')}
+            </ButtonRem>
+          ) : null}
         </Box>
 
         <Box

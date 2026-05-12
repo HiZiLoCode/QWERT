@@ -3,6 +3,28 @@ import type { LayoutKey } from '@/types/types_v1';
 import type { CompositeLayoutKey, PatternKey } from './types';
 import { getActuationLabel, getCompositeKeyClipPath, getNameColor, renderPattern } from './render';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
+import customKeys from '@/data/customkeys.json';
+
+const iconPathToNameMap: Record<string, string> = (customKeys as any[])
+    .flatMap((group) => group?.keycodes ?? [])
+    .reduce((acc: Record<string, string>, item: any) => {
+        const icon = typeof item?.icon === 'string' ? item.icon.trim() : '';
+        const name = typeof item?.name === 'string' ? item.name.trim() : '';
+        if (icon && name) acc[icon] = name;
+        return acc;
+    }, {});
+
+function isAssetPath(value: string): boolean {
+    return value.includes('/KeyType/') || value.endsWith('.svg') || value.endsWith('.png');
+}
+
+function pathToFallbackLabel(pathValue: string): string {
+    const fileName = pathValue.split('/').pop() ?? pathValue;
+    return fileName
+        .replace(/\.(svg|png)$/i, '')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+}
 
 type KeyboardKeysProps = {
     layoutKeys: LayoutKey[];
@@ -24,6 +46,7 @@ type KeyboardKeysProps = {
     demoHighlightKeyIndex?: number;
     demoHighlightTitle?: string;
     keyBadges?: Record<number, string | number>;
+    disableKeyHoverScale?: boolean;
 };
 
 export default function KeyboardKeys({
@@ -46,6 +69,7 @@ export default function KeyboardKeys({
     demoHighlightKeyIndex,
     demoHighlightTitle,
     keyBadges,
+    disableKeyHoverScale = false,
 }: KeyboardKeysProps) {
     const isImageIcon = (value: string) => {
         const normalized = String(value || '').trim();
@@ -59,6 +83,7 @@ export default function KeyboardKeys({
                 const composite = key as CompositeLayoutKey;
                 const keyIndex = key.index ?? idx;
                 const selected = selectedKeys.includes(keyIndex);
+                const allowHoverScale = !selected && !disableKeyHoverScale;
                 const isDemoHighlight =
                     typeof demoHighlightKeyIndex === 'number' &&
                     demoHighlightKeyIndex >= 0 &&
@@ -78,7 +103,11 @@ export default function KeyboardKeys({
                 const keyName = String(key.name ?? '').trim();
                 const keyDisplay = String(key.icon || key.name || keyIndex + 1);
                 // 图标型按键：展示一个 hover 提示，避免只看到 icon 不知道含义
-                const iconTooltipTitle = isImageIcon(keyDisplay) && keyName ? keyName : undefined;
+                const iconTooltipTitle = isImageIcon(keyDisplay)
+                    ? (!isAssetPath(keyName) && keyName
+                        ? keyName
+                        : iconPathToNameMap[keyDisplay.trim()] || pathToFallbackLabel(keyDisplay))
+                    : undefined;
                 const keyEl = (
                     <Box
                         onClick={colorMode ? undefined : () => onToggleKey(keyIndex)}
@@ -112,9 +141,18 @@ export default function KeyboardKeys({
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'none',
+                            transition: allowHoverScale ? 'transform 0.15s ease-out' : 'none',
                             animation: 'none',
                             userSelect: 'none',
+                            transformOrigin: 'center center',
+                            ...(allowHoverScale
+                                ? {
+                                      '&:hover': {
+                                          transform: 'scale(0.9)',
+                                          zIndex: 1,
+                                      },
+                                  }
+                                : {}),
                             ...(isDemoHighlight
                                 ? { boxShadow: '0 0 0 1px rgba(255, 145, 0, 0.35), 0 2px 8px rgba(255, 145, 0, 0.2)' }
                                 : {}),
@@ -147,7 +185,7 @@ export default function KeyboardKeys({
                                 component="img"
                                 src={keyDisplay.trim()}
                                 alt={keyName || keyDisplay}
-                                sx={{ width: '1.8rem', height: '1.8rem', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
+                                sx={{ width: '32px', height: '32px', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
                             />
                         ) : (
                             <Typography

@@ -1,17 +1,14 @@
 "use client";
 
-import { createContext, useState, ReactNode, useEffect, useRef, useContext, useCallback } from "react";
+import { createContext, useState, ReactNode, useEffect, useRef, useCallback } from "react";
 import {
   FilterDevice, screenInfo
 } from "../types/types";
-import { DeviceComm, connectDeviceHID } from "../LEDdevices/LCDScreenDevice";
+import { DeviceComm, connectDeviceHID, type LcdScreenFuncInfo } from "../LEDdevices/LCDScreenDevice";
 import { useTranslation } from "@/app/i18n";
 import { usbDetect } from "../shims/led-usb-detection";
-import _ from "lodash";
-import { EditorContext } from "./EditorProvider";
 import { GifEditState } from "../../../drive_app/src/components/GifEditor/types";
 import { TransferProgress } from "@/components/GifConverter";
-import { ConnectKbContext } from "./ConnectKbProvider";
 type MainProps = {
   softwareVersion: string;
   deviceComm?: DeviceComm;
@@ -39,7 +36,13 @@ type MainProps = {
   setDownloadProgress: Function;
   selectedScreen: number | null;
   setSelectedScreen: (screenIdx: number) => void;
-  screenInfo: screenInfo,
+  screenInfo: screenInfo;
+  /** 0x14 读回的屏幕功能区摘要（含 upgrade_status），轮询时更新 */
+  lcdScreenFuncInfo?: LcdScreenFuncInfo;
+  /** WebHID 屏幕固件/图传 OTA：须同步置 true，在 downLoad 状态提交前即拦住 0x1C/0x14 心跳 */
+  setScreenFirmwareOtaBlocking?: (blocked: boolean) => void;
+  /** 与 ref 同步，供 Content 等在 OTA 期间跳过 USB remove 对键盘列表的误处理 */
+  screenFirmwareOtaBlocking?: boolean;
 };
 
 export const MainContext = createContext({} as MainProps);
@@ -72,6 +75,13 @@ function MainProvider({ children }: { children: ReactNode }) {
     downLoadRef.current = v;
     setDownLoadState(v);
   }, []);
+  /** 与 downLoad 解耦：在 React 批处理前即可为 true，彻底跳过 LCD 心跳里的 pollConnectStatus */
+  const screenFirmwareOtaBlockingRef = useRef(false);
+  const [screenFirmwareOtaBlocking, setScreenFirmwareOtaBlockingState] = useState(false);
+  const setScreenFirmwareOtaBlocking = useCallback((blocked: boolean) => {
+    screenFirmwareOtaBlockingRef.current = blocked;
+    setScreenFirmwareOtaBlockingState(blocked);
+  }, []);
   // 演示模式
   const [demoMode, setDemoMode] = useState(false);
   // 设备连接状态
@@ -84,12 +94,28 @@ function MainProvider({ children }: { children: ReactNode }) {
   const [screenHeight, setScreenHeight] = useState(136);
   // 基本信息
   const [screenInfo, setScreenInfo] = useState<screenInfo>()
-  const { selectedSetting } = useContext(EditorContext);
+  const [funcInfo, setFuncInfo] = useState<LcdScreenFuncInfo | undefined>(undefined);
   const { t } = useTranslation("common");
-  let intervalId: ReturnType<typeof setInterval> | null | number | undefined = null;
+  const lcdHeartbeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearLcdHeartbeat = useCallback(() => {
+    if (lcdHeartbeatIntervalRef.current != null) {
+      clearInterval(lcdHeartbeatIntervalRef.current);
+      lcdHeartbeatIntervalRef.current = null;
+    }
+  }, []);
+
   // 设备断开处理函数
   const handleDeviceDisconnect = async (device: HIDDevice) => {
     console.log('设备断开:', device.productName, 'VID:', device.vendorId, 'PID:', device.productId);
+
+    // OTA 图传/固件密集 OUT 时，Windows/复合设备偶发瞬时 disconnect，清空 deviceComm 会导致第二次升级中途「假掉线」
+    if (screenFirmwareOtaBlockingRef.current) {
+      console.warn(
+        '[MainProvider] 屏幕固件 OTA 进行中，忽略本次 HID disconnect，避免误清空 deviceComm；若已物理拔线，下一包 OUT 仍会失败。'
+      );
+      return;
+    }
 
     // 检查断开的设备是否是当前连接的设备
     if (deviceComm && deviceComm.vendorId === device.vendorId && deviceComm.productId === device.productId) {
@@ -98,8 +124,9 @@ function MainProvider({ children }: { children: ReactNode }) {
       setDeviceComm(undefined);
       setIsDownloading(false);
       setDownLoad(false);
-      clearInterval(intervalId as number | undefined); // 清除轮询
-      intervalId = null;
+      setFuncInfo(undefined);
+      screenFirmwareOtaBlockingRef.current = false;
+      clearLcdHeartbeat();
     }
   };
 
@@ -139,12 +166,8 @@ function MainProvider({ children }: { children: ReactNode }) {
   // 异步函数，用于轮询连接状态
   const pollConnectStatus = async (connecDevice: DeviceComm, downLoad?: boolean) => {
     // LCD 下发过程中禁止轮询：否则会发 0x1C（getConnectStatus），且在 status≠2 时误发 0x1A，打断 0x19 传图
-    if (
-      downLoad ||
-      isDownloadingRef.current ||
-      !connecDevice ||
-      selectedSetting !== "Led"
-    ) {
+    // 不在「动效」页也要轮询：设置页等连接屏幕后同样依赖 0x1C 维持链路
+    if (screenFirmwareOtaBlockingRef.current || downLoad || isDownloadingRef.current || !connecDevice) {
       return;
     }
     // 获取连接状态
@@ -154,9 +177,10 @@ function MainProvider({ children }: { children: ReactNode }) {
     // 设置连接模式
     setConnectMode(['蓝牙', '2.4G', 'USB'][statusNum]);
 
-    // 如果连接状态不是2并且有连接设备，则发送0x1A命令（仅非传输场景；传输时已 return）
-    if (statusNum !== 2 && connecDevice) {
-      // 发送 0x1A 命令
+    // 0x14 读屏幕功能区：用 upgrade_status===0 判定非升级态，再发 0x1A（避免传图/升级中误打断）
+    const fi = await connecDevice.getScreenFuncInfo();
+    setFuncInfo(fi);
+    if (statusNum !== 2 && connecDevice && Number(fi.upgrade_status) === 0) {
       const buffer = new Uint8Array(65).fill(0);
       buffer[1] = 0xAA;
       buffer[2] = 0x1A;
@@ -179,37 +203,45 @@ function MainProvider({ children }: { children: ReactNode }) {
       setDeviceComm(connecDevice);
       const screenInfo = await connecDevice.getScreenSize()
       console.log(screenInfo, 'screenInfo');
-      
+      setFuncInfo(await connecDevice.getScreenFuncInfo());
       setScreenWidth(screenInfo.width)
       setScreenHeight(roundToNearestDivisible(screenInfo.height, 4));
       setScreenInfo(screenInfo)
       // 同步时间
       connecDevice.syncTime()
-      // 初始化执行一次
-      pollConnectStatus(connecDevice);
-      // 设置轮询，每3秒执行一次      
-      intervalId = setInterval(() => {
-        pollConnectStatus(connecDevice, downLoadRef.current)
+      clearLcdHeartbeat();
+      // 初始化执行一次 0x1C，并每 3 秒心跳（设置页等非「动效」页也需维持）
+      void pollConnectStatus(connecDevice, downLoadRef.current).catch((e) =>
+        console.warn('pollConnectStatus:', e)
+      );
+      lcdHeartbeatIntervalRef.current = setInterval(() => {
+        void pollConnectStatus(connecDevice, downLoadRef.current).catch((e) =>
+          console.warn('pollConnectStatus:', e)
+        );
       }, 3000);
       return true;
     } catch (error) {
       console.error("连接设备失败:", error);
+      clearLcdHeartbeat();
       setDeviceStatus(false);
       setDeviceComm(undefined);
+      setFuncInfo(undefined);
       return false;
     }
   };
 
   // 设备断开
   const disconnectDevice = async () => {
-    // 设置设备连接状态
+    clearLcdHeartbeat();
+    screenFirmwareOtaBlockingRef.current = false;
     setDeviceStatus(false);
     setDeviceComm(undefined);
-
+    setFuncInfo(undefined);
   };
 
   const mainProps: MainProps = {
     screenInfo,
+    lcdScreenFuncInfo: funcInfo,
     softwareVersion,
     deviceComm,             // 连接设备
     connectDevice,          // 断开设备
@@ -234,6 +266,8 @@ function MainProvider({ children }: { children: ReactNode }) {
     setDownloadProgress,
     selectedScreen,
     setSelectedScreen,
+    setScreenFirmwareOtaBlocking,
+    screenFirmwareOtaBlocking,
   };
 
   return (

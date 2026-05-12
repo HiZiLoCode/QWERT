@@ -3,8 +3,9 @@
 import { Box } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { EditorContext } from '@/providers/EditorProvider';
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import packageInfo from '../../package.json';
+import { languages } from '@/app/i18n/setting';
 
 /** 与 ticktype0407CodeNew `configure/side/sidebar.tsx`、`common/menu.tsx`、`Lang.tsx` 对齐（本文件使用 px） */
 const SIDE = {
@@ -39,19 +40,28 @@ const SIDE = {
 export default function Sidebar() {
     const { i18n, t } = useTranslation('common');
     const { onChangeTab, currentTab, setSelectedSetting } = useContext(EditorContext);
+    const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
     const menuItems = [
         { id: 'keyboard', label: t('2713') },
         { id: 'test', label: t('1300') },
         { id: 'settings', label: t('56') },
     ];
 
-    const toggleLanguage = () => {
-        const newLocale = i18n.language === 'zh' ? 'en' : 'zh';
-        i18n.changeLanguage(newLocale);
+    const localeLabels: Record<string, string> = {
+        zh: '中文',
+        en: 'English',
+        ja: '日本語',
+        ru: 'Русский',
+        ko: '한국어',
+        'zh-Hant': '繁體中文',
     };
 
     const resolved = i18n.resolvedLanguage ?? i18n.language;
-    const langLabel = resolved === 'en' ? 'English' : '中文';
+    const normalizedResolved =
+        resolved.toLowerCase().startsWith('zh-hant')
+            ? 'zh-Hant'
+            : resolved.split('-')[0];
+    const activeLanguage = languages.includes(normalizedResolved) ? normalizedResolved : languages[0];
 
     return (
         <Box
@@ -169,16 +179,41 @@ export default function Sidebar() {
                                     cursor: 'pointer',
                                     backgroundColor: selected ? SIDE.menuSelectedBg : 'transparent',
                                     color: selected ? SIDE.menuSelectedColor : SIDE.menuColor,
-                                    transition: 'background-color 0.2s ease-out, color 0.2s ease-out',
+                                    transform: 'scale(1)',
+                                    transition: 'background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out',
+                                    '&:hover': {
+                                        backgroundColor: selected ? SIDE.menuSelectedBg : 'rgba(59, 130, 246, 0.08)',
+                                        transform: selected ? 'scale(1)' : 'scale(1.05)',
+                                    },
+                                    '&:active': {
+                                        backgroundColor: selected ? SIDE.menuSelectedBg : 'rgba(59, 130, 246, 0.08)',
+                                        transform: selected ? 'scale(1)' : 'scale(.95)',
+                                        transition: 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
+                                    },
+                                    '&::after': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        right: 0,
+                                        top: '50%',
+                                        transform: `translateY(-50%) scale(${selected ? 1 : 0})`,
+                                        width: '3px',
+                                        height: '24px',
+                                        borderRadius: '3px 0 0 3px',
+                                        background: 'rgb(255, 255, 255)',
+                                        transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                    },
                                 }}
                             >
                                 <Box
                                     sx={{
                                         fontSize: `${SIDE.menuFontSize}px`,
                                         fontWeight: SIDE.menuFontWeight,
-                                        height: '18px',
-                                        lineHeight: 1,
-                                        whiteSpace: 'nowrap',
+                                        maxWidth: '90%',
+                                        lineHeight: 1.2,
+                                        whiteSpace: 'normal',
+                                        wordBreak: 'break-word',
+                                        overflowWrap: 'anywhere',
+                                        textAlign: 'center',
                                         zIndex: 1,
                                         color: selected ? SIDE.menuSelectedColor : SIDE.menuColor,
                                     }}
@@ -230,31 +265,110 @@ export default function Sidebar() {
                             </defs>
                         </svg>
                         <Box
-                            onClick={toggleLanguage}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    toggleLanguage();
-                                }
-                            }}
                             sx={{
                                 width: `${SIDE.langBtnWidth}px`,
-                                height: `${SIDE.langBtnHeight}px`,
-                                borderRadius: `${SIDE.langBtnRadius}px`,
-                                fontSize: `${SIDE.langFontSize}px`,
-                                fontWeight: SIDE.langFontWeight,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                cursor: 'pointer',
-                                backgroundColor: SIDE.menuSelectedBg,
-                                color: SIDE.menuSelectedColor,
+                                position: 'relative',
                             }}
                         >
-                            {langLabel}
+                            <Box
+                                onClick={() => setLanguageMenuOpen((prev) => !prev)}
+                                role="button"
+                                tabIndex={0}
+                                onBlur={(e) => {
+                                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                                        setLanguageMenuOpen(false);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setLanguageMenuOpen((prev) => !prev);
+                                    }
+                                    if (e.key === 'Escape') {
+                                        setLanguageMenuOpen(false);
+                                    }
+                                }}
+                                sx={{
+                                    width: `${SIDE.langBtnWidth}px`,
+                                    height: `${SIDE.langBtnHeight}px`,
+                                    borderRadius: `${SIDE.langBtnRadius}px`,
+                                    border: '1px solid rgba(59, 130, 246, 0.5)',
+                                    fontSize: `${SIDE.langFontSize}px`,
+                                    fontWeight: SIDE.langFontWeight,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: SIDE.menuSelectedBg,
+                                    color: SIDE.menuSelectedColor,
+                                    transition: 'all 0.2s ease-out',
+                                }}
+                            >
+                                {localeLabels[activeLanguage] ?? activeLanguage}
+                            </Box>
+
+                            {languageMenuOpen ? (
+                                <Box
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    sx={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        bottom: `calc(100% + 0.5rem)`,
+                                        width: `${SIDE.langBtnWidth}px`,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.375rem',
+                                        border: '1px solid rgba(59, 130, 246, 0.5)',
+                                        borderRadius: '1.125rem',
+                                        padding: '0.375rem 0',
+                                        backgroundColor: '#ffffff',
+                                        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
+                                        zIndex: 10,
+                                    }}
+                                >
+                                    {languages.map((lang) => {
+                                        const selectedLang = activeLanguage === lang;
+                                        return (
+                                            <Box
+                                                key={lang}
+                                                onMouseDown={(e) => e.preventDefault()}
+                                                onClick={() => {
+                                                    i18n.changeLanguage(lang);
+                                                    setLanguageMenuOpen(false);
+                                                }}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        i18n.changeLanguage(lang);
+                                                        setLanguageMenuOpen(false);
+                                                    }
+                                                }}
+                                                sx={{
+                                                    width: `${SIDE.langBtnWidth - 4}px`,
+                                                    height: `${SIDE.langBtnHeight}px`,
+                                                    borderRadius: `${SIDE.langBtnRadius}px`,
+                                                    fontSize: `${SIDE.langFontSize}px`,
+                                                    fontWeight: SIDE.langFontWeight,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    cursor: 'pointer',
+                                                    backgroundColor: selectedLang ? SIDE.menuSelectedBg : 'transparent',
+                                                    color: selectedLang ? SIDE.menuSelectedColor : SIDE.menuColor,
+                                                    transition: 'all 0.2s ease-out',
+                                                    '&:hover': {
+                                                        backgroundColor: selectedLang ? SIDE.menuSelectedBg : 'rgba(59, 130, 246, 0.08)',
+                                                    },
+                                                }}
+                                            >
+                                                {localeLabels[lang] ?? lang}
+                                            </Box>
+                                        );
+                                    })}
+                                </Box>
+                            ) : null}
                         </Box>
                     </Box>
 

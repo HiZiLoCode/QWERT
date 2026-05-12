@@ -6,7 +6,11 @@ export const deviceInfo: any = {
     name: "KRUX Drox",
     layout: "36B0_3059_0",
     updateFile: "./fw-files/36B0_3059_0.bin",
-    upgradeVersion: "103",
+    upgradeVersion: "200",
+    /** 屏幕 OTA：app.bin（必选）；image.bin（可选，不配则只升固件） */
+    screenFirmwareFile: "./fw-files/36B0_3059_0_screen_app.bin",
+    screenImageFile: "./fw-files/36B0_3059_0_screen_image.bin",
+    screenUpgradeVersion: "200",
     vendorId: "0x36B0",
     productId: "0x3059",
     keyBoardLayer:false
@@ -39,4 +43,35 @@ export function isDeviceInDeviceInfo(
   if (typeof vendorId !== "number" || typeof productId !== "number") return false;
   const key = deviceInfoKey(vendorId, productId, devMode);
   return Object.prototype.hasOwnProperty.call(deviceInfo, key);
+}
+
+/** 屏幕 OTA 固件包（app.bin）路径；未配置 screenFirmwareFile 时回退旧字段 screenUpdateFile */
+export function getScreenFirmwareFile(
+  vendorId: number,
+  productId: number,
+  devMode: number = 0
+): string {
+  const key = deviceInfoKey(vendorId, productId, devMode);
+  const row = deviceInfo[key];
+  return row?.screenFirmwareFile || row?.screenUpdateFile || "";
+}
+
+/** 屏幕 OTA 图包（image.bin）路径；空字符串表示不传图、仅升固件 */
+export function getScreenImageFile(
+  vendorId: number,
+  productId: number,
+  devMode: number = 0
+): string {
+  const key = deviceInfoKey(vendorId, productId, devMode);
+  const v = deviceInfo[key]?.screenImageFile;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+export function getScreenUpgradeVersion(
+  vendorId: number,
+  productId: number,
+  devMode: number = 0
+): string {
+  const key = deviceInfoKey(vendorId, productId, devMode);
+  return deviceInfo[key]?.screenUpgradeVersion || "";
 }

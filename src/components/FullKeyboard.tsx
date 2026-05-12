@@ -109,9 +109,9 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
   const getKeyCodeLabel = (index: number) => {
     const key = currentLayout.codes?.[index];
     if (!key) return '';
-    const value = getKeyName(key);
-    const matchedKey = getKeyByKeyNameValue(value);
-    return matchedKey || value || key.name || '';
+    const { name } = getKeyName(key);
+    const matchedKey = getKeyByKeyNameValue(name);
+    return matchedKey || name || key.name || '';
   };
 
   const handleSelect = (index: number) => {
@@ -161,7 +161,7 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       height: '100%',
                       borderRadius: '0.25rem',
                       border: '0.0625rem solid #d2dae7',
-                      background: '#fbfcff',
+                      transition: 'background-color 0.2s ease',
                       color: '#68798f',
                       fontSize: '0.75rem',
                       lineHeight: 1.1,
@@ -174,6 +174,9 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       whiteSpace: 'normal',
                       wordBreak: 'keep-all',
                       overflowWrap: 'normal',
+                      '&:hover': {
+                        background: disabled ? '' : '#ffffff',
+                      },
                     }}
                   >
                     {isImageIcon(keyLabel) ? (

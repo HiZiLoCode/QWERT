@@ -3,6 +3,7 @@
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useTranslation } from '@/app/i18n';
 import { Box, Typography, createSvgIcon } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { CSSProperties, useContext } from 'react';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 
@@ -26,6 +27,8 @@ const PlusIcon = createSvgIcon(
 export default function HeroSection() {
     const { connectKeyboard } = useContext(ConnectKbContext);
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const ringBorderColor = alpha(theme.palette.primary.main, 0.28);
 
     const wrapperStyles: CSSProperties = {
         width: '31rem',
@@ -65,7 +68,7 @@ export default function HeroSection() {
         position: absolute;
         inset: 0;
         border-radius: 50%;
-        border: 0.0625rem solid rgba(120, 160, 255, 0.3);
+        border: 0.0625rem solid ${ringBorderColor};
         }
 
         .hero-rings::after {
@@ -81,7 +84,7 @@ export default function HeroSection() {
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          border: 0.0625rem solid rgba(120, 160, 255, 0.3);
+          border: 0.0625rem solid ${ringBorderColor};
           transform: scale(1.4);
         }
 
@@ -111,11 +114,11 @@ export default function HeroSection() {
                     <Typography
                         variant="body1"
                         sx={{
-                            maxWidth: '40rem',
-                            color: 'rgb(30, 41, 59)',
-                            lineHeight: '2rem',
-                            fontWeight: 300,
-                            fontSize: '1rem',
+                            maxWidth: '44rem',
+                            color: 'text.secondary',
+                            lineHeight: 1.6,
+                            fontWeight:350,
+                            fontSize: '1.25rem',
                         }}
                     >
                         {t('2560')}
@@ -130,7 +133,6 @@ export default function HeroSection() {
                                 height: '3rem',
                                 minWidth: 0,
                                 px: '0.75rem',
-                                fontSize: '0.875rem',
                                 fontWeight: 'bold',
                                 whiteSpace: 'nowrap',
                                 '& .MuiButton-startIcon': {
@@ -138,8 +140,10 @@ export default function HeroSection() {
                                     ml: 0,
                                 },
                                 '& .MuiButton-startIcon > *:nth-of-type(1)': {
-                                    fontSize: '1rem',
+                                    fontSize: '1.25rem',
+                                    fontWeight: 'bold',
                                 },
+                                borderRadius: "1.5rem"
                             }}
                             onClick={() => connectKeyboard('tryConnect')}
                         >
@@ -153,9 +157,9 @@ export default function HeroSection() {
                                 height: '3rem',
                                 minWidth: 0,
                                 px: '0.75rem',
-                                fontSize: '0.875rem',
                                 fontWeight: 'bold',
                                 whiteSpace: 'nowrap',
+                                borderRadius: "1.5rem"
                             }}
                             onClick={() => connectKeyboard('demo', false)}
                         >
