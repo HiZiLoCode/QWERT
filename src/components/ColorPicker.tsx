@@ -83,14 +83,15 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
   };
 
   return (
-    <Box sx={{ position: 'relative', p: 0, mt: 0, overflow: 'visible' }}>
+    <Box sx={{ position: 'relative', p: 0, mt: 0, overflow: 'visible',m: 10 }}>
       {disabled && (
         <Box
           sx={{
             position: 'absolute',
-            inset: '-1rem',
-            p: '0.5rem',
-            boxSizing: 'border-box',
+            width: '100%',
+            height: '100%',
+            left: 0,
+            top: 0,
             opacity: 0.5,
             backgroundColor: 'grey.200',
             zIndex: 20,
@@ -103,7 +104,7 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
       <Box sx={{ width: '100%' }}>
         <Saturation
           hsva={hsva}
-          style={{ width: '100%', height: '13.5rem', borderRadius: '0.5rem', zIndex: 10 }}
+          style={{ width: '100%', height: '216px', borderRadius: '8px', zIndex: 10 }}
           pointer={({ top, left }) => <SaturationPointer top={top ?? 0} left={left ?? 0} color={hsvaToHex({ ...hsva, a: 1 }) || '#FF0000'} />}
           onChange={(newColor) => {
             changeColor(hsvaToHex(newColor));
@@ -129,7 +130,7 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
         />
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 30  }}>
-        <Typography sx={{ minWidth: '2.5rem', color: '#7C8CA5', fontWeight: 700, letterSpacing: '0.4px' }}>HEX:</Typography>
+        <Typography sx={{ minWidth: '2.5rem', color: '#7C8CA5', fontWeight: 700, letterSpacing: '0.4px',fontSize: '16px' }}>HEX:</Typography>
         <Box
           component="input"
           value={hexInput}
@@ -162,7 +163,7 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
           }}
           sx={{
             flex: 1,
-            height: '2rem',
+            height: '32px',
             borderRadius: '0.5rem',
             border: '0.0625rem solid #E2E8F0',
             backgroundColor: '#fff',
@@ -171,6 +172,7 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
             fontWeight: 600,
             outline: 'none',
             px: '0.625rem',
+            width: '100%',
           }}
         />
       </Box>

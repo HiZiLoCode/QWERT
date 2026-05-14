@@ -46,11 +46,11 @@ const layoutCards: {
     ];
 
 const cardSx = {
-    borderRadius: '0.875rem',
-    border: '0.0625rem solid rgba(217,226,240,0.95)',
+    borderRadius: '14px',
+    border: '1px solid rgba(217,226,240,0.95)',
     background: 'rgba(255,255,255,0.36)',
-    boxShadow: '0 0 1.5rem rgba(176, 206, 255, 0.20)',
-    backdropFilter: 'blur(0.5rem)',
+    boxShadow: '0 0 24px rgba(176, 206, 255, 0.20)',
+    backdropFilter: 'blur(8px)',
 };
 
 function applyLayoutPreview(
@@ -250,7 +250,7 @@ export default function LayoutPanel({ onKeyboardScaleChange }: LayoutPanelProps 
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '1.25rem',
+                gap: '20px',
                 minHeight: 0,
                 margin: '0 auto',
             }}
@@ -282,7 +282,7 @@ export default function LayoutPanel({ onKeyboardScaleChange }: LayoutPanelProps 
                 sx={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-                    gap: '1.25rem',
+                    gap: '20px',
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
@@ -293,28 +293,28 @@ export default function LayoutPanel({ onKeyboardScaleChange }: LayoutPanelProps 
                         key={card.titleKey}
                         sx={{
                             ...cardSx,
-                            minHeight: '20rem',
-                            px: '1.75rem',
-                            py: '1.55rem',
+                            minHeight: '320px',
+                            px: '28px',
+                            py: '24.8px',
                             display: 'flex',
                             flexDirection: 'column',
                         }}
                     >
                         <Typography
                             sx={{
-                                fontSize: '1rem',
+                                fontSize: '16px',
                                 color: 'rgba(100, 116, 139, 1)',
                                 lineHeight: 1.2,
                                 fontWeight: 400,
-                                mb: '0.95rem',
+                                mb: '15.2px',
                             }}
                         >
                             {t(card.titleKey)}
                         </Typography>
 
-                        <Divider sx={{ borderColor: 'rgba(203, 213, 225, 0.85)', mb: '1.4rem' }} />
+                        <Divider sx={{ borderColor: 'rgba(203, 213, 225, 0.85)', mb: '22.4px' }} />
 
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.35rem' }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: '21.6px' }}>
                             {card.options.map((option) => (
                                 <Box
                                     key={option.key}
@@ -327,7 +327,7 @@ export default function LayoutPanel({ onKeyboardScaleChange }: LayoutPanelProps 
                                 >
                                     <Typography
                                         sx={{
-                                            fontSize: '1rem',
+                                            fontSize: '16px',
                                             lineHeight: 1.2,
                                             fontWeight: 400,
                                             color: 'rgba(100, 116, 139, 1)',

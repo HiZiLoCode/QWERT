@@ -13,8 +13,8 @@ type CombinationKeyBoardProps = {
 
 const KeyInput = styled(TextField)({
     '& .MuiOutlinedInput-root': {
-        height: '2.5rem',
-        fontSize: '0.875rem',
+        height: '40px',
+        fontSize: '14px',
         '& fieldset': {
             borderColor: '#ccc',
         },
@@ -26,7 +26,7 @@ const KeyInput = styled(TextField)({
         },
     },
     '& .MuiOutlinedInput-input': {
-        padding: '0.5rem 0.75rem',
+        padding: '8px 12px',
     },
 });
 
@@ -44,14 +44,14 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
     const inputRef = useRef<HTMLInputElement>(null);
     const modifierKeys = useMemo(
         () => [
-            { label: `${t('1717')} (${t('1715')})`, value: 0x01 },
-            { label: `${t('1718')} (${t('1715')})`, value: 0x02 },
-            { label: `${t('1720')} (${t('1715')})`, value: 0x04 },
-            { label: `${t('1719')} (${t('1715')})`, value: 0x08 },
-            { label: `${t('1717')} (${t('1716')})`, value: 0x10 },
-            { label: `${t('1718')} (${t('1716')})`, value: 0x20 },
-            { label: `${t('1720')} (${t('1716')})`, value: 0x40 },
-            { label: `${t('1719')} (${t('1716')})`, value: 0x80 },
+            { label: `L${t('1717')}`, value: 0x01 },
+            { label: `L${t('1718')}`, value: 0x02 },
+            { label: `L${t('1720')}`, value: 0x04 },
+            { label: `L${t('1719')}`, value: 0x08 },
+            { label: `R${t('1717')}`, value: 0x10 },
+            { label: `R${t('1718')}`, value: 0x20 },
+            { label: `R${t('1720')}`, value: 0x40 },
+            { label: `R${t('1719')}`, value: 0x80 },
         ],
         [t]
     );
@@ -92,36 +92,36 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
     return (
         <Box
             sx={{
-                mt: '0.25rem',
-                p: '1rem',
-                borderRadius: '0.875rem',
-                border: '0.0625rem solid rgba(99, 116, 145, 0.25)',
+                mt: '4px',
+                p: '16px',
+                borderRadius: '14px',
+                border: '1px solid rgba(99, 116, 145, 0.25)',
                 background: 'linear-gradient(160deg, rgba(245,250,255,0.95) 0%, rgba(236,243,255,0.8) 100%)',
-                boxShadow: '0 0.625rem 1.875rem rgba(52, 90, 160, 0.10)',
+                boxShadow: '0 10px 30px rgba(52, 90, 160, 0.10)',
             }}
         >
-            <Typography sx={{ fontSize: '1rem', fontWeight: 700, color: '#3a4a63', mb: '0.75rem' }}>{t('1711')}</Typography>
+            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#3a4a63', mb: '12px' }}>{t('1711')}</Typography>
 
             <Box
                 sx={{
-                    mb: '0.75rem',
-                    px: '0.75rem',
-                    py: '0.6rem',
-                    borderRadius: '0.625rem',
-                    border: '0.0625rem solid rgba(88, 119, 170, 0.25)',
+                    mb: '12px',
+                    px: '12px',
+                    py: '9.6px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(88, 119, 170, 0.25)',
                     background: 'rgba(255,255,255,0.72)',
                     color: combinationText ? '#2d3e57' : '#8090a8',
-                    minHeight: '2.75rem',
+                    minHeight: '44px',
                     display: 'flex',
                     alignItems: 'center',
                     fontWeight: 600,
-                    letterSpacing: '0.0125rem',
+                    letterSpacing: '0.2px',
                 }}
             >
                 {combinationText || t('1712')}
             </Box>
 
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', mb: '0.75rem' }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '8px', mb: '12px' }}>
                 {modifierKeys.map((item) => {
                     const active = (modifierMask & item.value) !== 0;
                     return (
@@ -129,16 +129,16 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                             key={item.value}
                             onClick={() => setModifierMask((prev) => (prev & item.value ? prev & ~item.value : prev | item.value))}
                             sx={{
-                                minWidth: '5.5rem',
-                                height: '2.75rem',
-                                borderRadius: '0.625rem',
+                                minWidth: '88px',
+                                height: '44px',
+                                borderRadius: '10px',
                                 textTransform: 'none',
-                                fontSize: '0.9rem',
+                                fontSize: '14px',
                                 fontWeight: 600,
-                                border: '0.0625rem solid #cfe0ff',
+                                border: '1px solid #cfe0ff',
                                 color: active ? '#2f6fe8' : '#2d4a75',
                                 backgroundColor: active ? '#f2f7ff' : '#ffffff',
-                                boxShadow: active ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
+                                boxShadow: active ? '0 0 0 1px #9fc2ff inset' : '0 2px 6px rgba(63, 115, 197, 0.06)',
                                 '&:hover': {
                                     borderColor: '#9fc2ff',
                                     backgroundColor: '#f7fbff',
@@ -151,7 +151,7 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                 })}
             </Box>
 
-            <Box sx={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <KeyInput
                     id='mainKey'
                     inputRef={inputRef}
@@ -167,18 +167,18 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                     disabled={disabled || mainKeyCode === 0}
                     sx={{
                         flexShrink: 0,
-                        minWidth: '6.75rem',
-                        height: '2.5rem',
-                        borderRadius: '0.625rem',
+                        minWidth: '108px',
+                        height: '40px',
+                        borderRadius: '10px',
                         textTransform: 'none',
                         whiteSpace: 'nowrap',
                         lineHeight: 1,
-                        px: '1rem',
+                        px: '16px',
                         fontWeight: 700,
-                        fontSize: '0.875rem',
+                        fontSize: '14px',
                         color: '#fff',
                         background: 'linear-gradient(135deg, #3f8cff 0%, #356df0 100%)',
-                        boxShadow: '0 0.5rem 1.25rem rgba(59,130,246,0.25)',
+                        boxShadow: '0 8px 20px rgba(59,130,246,0.25)',
                         '&:hover': {
                             background: 'linear-gradient(135deg, #337ef0 0%, #2d62de 100%)',
                         },

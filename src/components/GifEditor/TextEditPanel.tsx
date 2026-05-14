@@ -40,16 +40,16 @@ export default function TextEditPanel({
 }: TextEditPanelProps) {
   return (
     <VStack spacing={4} align="stretch">
-      <Alert status="info" p='1rem' borderRadius="8px" bg="rgba(0, 100, 255, 0.1)" border="1px solid rgba(0, 100, 255, 0.3)">
+      <Alert status="info" p='16px' borderRadius="8px" bg="rgba(0, 100, 255, 0.1)" border="1px solid rgba(0, 100, 255, 0.3)">
         <AlertIcon boxSize={32} color="rgba(0, 100, 255, 0.8)" mr='10px' />
-        <Text fontSize="0.75rem">
+        <Text fontSize="12px">
           {t('350')}
         </Text>
       </Alert>
 
       {/* 直接添加文字 */}
       <Box>
-        <Text fontSize="0.875rem" mb={2} fontWeight="600">
+        <Text fontSize="14px" mb={2} fontWeight="600">
           {t('351')}
         </Text>
         <HStack spacing={2}>
@@ -62,7 +62,8 @@ export default function TextEditPanel({
           <Button
             borderRadius='6px'
             p={5}
-            size="0.875rem"
+            size="sm"
+            fontSize="14px"
             colorScheme="blue"
             onClick={onAddText}
             isDisabled={!newText.trim()}
@@ -79,7 +80,7 @@ export default function TextEditPanel({
 
       {/* 文字样式设置 */}
       <Box>
-        <Text fontSize="0.875rem" mb={2} fontWeight="600">
+        <Text fontSize="14px" mb={2} fontWeight="600">
           {t('353')}
         </Text>
         <input
@@ -97,7 +98,7 @@ export default function TextEditPanel({
       </Box>
 
       <Box>
-        <Text fontSize="0.875rem" mb={2} fontWeight="600">
+        <Text fontSize="14px" mb={2} fontWeight="600">
           {t('354')}: {fontSize}px
         </Text>
         <Slider
@@ -110,7 +111,7 @@ export default function TextEditPanel({
       </Box>
 
       <Box>
-        <Text fontSize="0.875rem" mb={2} fontWeight="600">
+        <Text fontSize="14px" mb={2} fontWeight="600">
           {t('355')}
         </Text>
         <FormControl fullWidth>
@@ -119,7 +120,7 @@ export default function TextEditPanel({
             value={fontFamily}
             onChange={(e) => onFontFamilyChange(e.target.value)}
             sx={{
-                height: '2rem',
+                height: '32px',
               border: '1px solid rgba(100, 150, 255, 0.3)',
               '&:hover': {
                 borderColor: 'rgba(100, 150, 255, 0.4)',
@@ -159,7 +160,7 @@ export default function TextEditPanel({
       </Box>
 
       <Box>
-        <Text fontSize="0.875rem" mb={2} fontWeight="600">
+        <Text fontSize="14px" mb={2} fontWeight="600">
           {t('356')}
         </Text>
 
@@ -169,8 +170,8 @@ export default function TextEditPanel({
             value={textDirection}
             onChange={(e) => onTextDirectionChange(e.target.value as 'horizontal' | 'vertical')}
             sx={{
-              height: '2rem',
-              fontSize: '0.875rem',
+              height: '32px',
+              fontSize: '14px',
               border: '1px solid rgba(100, 150, 255, 0.3)',
               '& .MuiOutlinedInput-notchedOutline': {
                 borderColor: 'rgba(100, 150, 255, 0.3)',
@@ -206,7 +207,7 @@ export default function TextEditPanel({
 
       {selectedScreen !== null && texts.length > 0 && (
         <Box>
-          <Text fontSize="0.875rem" mb={2} fontWeight="600">
+          <Text fontSize="14px" mb={2} fontWeight="600">
             {t('357')}
           </Text>
           <VStack spacing={2} maxH="150px" overflowY="auto">
@@ -227,14 +228,14 @@ export default function TextEditPanel({
               >
                 <Text
                   color={text.color}
-                  fontSize="0.875rem"
+                  fontSize="14px"
                   noOfLines={1}
                   fontFamily={text.fontFamily}
                   fontWeight={text.fontWeight}
                 >
                   {text.text}
                 </Text>
-                <Text color="rgba(255, 255, 255, 0.6)" fontSize="0.75rem">
+                <Text color="rgba(255, 255, 255, 0.6)" fontSize="12px">
                   {t('358')}: {text.fontFamily} | {t('359')}: {text.fontSize}px | {t('360')}: {text.direction === 'horizontal' ? t('361') : t('362')}
                 </Text>
               </Box>

@@ -573,10 +573,10 @@ export default function EditCanvas({
       ) : (
         <VStack spacing={3}>
           <Icon as={MdImage} boxSize={48} />
-          <Text color="rgba(100, 150, 255, 0.6)" fontSize="1.125rem" textAlign="center">
+          <Text color="rgba(100, 150, 255, 0.6)" fontSize="18px" textAlign="center">
             {t('280')}
           </Text>
-          <Text color="rgba(100, 150, 255, 0.6)" fontSize="1.125rem" textAlign="center">
+          <Text color="rgba(100, 150, 255, 0.6)" fontSize="18px" textAlign="center">
             {t('279')}
           </Text>
         </VStack>

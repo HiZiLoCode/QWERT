@@ -10,7 +10,7 @@ export default function Drawer({ title, open, setOpen, onSave, children, collaps
 }) {
   return (
     <Box
-      borderRight="0.125rem"
+      borderRight="2px"
       borderColor={"divider"}
       sx={{
         position: "absolute",

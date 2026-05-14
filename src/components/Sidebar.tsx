@@ -19,6 +19,7 @@ const SIDE = {
     menuContainerPaddingTop: 18,
     menuGap: 13,
     menuItemHeight: 80,
+    menuIconSize: 28,
     menuItemInnerGap: 5,
     menuFontSize: 18,
     menuFontWeight: 400,
@@ -37,11 +38,20 @@ const SIDE = {
     versionColor: '#64748b',
 } as const;
 
+type SidebarMenuId = 'keyboard' | 'test' | 'settings';
+
+/** 来自 `图标.zip` →「机械轴驱动示例 (4)」资源包，已放入 `public/sidebar/` */
+const SIDEBAR_MENU_ICON_SRC: Record<SidebarMenuId, string> = {
+    keyboard: '/sidebar/menu-keyboard.svg',
+    test: '/sidebar/menu-test.svg',
+    settings: '/sidebar/menu-settings.svg',
+};
+
 export default function Sidebar() {
     const { i18n, t } = useTranslation('common');
     const { onChangeTab, currentTab, setSelectedSetting } = useContext(EditorContext);
     const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-    const menuItems = [
+    const menuItems: { id: SidebarMenuId; label: string }[] = [
         { id: 'keyboard', label: t('2713') },
         { id: 'test', label: t('1300') },
         { id: 'settings', label: t('56') },
@@ -168,6 +178,7 @@ export default function Sidebar() {
                                     }
                                 }}
                                 sx={{
+                                    borderRadius: "16px",
                                     position: 'relative',
                                     display: 'flex',
                                     flexDirection: 'column',
@@ -205,6 +216,22 @@ export default function Sidebar() {
                                 }}
                             >
                                 <Box
+                                    component="img"
+                                    src={SIDEBAR_MENU_ICON_SRC[item.id]}
+                                    alt=""
+                                    aria-hidden
+                                    sx={{
+                                        width: `${SIDE.menuIconSize}px`,
+                                        height: `${SIDE.menuIconSize}px`,
+                                        objectFit: 'contain',
+                                        flexShrink: 0,
+                                        zIndex: 1,
+                                        display: 'block',
+                                        filter: selected ? 'brightness(0) invert(1)' : 'none',
+                                        transition: 'filter 0.2s ease-out',
+                                    }}
+                                />
+                                <Box
                                     sx={{
                                         fontSize: `${SIDE.menuFontSize}px`,
                                         fontWeight: SIDE.menuFontWeight,
@@ -215,7 +242,7 @@ export default function Sidebar() {
                                         overflowWrap: 'anywhere',
                                         textAlign: 'center',
                                         zIndex: 1,
-                                        color: selected ? SIDE.menuSelectedColor : SIDE.menuColor,
+                                        color: 'inherit',
                                     }}
                                 >
                                     {item.label}
@@ -313,14 +340,14 @@ export default function Sidebar() {
                                     sx={{
                                         position: 'absolute',
                                         left: 0,
-                                        bottom: `calc(100% + 0.5rem)`,
+                                        bottom: `calc(100% + 8px)`,
                                         width: `${SIDE.langBtnWidth}px`,
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: '0.375rem',
+                                        gap: '6px',
                                         border: '1px solid rgba(59, 130, 246, 0.5)',
-                                        borderRadius: '1.125rem',
-                                        padding: '0.375rem 0',
+                                        borderRadius: '18px',
+                                        padding: '6px 0',
                                         backgroundColor: '#ffffff',
                                         boxShadow: '0 8px 20px rgba(15, 23, 42, 0.12)',
                                         zIndex: 10,

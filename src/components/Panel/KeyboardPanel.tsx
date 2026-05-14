@@ -1,16 +1,21 @@
 'use client';
 
-import { Box, Button, IconButton, Popover, Stack, Tooltip, Typography } from '@mui/material';
+import {
+    Box,
+    Button,
+    FormControl,
+    IconButton,
+    MenuItem,
+    Popover,
+    Select,
+    Stack,
+    Tooltip,
+    Typography,
+} from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material/Select';
 import ChevronRightOutlinedIcon from '@mui/icons-material/ChevronRightOutlined';
 import ChevronLeftOutlinedIcon from '@mui/icons-material/ChevronLeftOutlined';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
-import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
-import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
-import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
-import HighlightOutlinedIcon from '@mui/icons-material/HighlightOutlined';
-import TvOutlinedIcon from '@mui/icons-material/TvOutlined';
-import GridViewOutlinedIcon from '@mui/icons-material/GridViewOutlined';
-import ScienceOutlinedIcon from '@mui/icons-material/ScienceOutlined';
 import {
     useCallback,
     useContext,
@@ -20,7 +25,6 @@ import {
     useRef,
     useState,
     type MouseEvent,
-    type ReactNode,
 } from 'react';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import MacroTravelAdjustView from '@/components/MacroTravelAdjustView';
@@ -39,6 +43,40 @@ import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
 import { MainContext } from '@/providers/MainProvider';
 import { useTranslation } from '@/app/i18n';
 
+/** 来自 `图标.zip` →「机械轴驱动示例 (4)」，见 `public/sidebar/setting-*.svg` */
+const KP_SETTING_ICON_SRC: Record<string, string> = {
+    keypress: '/sidebar/setting-keypress.svg',
+    layout: '/sidebar/setting-layout.svg',
+    lighting: '/sidebar/setting-lighting.svg',
+    logolighting: '/sidebar/setting-logolighting.svg',
+    Led: '/sidebar/setting-led.svg',
+    matrix: '/sidebar/setting-matrix.svg',
+    test: '/sidebar/setting-test.svg',
+};
+
+function KeyboardPanelSettingIcon({ id, active, collapsed }: { id: string; active: boolean; collapsed: boolean }) {
+    const src = KP_SETTING_ICON_SRC[id];
+    if (!src) return null;
+    const size = collapsed ? 20 : 18;
+    return (
+        <Box
+            component="img"
+            src={src}
+            alt=""
+            aria-hidden
+            sx={{
+                width: `${size}px`,
+                height: `${size}px`,
+                objectFit: 'contain',
+                display: 'block',
+                flexShrink: 0,
+                filter: active ? 'brightness(0) invert(1)' : 'none',
+                transition: 'filter 0.2s ease-out',
+            }}
+        />
+    );
+}
+
 /** 对齐 ticktype0407CodeNew `keyboard.tsx` + `common/layout` SidePanel + `common/menu` Submenu（本文件使用 px） */
 const KP = {
     /** 与主内容区间距截图：约 24–32px */
@@ -53,7 +91,7 @@ const KP = {
     overlayBg: 'rgba(230, 230, 230, 0.5)',
     overlayBlur: '10px',
     titleFont: { fontSize: 18, fontWeight: 400 as const },
-    titleColor: '#64748b',
+    titleColor: 'rgb(120, 137, 161)',
     tipsFont: { fontSize: 16, fontWeight: 400 as const },
     tipsColor: '#91a1b8',
     primary: '#3b82f6',
@@ -71,19 +109,32 @@ const KP = {
     dotSize: 12,
 } as const;
 
-const DEFAULT_KEYBOARD_SKIN_OPTIONS = [
-    { value: 'blackWarrior', label: '黑武士', suffix: '', image: '' },
-    { value: 'lightShine', label: '浅闪闪', suffix: '_lightShine', image: '' },
-    { value: 'strawberryPink', label: '草莓粉', suffix: '_strawberryPink', image: '' },
-    { value: 'sapphireBlue', label: '蓝宝石', suffix: '_sapphireBlue', image: '' },
-] as const;
-
 type KeyboardSkinOption = {
     value: string;
-    label: string;
+    /** `common` 命名空间下的文案 key；优先于 `label` 展示 */
+    lang?: string;
+    /** 无翻译或未加载时的回退文案 */
+    label?: string;
     suffix: string;
     image?: string;
 };
+
+function getKeyboardSkinOptionLabel(
+    option: KeyboardSkinOption,
+    t: (key: string, options?: { defaultValue?: string }) => string,
+): string {
+    if (option.lang) {
+        return t(option.lang, { defaultValue: option.label ?? option.value });
+    }
+    return option.label ?? option.value;
+}
+
+const DEFAULT_KEYBOARD_SKIN_OPTIONS: KeyboardSkinOption[] = [
+    { value: 'blackWarrior', lang: '2890', label: '黑武士', suffix: '', image: '' },
+    { value: 'lightShine', lang: '2891', label: '银闪闪', suffix: '_lightShine', image: '' },
+    { value: 'strawberryPink', lang: '2892', label: '草莓粉', suffix: '_strawberryPink', image: '' },
+    { value: 'sapphireBlue', lang: '2893', label: '蓝宝石', suffix: '_sapphireBlue', image: '' },
+];
 
 const KEYBOARD_SKIN_STORAGE_KEY = 'keyboard-panel:skin-option';
 const SETTINGS_MENU_COLLAPSED_STORAGE_KEY_MAIN = 'keyboard-panel:settings-menu-collapsed:main';
@@ -113,8 +164,9 @@ function normalizeKeyboardSkinOptions(input: unknown): KeyboardSkinOption[] {
             Boolean(item) &&
             typeof item === 'object' &&
             typeof (item as { value?: unknown }).value === 'string' &&
-            typeof (item as { label?: unknown }).label === 'string' &&
             typeof (item as { suffix?: unknown }).suffix === 'string' &&
+            (typeof (item as { label?: unknown }).label === 'string' ||
+                typeof (item as { lang?: unknown }).lang === 'string') &&
             (typeof (item as { image?: unknown }).image === 'string' || typeof (item as { image?: unknown }).image === 'undefined'),
     );
     return parsed.length ? parsed : [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
@@ -490,16 +542,6 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
         return tabs.filter((tab) => (tab.keyboardType ?? true) && (tab.keyBoardLayer ?? true));
     }, [connectedKeyboard, keyboardData, deviceBaseInfo, t, onlyTestMode]);
 
-    const settingIconMap: Record<string, ReactNode> = {
-        keypress: <KeyboardOutlinedIcon sx={{ fontSize: 18 }} />,
-        layout: <AppsOutlinedIcon sx={{ fontSize: 18 }} />,
-        lighting: <LightbulbOutlinedIcon sx={{ fontSize: 18 }} />,
-        logolighting: <HighlightOutlinedIcon sx={{ fontSize: 18 }} />,
-        Led: <TvOutlinedIcon sx={{ fontSize: 18 }} />,
-        matrix: <GridViewOutlinedIcon sx={{ fontSize: 18 }} />,
-        test: <ScienceOutlinedIcon sx={{ fontSize: 18 }} />,
-    };
-
     const getKeyboardPreviewCandidates = useCallback((vid?: number, pid?: number, devMode: number = 0) => {
         if (typeof vid !== 'number' || typeof pid !== 'number') return [];
         const vidHexUpper = `0x${vid.toString(16).toUpperCase()}`;
@@ -625,6 +667,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                     flexDirection: 'column',
                     gap: `${KP.sideColumnGap}px`,
                     transition: 'width 0.2s ease-out',
+
                     [`@media (max-width: ${KP.sideBreakpoint}px)`]: {
                         width: settingsMenuCollapsed ? `${KP.sideCollapsedWidth}px` : `${KP.sideWidthMd}px`,
                     },
@@ -871,46 +914,136 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 </Typography>
 
                                                 {active ? (
-                                                    <Box
-                                                        component="select"
-                                                        value={keyboardSkin}
+                                                    <FormControl
+                                                        fullWidth
+                                                        size="small"
+                                                        sx={{ mt: '6px' }}
                                                         onClick={(event) => event.stopPropagation()}
                                                         onMouseDown={(event) => event.stopPropagation()}
-                                                        onChange={(event) => {
-                                                            setKeyboardSkin(event.target.value);
-                                                        }}
-                                                        sx={{
-                                                            mt: '6px',
-                                                            width: '100%',
-                                                            height: '28px',
-                                                            px: '8px',
-                                                            pr: '28px',
-                                                            borderRadius: '8px',
-                                                            border: '1px solid #3B82F6',
-                                                            backgroundColor: '#fff',
-                                                            color: '#334155',
-                                                            fontSize: 12,
-                                                            fontWeight: 500,
-                                                            outline: 'none',
-                                                            appearance: 'none',
-                                                            WebkitAppearance: 'none',
-                                                            MozAppearance: 'none',
-                                                            backgroundImage:
-                                                                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' fill='none' stroke='%233B82F6' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")",
-                                                            backgroundRepeat: 'no-repeat',
-                                                            backgroundPosition: 'right 8px center',
-                                                            '&:focus': {
-                                                                borderColor: '#2563EB',
-                                                                boxShadow: '0 0 0 2px rgba(59,130,246,0.2)',
-                                                            },
-                                                        }}
                                                     >
-                                                        {keyboardSkinOptions.map((option) => (
-                                                            <option key={option.value} value={option.value}>
-                                                                {option.label}
-                                                            </option>
-                                                        ))}
-                                                    </Box>
+                                                        <Select
+                                                            variant="outlined"
+                                                            value={keyboardSkin}
+                                                            displayEmpty
+                                                            renderValue={(value) => {
+                                                                const opt = keyboardSkinOptions.find(
+                                                                    (o) => o.value === value,
+                                                                );
+                                                                return opt ? getKeyboardSkinOptionLabel(opt, t) : '';
+                                                            }}
+                                                            inputProps={{
+                                                                'aria-label': t('2712'),
+                                                            }}
+                                                            onChange={(event: SelectChangeEvent<string>) => {
+                                                                setKeyboardSkin(event.target.value);
+                                                            }}
+                                                            onClick={(event) => event.stopPropagation()}
+                                                            MenuProps={{
+                                                                disableAutoFocusItem: true,
+                                                                marginThreshold: 0,
+                                                                PaperProps: {
+                                                                    sx: {
+                                                                        mt: '-1px',
+                                                                        py: '4px',
+                                                                        px: '4px',
+                                                                        borderRadius: '0 0 4px 4px',
+                                                                        border: '1px solid #DCDFE6',
+                                                                        borderTop: 'none',
+                                                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                                                                        bgcolor: '#fff',
+                                                                        '& .MuiMenuItem-root': {
+                                                                            fontSize: 14,
+                                                                            fontWeight: 400,
+                                                                            color: '#606266',
+                                                                            minHeight: 36,
+                                                                            borderRadius: '4px',
+                                                                            border: '1px solid transparent',
+                                                                            bgcolor: 'transparent',
+                                                                            mx: 0,
+                                                                            my: '2px',
+                                                                        },
+                                                                        '& .MuiMenuItem-root:hover': {
+                                                                            bgcolor: 'transparent !important',
+                                                                            color: '#606266',
+                                                                            borderColor: '#3B82F6',
+                                                                        },
+                                                                        '& .MuiMenuItem-root.Mui-selected': {
+                                                                            bgcolor: '#3B82F6 !important',
+                                                                            color: '#fff !important',
+                                                                            borderColor: 'transparent',
+                                                                        },
+                                                                        '& .MuiMenuItem-root.Mui-selected:hover': {
+                                                                            bgcolor: '#2563EB !important',
+                                                                            color: '#fff !important',
+                                                                        },
+                                                                        '& .MuiMenuItem-root.Mui-focusVisible': {
+                                                                            bgcolor: 'transparent',
+                                                                        },
+                                                                    },
+                                                                },
+                                                            }}
+                                                            sx={{
+                                                                height: 32,
+                                                                borderRadius: '4px',
+                                                                fontSize: 14,
+                                                                fontWeight: 400,
+                                                                color: '#606266',
+                                                                bgcolor: '#fff',
+                                                                transition:
+                                                                    'border-color 0.15s ease, box-shadow 0.15s ease, border-radius 0.15s ease',
+                                                                '& legend': { display: 'none' },
+                                                                '& fieldset': { top: 0 },
+                                                                '& .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: '#DCDFE6',
+                                                                },
+                                                                '&:hover .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: '#C0C4CC',
+                                                                },
+                                                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: '#3B82F6',
+                                                                    borderWidth: '1px',
+                                                                },
+                                                                '&.Mui-expanded': {
+                                                                    borderRadius: '4px 4px 0 0',
+                                                                },
+                                                                '&.Mui-expanded .MuiOutlinedInput-notchedOutline': {
+                                                                    borderColor: '#3B82F6',
+                                                                },
+                                                                '& .MuiSelect-select': {
+                                                                    py: 0,
+                                                                    px: '10px',
+                                                                    pr: '28px !important',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    minHeight: 'unset',
+                                                                },
+                                                                '& .MuiSvgIcon-root': {
+                                                                    color: '#9EC5FE',
+                                                                    right: 6,
+                                                                    transition: 'color 0.15s ease',
+                                                                },
+                                                                '&:hover .MuiSvgIcon-root': {
+                                                                    color: '#7CB6FD',
+                                                                },
+                                                                '&.Mui-focused .MuiSvgIcon-root, &.Mui-expanded .MuiSvgIcon-root':
+                                                                {
+                                                                    color: '#3B82F6',
+                                                                },
+                                                            }}
+                                                        >
+                                                            {keyboardSkinOptions.map((option) => (
+                                                                <MenuItem
+                                                                    key={option.value}
+                                                                    value={option.value}
+                                                                    dense
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                                >
+                                                                    {getKeyboardSkinOptionLabel(option, t)}
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
                                                 ) : null}
                                             </Box>
 
@@ -951,12 +1084,15 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                     ...KP.titleFont,
                                     color: KP.titleColor,
                                     visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
+                                    fontSize: "20px",
+                                    fontWeight: "400",
+                                    p:"0px 10px"
                                 }}
                             >
-                                {t('2710')}
+                                {t('2711')}
                             </Typography>
                         </Box>
-                        {/* <Typography
+                        <Typography
                             sx={{
                                 ...KP.tipsFont,
                                 color: KP.tipsColor,
@@ -964,10 +1100,12 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                 height: '20px',
                                 visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
                                 overflow: 'hidden',
+                                fontSize: "16px",
+                                fontWeight: "400",
                             }}
                         >
-                            {t('2711')}
-                        </Typography> */}
+                            {t('2710')}
+                        </Typography>
                     </Box>
 
                     <Stack
@@ -976,8 +1114,8 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             gap: `${KP.submenuGap}px`,
                             flex: 1,
                             minHeight: 0,
-                            overflow :'hidden',
-                            overflowY :'auto',
+                            overflow: 'hidden',
+                            overflowY: 'auto',
                             alignItems: 'center',
                         }}
                     >
@@ -1017,7 +1155,13 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                         fullWidth
                                         aria-label={setting.label}
                                         onClick={() => handleSettingSelect(setting.id)}
-                                        startIcon={settingIconMap[setting.id]}
+                                        startIcon={
+                                            <KeyboardPanelSettingIcon
+                                                id={setting.id}
+                                                active={active}
+                                                collapsed={settingsMenuCollapsed}
+                                            />
+                                        }
                                         sx={{
                                             minWidth: 0,
                                             width: settingsMenuCollapsed ? 44 : '100%',
@@ -1036,6 +1180,10 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 mr: settingsMenuCollapsed ? 0 : 1,
                                                 ml: 0,
                                                 '& svg': { fontSize: settingsMenuCollapsed ? 20 : 18 },
+                                                '& img': {
+                                                    width: settingsMenuCollapsed ? 20 : 18,
+                                                    height: settingsMenuCollapsed ? 20 : 18,
+                                                },
                                             },
                                             '&:hover': {
                                                 backgroundColor: active ? '#3b78f0' : 'rgba(74, 134, 247, 0.08)',
@@ -1057,7 +1205,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                     </Stack>
                 </Box>
             </Box>
-            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingBottom: 43 }}>
+            <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', paddingBottom: 43, justifyContent: "space-between" }}>
                 <SettingsContent
                     selectedSetting={selectedSetting}
                     deviceAuthorized={Boolean(deviceStatus)}

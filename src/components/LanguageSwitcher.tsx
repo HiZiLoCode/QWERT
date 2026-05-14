@@ -17,7 +17,7 @@ export default function LanguageSwitcher() {
         variant="outlined"
         size="small"
         onClick={toggleLanguage}
-        sx={{ minWidth: '5rem' }}
+        sx={{ minWidth: '80px' }}
       >
         {i18n.language === 'zh' ? 'English' : '中文'}
       </Button>

@@ -1,21 +1,21 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 import { screenThemeColors } from "./theme";
 
-export const SCREEN_THEME_SELECT_CORNER = "0.5rem";
+export const SCREEN_THEME_SELECT_CORNER = "8px";
 
-const SELECT_GLOW = "0 0 0 0.1875rem rgba(0, 102, 255, 0.22)";
+const SELECT_GLOW = "0 0 0 3px rgba(0, 102, 255, 0.22)";
 const primary = screenThemeColors.primary;
 
 export const screenThemeSelectSx: SxProps<Theme> = {
   borderRadius: SCREEN_THEME_SELECT_CORNER,
-  fontSize: "0.875rem",
-  minHeight: "2.25rem",
+  fontSize: "14px",
+  minHeight: "36px",
   color: screenThemeColors.textDark,
   backgroundColor: "#ffffff",
   transition: "box-shadow 0.2s ease, border-color 0.2s ease",
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: screenThemeColors.borderLight,
-    borderWidth: "0.0625rem",
+    borderWidth: "1px",
     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
   },
   "&:hover .MuiOutlinedInput-notchedOutline": {
@@ -24,11 +24,11 @@ export const screenThemeSelectSx: SxProps<Theme> = {
   },
   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: primary,
-    borderWidth: "0.0625rem",
+    borderWidth: "1px",
     boxShadow: SELECT_GLOW,
   },
   "& .MuiSelect-select": {
-    py: "0.5rem",
+    py: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -49,9 +49,9 @@ export const screenThemeSelectSx: SxProps<Theme> = {
 export const screenThemeSelectMenuPaperSx: SxProps<Theme> = {
   mt: 0.5,
   borderRadius: `0 0 ${SCREEN_THEME_SELECT_CORNER} ${SCREEN_THEME_SELECT_CORNER}`,
-  border: `0.0625rem solid ${primary}`,
+  border: `1px solid ${primary}`,
   borderTop: "none",
-  boxShadow: "0 0.25rem 0.875rem rgba(15, 23, 42, 0.1)",
+  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.1)",
   bgcolor: "#fff",
   overflow: "hidden",
   "& .MuiMenu-list": { py: 0.5, px: 0.375 },
@@ -64,8 +64,8 @@ export const screenThemeSelectMenuProps = {
 };
 
 export const screenThemeSelectMenuItemSx: SxProps<Theme> = {
-  fontSize: "0.875rem",
-  minHeight: "2rem",
+  fontSize: "14px",
+  minHeight: "32px",
   mx: 0.25,
   my: 0.125,
   borderRadius: SCREEN_THEME_SELECT_CORNER,
@@ -74,7 +74,7 @@ export const screenThemeSelectMenuItemSx: SxProps<Theme> = {
   transition: "background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease",
   "&:hover": {
     bgcolor: "#ffffff",
-    boxShadow: `inset 0 0 0 0.0625rem ${primary}`,
+    boxShadow: `inset 0 0 0 1px ${primary}`,
   },
   "&.Mui-selected": {
     bgcolor: primary,

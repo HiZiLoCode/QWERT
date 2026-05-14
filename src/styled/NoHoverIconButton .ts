@@ -1,7 +1,7 @@
 import IconButton from '@mui/material/IconButton';
 import { styled } from '@mui/system';
 export const NoHoverIconButton = styled(IconButton)`
-  padding: 0.5rem;
+  padding: 8px;
   &:hover {
     background-color: transparent;  // 禁用 hover 背景颜色变化
   }

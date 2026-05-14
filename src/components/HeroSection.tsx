@@ -2,19 +2,17 @@
 
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useTranslation } from '@/app/i18n';
-import { Box, Typography, createSvgIcon } from '@mui/material';
+import { Box, Button, Typography, createSvgIcon } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { CSSProperties, useContext } from 'react';
-import { ButtonRem } from '@/styled/ReconstructionRem';
 
-/** 原设计稿按 16px = 1rem 换算，与整页 Rem 缩放一致 */
 const HERO_GLOW_VIEWBOX = 498;
-const HERO_GLOW_SIZE_REM = `${HERO_GLOW_VIEWBOX / 16}rem`;
+const HERO_GLOW_SIZE_PX = `${HERO_GLOW_VIEWBOX}px`;
 
 const HERO = {
-    bgOffsetLeft: '-15rem',
-    bgOffsetTop: '-28.9375rem',
-    bgOriginBottom: '2.3125rem',
+    bgOffsetLeft: '-240px',
+    bgOffsetTop: '-463px',
+    bgOriginBottom: '37px',
 } as const;
 
 const PlusIcon = createSvgIcon(
@@ -28,12 +26,12 @@ export default function HeroSection() {
     const { connectKeyboard } = useContext(ConnectKbContext);
     const { t } = useTranslation('common');
     const theme = useTheme();
-    const ringBorderColor = alpha(theme.palette.primary.main, 0.28);
+    const ringBorderColor = alpha(theme.palette.primary.main, 0.125);
 
     const wrapperStyles: CSSProperties = {
-        width: '31rem',
-        height: '31rem',
-        margin: '6rem auto',
+        width: '496px',
+        height: '496px',
+        margin: '96px auto',
         position: 'relative',
     };
 
@@ -41,8 +39,8 @@ export default function HeroSection() {
         position: 'absolute',
         left: HERO.bgOffsetLeft,
         top: HERO.bgOffsetTop,
-        width: HERO_GLOW_SIZE_REM,
-        height: HERO_GLOW_SIZE_REM,
+        width: HERO_GLOW_SIZE_PX,
+        height: HERO_GLOW_SIZE_PX,
         transformOrigin: `center calc(100% - ${HERO.bgOriginBottom})`,
     };
 
@@ -62,21 +60,33 @@ export default function HeroSection() {
           50% { transform: rotate(180deg) scale(1.05); }
           100% { transform: rotate(360deg) scale(1); }
         }
+        @keyframes heroRingGlow3 {
+          0% { transform: scale(1.2); opacity: 0.3; }
+          50% { transform: scale(1.34); opacity: 0.15; }
+          100% { transform: scale(1.2); opacity: 0.3; }
+        }
+        @keyframes heroRingGlow2 {
+          0% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.2); opacity: 0.2; }
+          100% { transform: scale(1); opacity: 0.5; }
+        }
+        @keyframes heroRingGlow {
+          0% { transform: scale(.8); opacity: 0.6; }
+          50% { transform: scale(0.95); opacity: 0.3; }
+          100% { transform: scale(.8); opacity: 0.6; }
+        }
         .hero-rings::before,
         .hero-rings::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        border: 0.0625rem solid ${ringBorderColor};
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1px solid ${ringBorderColor};
+            transform-origin: center;
+            animation: heroRingGlow2 5s ease-in-out 0s infinite normal none running;
         }
-
-        .hero-rings::after {
-          transform: scale(1.2);
-        }
-
-        .hero-rings::before {
-          transform: scale(1);
+        .hero-rings::before{
+            animation: heroRingGlow3 5s ease-in-out 0s infinite normal none running;
         }
 
         .hero-wrapper::after {
@@ -84,8 +94,9 @@ export default function HeroSection() {
           position: absolute;
           inset: 0;
           border-radius: 50%;
-          border: 0.0625rem solid ${ringBorderColor};
-          transform: scale(1.4);
+          border: 1px solid ${ringBorderColor};
+          transform-origin: center;
+          animation: heroRingGlow 5s ease-in-out 0s infinite normal none running;
         }
 
         .hero-wrapper {
@@ -93,87 +104,99 @@ export default function HeroSection() {
         }
 
         :where(*) {
-            border-width: 0rem;
+            border-width: 0px;
             border-style: solid;
             box-sizing: border-box;
             overflow-wrap: break-word
         }
       `}</style>
-            <Box sx={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+            <Box sx={{
+                width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
+                left: "0px",
+                top: "0px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIdex: 1
+            }}>
                 <Box sx={{
-                    gap: "1rem", display: 'flex', flexDirection: "column", position: "absolute",
-                    left: "12rem",
-                    bottom: "24%"
+                    gap: "16px", display: 'flex', flexDirection: "column", position: "absolute",
+                    left: "200px",
+                    bottom: "24%",
+                    willChange: "opacity, transform",
+                    opacity: 1
                 }}>
                     <Box
                         component="img"
                         src="/qk-text-logo.svg"
                         alt="QWERTYKEYS"
-                        sx={{ width: 'min(32.5rem, 100%)', height: 'auto', display: 'block' }}
+                        sx={{ width: 'min(520px, 100%)', height: 'auto', display: 'block' }}
                     />
                     <Typography
                         variant="body1"
                         sx={{
-                            maxWidth: '44rem',
+                            maxWidth: '650px',
                             color: 'text.secondary',
                             lineHeight: 1.6,
-                            fontWeight:350,
-                            fontSize: '1.25rem',
+                            fontWeight: 350,
+                            fontSize: '18px',
                         }}
                     >
                         {t('2560')}
                     </Typography>
-                    <Box sx={{ gap: '1rem', display: 'flex', mt: '2rem' }}>
-                        <ButtonRem
+                    <Box sx={{ gap: '16px', display: 'flex' }}>
+                        <Button
                             variant="contained"
                             size="large"
                             startIcon={<PlusIcon />}
                             sx={{
-                                width: '10rem',
-                                height: '3rem',
+                                width: '187px',
+                                height: '48px',
                                 minWidth: 0,
-                                px: '0.75rem',
                                 fontWeight: 'bold',
+                                fontSize: '16px',
                                 whiteSpace: 'nowrap',
+                                padding: '26px 32px',
                                 '& .MuiButton-startIcon': {
-                                    mr: '0.375rem',
+                                    mr: '6px',
                                     ml: 0,
                                 },
                                 '& .MuiButton-startIcon > *:nth-of-type(1)': {
-                                    fontSize: '1.25rem',
+                                    fontSize: '20px',
                                     fontWeight: 'bold',
                                 },
-                                borderRadius: "1.5rem"
+                                borderRadius: "24px"
                             }}
                             onClick={() => connectKeyboard('tryConnect')}
                         >
                             {t('2561')}
-                        </ButtonRem>
-                        <ButtonRem
+                        </Button>
+                        <Button
                             size="large"
                             variant="outlined"
                             sx={{
-                                width: '10rem',
-                                height: '3rem',
+                                width: '187px',
+                                height: '48px',
                                 minWidth: 0,
-                                px: '0.75rem',
                                 fontWeight: 'bold',
                                 whiteSpace: 'nowrap',
-                                borderRadius: "1.5rem"
+                                borderRadius: "24px",
+                                padding: '26px 32px',
+                                fontSize: '16px',
                             }}
                             onClick={() => connectKeyboard('demo', false)}
                         >
                             {t('2562')}
-                        </ButtonRem>
+                        </Button>
                     </Box>
                 </Box>
-                <Box sx={{ position: "absolute", left: "70%", display: "flex", alignItems: "center", height: "100%" }}>
+                <Box sx={{ position: "absolute", left: "60%", display: "flex", alignItems: "center", height: "100%" }}>
                     <Box style={wrapperStyles} className="hero-wrapper" >
                         <Box sx={{
                             position: "relative",
                             animation: "12s linear 0s infinite normal none running rotate",
-                            top: "16rem",
-                            left: "15rem",
+                            top: "256px",
+                            left: "240px",
                         }}>
                             <Box style={glowLayerBase} sx={{ color: ' rgb(254, 254, 179)' }}>
                                 <svg
@@ -313,7 +336,7 @@ export default function HeroSection() {
                 </Box>
 
             </Box>
-        </Box>
+        </Box >
     );
 }
 

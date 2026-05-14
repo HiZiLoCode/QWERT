@@ -383,7 +383,7 @@ const MainScreen = React.memo(() => {
       ) : (
         <Box
           w="100%"
-          h={currentPage === 'editor' ? "calc(100vh - 4.25rem)" : "100vh"}
+          h={currentPage === 'editor' ? "calc(100vh - 68px)" : "100vh"}
           position="relative"
         >
           <GifEditor
@@ -416,7 +416,7 @@ const MainScreen = React.memo(() => {
               display="flex"
               alignItems="center"
               justifyContent="center"
-              fontSize="1rem"
+              fontSize="16px"
               fontWeight="bold"
             >
               {t('888')}

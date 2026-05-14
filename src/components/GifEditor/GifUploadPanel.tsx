@@ -180,7 +180,7 @@ const GifUploadPanel = ({
     >
       <Text
         fontWeight="700"
-        fontSize="1.125rem"
+        fontSize="18px"
         textAlign="center"
         textShadow="0 2px 4px rgba(0, 0, 0, 0.3)"
         as="h3"
@@ -306,7 +306,7 @@ const GifUploadPanel = ({
                       p={1}
                       borderBottomRadius="10px"
                     >
-                      <Text fontSize="0.75rem" textAlign="center" fontWeight="500" noOfLines={1}>
+                      <Text fontSize="12px" textAlign="center" fontWeight="500" noOfLines={1}>
                         {gifFiles[idx]?.name}
                       </Text>
                     </Box>
@@ -314,10 +314,10 @@ const GifUploadPanel = ({
                 ) : (
                   <VStack spacing={2}>
                     <Icon as={MdCloudUpload} boxSize={24} aria-hidden="true" />
-                    <Text fontSize="0.75rem" textAlign="center">
+                    <Text fontSize="12px" textAlign="center">
                       {t('320')}
                     </Text>
-                    <Text color="rgba(100, 150, 255, 0.6)" fontSize="0.75rem" textAlign="center">
+                    <Text color="rgba(100, 150, 255, 0.6)" fontSize="12px" textAlign="center">
                       {t('321')}: {screenWidth}{t('322')}{screenHeight}
                     </Text>
                   </VStack>
@@ -328,7 +328,7 @@ const GifUploadPanel = ({
             {gifFiles[idx] && (
               <HStack spacing={2} mt={2} justify="center" role="toolbar" aria-label={`屏幕${idx + 1}操作按钮`}>
                 <Button
-                  size="0.75rem"
+                  size="12px"
                   variant="outline"
                   colorScheme={selectedScreen === idx ? "blue" : "gray"}
                   onClick={() => handleScreenSelect(idx)}
@@ -341,7 +341,7 @@ const GifUploadPanel = ({
                   p={8}
                   m={2}
                   borderRadius="6px"
-                  fontSize="0.75rem"
+                  fontSize="12px"
                   border="1px solid"
                   tabIndex={0}
                   aria-label={`编辑屏幕${idx + 1}的GIF`}
@@ -350,7 +350,7 @@ const GifUploadPanel = ({
                   {t('325')}
                 </Button>
                 <Button
-                  size="0.75rem"
+                  size="12px"
                   variant="outline"
                   colorScheme="orange"
                   onClick={() => handleResetAppliedEdit(idx)}
@@ -365,7 +365,7 @@ const GifUploadPanel = ({
                   m={2}
                   border="1px solid"
                   borderRadius="6px"
-                  fontSize="0.75rem"
+                  fontSize="12px"
                   isDisabled={isEditStateDefault(idx)}
                   tabIndex={0}
                   aria-label={`重置屏幕${idx + 1}的编辑状态`}
@@ -373,7 +373,7 @@ const GifUploadPanel = ({
                   {t('326')}
                 </Button>
                 <Button
-                  size="0.75rem"
+                  size="12px"
                   variant="outline"
                   border="1px solid"
                   colorScheme="red"
@@ -388,7 +388,7 @@ const GifUploadPanel = ({
                   p={8}
                   m={2}
                   borderRadius="6px"
-                  fontSize="0.75rem"
+                  fontSize="12px"
                   tabIndex={0}
                   aria-label={`删除屏幕${idx + 1}的GIF文件`}
                 >

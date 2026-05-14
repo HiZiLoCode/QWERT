@@ -45,7 +45,7 @@ export default function ScreenThemeImportPanel({
         justifyContent: "center",
         alignItems: "center",
         flexShrink: 0,
-        width: "16.75rem",
+        width: "268px",
       }}
     >
       {visibleSources.map((s) => {
@@ -61,8 +61,8 @@ export default function ScreenThemeImportPanel({
             sx={{
               justifyContent: "center",
               py: 1,
-              width: "13.875rem",
-              height: "3rem",
+              width: "222px",
+              height: "48px",
               minWidth: 0,
               ...(active ? screenThemeFilledPillButtonSx : screenThemeOutlinedPillButtonSx),
             }}

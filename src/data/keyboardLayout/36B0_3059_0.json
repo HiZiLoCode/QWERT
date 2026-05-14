@@ -3,24 +3,28 @@
     "previewSkins": [
         {
             "value": "blackWarrior",
+            "lang": "2890",
             "label": "黑武士",
             "suffix": "",
             "image": "/keyboard/skin_9f2a7c.png"
         },
         {
             "value": "lightShine",
-            "label": "浅闪闪",
+            "lang": "2891",
+            "label": "银闪闪",
             "suffix": "",
             "image": "/keyboard/skin_4c1d8e.png"
         },
         {
             "value": "strawberryPink",
+            "lang": "2892",
             "label": "草莓粉",
             "suffix": "",
             "image": "/keyboard/skin_b7e3d1.png"
         },
         {
             "value": "sapphireBlue",
+            "lang": "2893",
             "label": "蓝宝石",
             "suffix": "",
             "image": "/keyboard/skin_a5d9f0.png"
@@ -152,6 +156,16 @@
                     "1707",
                     "1708"
                 ],
+                "color": true,
+                "palette": true
+            },
+            {
+                "name": "音浪",
+                "effectCategory": "dynamic",
+                "value": 11,
+                "brightness": true,
+                "speed": true,
+                "direction": false,
                 "color": true,
                 "palette": true
             },
@@ -295,6 +309,7 @@
                 "brightness": true,
                 "speed": true,
                 "direction": true,
+                "singleColor": false,
                 "directionDescription": [
                     "1617",
                     "1618"

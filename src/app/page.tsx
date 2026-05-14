@@ -5,7 +5,7 @@ import Content from '@/ui/Content';
 import ConnectKbProvider, { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useContext, useEffect, useLayoutEffect } from 'react';
 
-/** 避免 SSR 对 useLayoutEffect 的告警；客户端用 layout 以便在绘制前设好 rem */
+/** 避免 SSR 对 useLayoutEffect 的告警；客户端用 layout 以便在绘制前设好 html 根字号 */
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 import EditorProvider from '@/providers/EditorProvider';
 import ProfileProvider from '@/providers/ProfileProvider';
@@ -17,7 +17,7 @@ import { setRemBase } from '@/utils/rem';
 function AppContent() {
   const { loading } = useContext(ConnectKbContext);
   return (
-    <section className={`w-full h-full ${loading ? 'min-w-[80rem]' : 'min-w-[33.75rem]'} overflow-hidden`}>
+    <section className={`w-full h-full ${loading ? 'min-w-[1280px]' : 'min-w-[540px]'} overflow-hidden`}>
       <Content />
     </section>
   );

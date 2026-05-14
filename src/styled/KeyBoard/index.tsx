@@ -3,35 +3,35 @@ export const BackBtn = styled("button")`
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  width: 2.8125rem;
-  height: 2.8125rem;
+  width: 45px;
+  height: 45px;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition-duration: 0.3s;
-  box-shadow: 0.125rem0.125rem0.625rem rgba(0, 0, 0, 0.199);
+  box-shadow: 0.125rem0.125rem10px rgba(0, 0, 0, 0.199);
   background-color: rgb(255, 65, 65);
 
   &:hover {
-    width: 7.8125rem;
-    border-radius: 2.5rem;
+    width: 125px;
+    border-radius: 40px;
   }
 
   &:active {
-    transform: translate(0.125rem, 0.125rem);
+    transform: translate(2px, 2px);
   }
   &:hover .sign {
     width: 30%;
     transition-duration: 0.3s;
-    padding-left: 1.25rem;
+    padding-left: 20px;
   }
   &:hover .text {
     opacity: 1;
     width: 70%;
     transition-duration: 0.3s;
-    padding-right: 0.625rem;
+    padding-right: 10px;
   }
 `;
 
@@ -43,7 +43,7 @@ export const BackSign = styled("div")`
   justify-content: center;
 
   svg {
-    width: 1.0625rem;
+    width: 17px;
     transform: rotate(180deg);
   }
 
@@ -58,7 +58,7 @@ export const BackText = styled("span")`
   width: 0%;
   opacity: 0;
   color: white;
-  font-size: 1.25rem;
+  font-size: 20px;
   font-weight: 600;
   transition-duration: 0.3s;
 `;

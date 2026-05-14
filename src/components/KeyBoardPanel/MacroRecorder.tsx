@@ -3,19 +3,12 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useContext } from 'react';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
-import {
-    Box,
-    TextField,
-    Typography,
-    Snackbar,
-    Alert,
-} from '@mui/material';
-import { alpha, useTheme } from '@mui/material/styles';
+import { Box, TextField, Typography, Snackbar, Alert } from '@mui/material';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import type { MacroProfile as V1MacroProfile, MacroAction as V1MacroAction } from '@/types/types_v1';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/app/i18n';
 
 // ─── 本地 UI 类型（与原来保持一致）───────────────────────────────────────────
 interface MacroAction {
@@ -95,7 +88,6 @@ function fromV1Profiles(v1: V1MacroProfile[]): MacroProfile[] {
 // ─── 主组件 ───────────────────────────────────────────────────────────────────
 const MacroRecorder: React.FC = () => {
     const { t } = useTranslation('common');
-    const theme = useTheme();
 
     // 接入 ConnectKbContext
     const { connectedKeyboard, keyboard, macroList } = useContext(ConnectKbContext);
@@ -117,12 +109,15 @@ const MacroRecorder: React.FC = () => {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const selectedMacro = macros[selectedMacroIndex];
-    const panelCardSx = {
-        border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
-        background: alpha(theme.palette.background.paper, 0.72),
-        borderRadius: '0.75rem',
-        boxShadow: `0 0 1.3125rem ${alpha(theme.palette.primary.main, 0.2)}`,
+    /** 与设计稿一致：浅灰底、白卡、弱阴影（不用主色光晕） */
+    const surfaceCardSx = {
+        border: '1px solid #e5e7eb',
+        bgcolor: '#ffffff',
+        borderRadius: '14px',
+        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
     } as const;
+    const macroBlue = '#4a86f7';
+    const macroBlueHover = '#3b78f0';
 
     // localStorage key（与 ConnectKbProvider 保持一致）
     const storageKey = `macro_profile_${keyboard?.version ?? 'default'}`;
@@ -421,492 +416,639 @@ const MacroRecorder: React.FC = () => {
     };
 
     return (
-        <Box sx={{ display: 'flex', gap: '1rem', height: '100%', width: '100%', p: '2rem', flexDirection: 'column' }}>
-            {/* 主容器 */}
-            <Box sx={{ display: 'flex', gap: '1rem', height: '100%', flex: 1 }}>
-                {/* 左侧 M0-M15 按钮 4x4 网格 */}
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
-                    <Typography sx={{ fontSize: '1rem', color: 'text.secondary' }}>
-                        {t('1679')}
-                    </Typography>
+        <Box
+            sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                width: '100%',
+                minHeight: 0,
+                gap: 0,
+            }}
+        >
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'stretch',
+                    gap: '24px',
+                    flex: 1,
+                    minHeight: 0,
+                    width: '100%',
+                }}
+            >
+                {/* 左：宏槽位 M0–M15（示意：未选为白底浅灰边，选中为蓝底白字） */}
+                <Box
+                    sx={{
+                        flex: '0 0 256px',
+                        width: 256,
+                        maxWidth: 256,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'stretch',
+                        gap: '10px',
+                        minHeight: 0,
+                    }}
+                >
+
                     <Box
                         sx={{
-                            width: '17rem',
-                            ...panelCardSx,
-                            p: 10,
+                            flex: 1,
+                            minHeight: 0,
+                            ...surfaceCardSx,
+                            p: '16px',
                             display: 'flex',
                             flexDirection: 'column',
-                            flex: 1,
                             overflow: 'auto',
                         }}
                     >
+                        <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 500, lineHeight: 1.45, letterSpacing: '0.01em', textAlign: 'center',pb: 18 }}>
+                            {t('1679')}
+                        </Typography>
                         <Box
                             sx={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(4, 1fr)',
-                                gap: '0.75rem',
+                                gap: '12px',
                             }}
                         >
-                            {macros.map(macro => (
-                                <ButtonRem
-                                    key={macro.index}
-                                    onClick={() => handleSelectMacro(macro.index)}
-                                    sx={{
-                                        borderRadius: '0.375rem',
-                                        textTransform: 'none',
-                                        fontSize: '0.75rem',
-                                        height: '2.25rem',
-                                        padding: '0.375rem 0.75rem',
-                                        minWidth: 'unset',
-                                        color: selectedMacroIndex === macro.index ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                                        background: selectedMacroIndex === macro.index ? theme.palette.primary.main : 'transparent',
-                                        border: `0.0625rem solid ${selectedMacroIndex === macro.index ? theme.palette.primary.main : alpha(theme.palette.divider, 0.6)}`,
-                                        fontWeight: 500,
-                                        transition: 'all 0.2s',
-                                        '&:hover': {
-                                            background: selectedMacroIndex === macro.index ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.1),
-                                            color: selectedMacroIndex === macro.index ? theme.palette.primary.contrastText : theme.palette.primary.main,
-                                            borderColor: theme.palette.primary.main,
-                                        },
-                                    }}
-                                >
-                                    {macro.name}
-                                </ButtonRem>
-                            ))}
+                            {macros.map((macro) => {
+                                const active = selectedMacroIndex === macro.index;
+                                return (
+                                    <ButtonRem
+                                        key={macro.index}
+                                        onClick={() => handleSelectMacro(macro.index)}
+                                        sx={{
+                                            borderRadius: '10px',
+                                            textTransform: 'none',
+                                            fontSize: active ? '14px' : '12px',
+                                            height: '44px',
+                                            minHeight: '44px',
+                                            padding: '2px 4px',
+                                            minWidth: 0,
+                                            color: active ? '#ffffff' : '#94a3b8',
+                                            background: active ? macroBlue : '#ffffff',
+                                            border: `1px solid ${active ? macroBlue : '#e8edf3'}`,
+                                            fontWeight: active ? 600 : 500,
+                                            boxShadow: active ? 'none' : 'inset 0 1px 0 rgba(255,255,255,1)',
+                                            transition: 'background 0.18s, color 0.18s, border-color 0.18s',
+                                            '&:hover': {
+                                                background: active ? macroBlueHover : '#f8fafc',
+                                                color: active ? '#ffffff' : macroBlue,
+                                                borderColor: active ? macroBlueHover : macroBlue,
+                                            },
+                                        }}
+                                    >
+                                        {macro.name}
+                                    </ButtonRem>
+                                );
+                            })}
                         </Box>
                     </Box>
                 </Box>
 
-                <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    {/* 顶部操作栏：导入/导出/保存到键盘 */}
-                    <Box sx={{ display: 'flex', gap: '0.5rem', width: '100%', mb: "1rem", alignItems: 'center' }}>
-                        <ButtonRem
-                            onClick={handleImport}
-                            sx={{
-                                borderRadius: '0.375rem',
-                                textTransform: 'none',
-                                fontSize: '0.7rem',
-                                height: '1.75rem',
-                                bgcolor: alpha(theme.palette.background.paper, 0.92),
-                                color: 'text.secondary',
-                                border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
-                                fontWeight: 500,
-                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-                            }}
-                        >
-                            {t('1680')}
-                        </ButtonRem>
-                        <ButtonRem
-                            onClick={handleExport}
-                            sx={{
-                                borderRadius: '0.375rem',
-                                textTransform: 'none',
-                                fontSize: '0.7rem',
-                                height: '1.75rem',
-                                bgcolor: alpha(theme.palette.background.paper, 0.92),
-                                color: 'text.secondary',
-                                border: `0.0625rem solid ${alpha(theme.palette.divider, 0.6)}`,
-                                fontWeight: 500,
-                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
-                            }}
-                        >
-                            {t('1681')}
-                        </ButtonRem>
-                        {/* {connectedKeyboard && (
-                            <Typography sx={{ fontSize: '0.65rem', color: '#22c55e', ml: '0.25rem' }}>
-                                ● 已连接
-                            </Typography>
-                        )} */}
-                    </Box>
-
-                    {/* 编辑面板 */}
-                    <Box sx={{ flex: 1, display: 'flex',gap: '.75rem' }}>
-                        {/* 工具栏 */}
+                {/* 中：延迟、删除、录制、导入导出 */}
+                <Box
+                    sx={{
+                        flex: '0 0 272px',
+                        width: 272,
+                        maxWidth: 272,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0,
+                        minHeight: 0,
+                    }}
+                >
+                    <Box
+                        sx={{
+                            ...surfaceCardSx,
+                            p: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '14px',
+                            flex: 1,
+                            minHeight: 0,
+                        }}
+                    >
                         <Box
                             sx={{
-                                gap: '.5rem',
-                                overflow: 'auto',
-                                ...panelCardSx,
-                                px: '0.75rem',
-                                py: '1rem',
+                                width: '100%',
+                                p: '12px',
+                                borderRadius: '12px',
+                                border: '1px solid #e8edf3',
+                                bgcolor: '#f8fafc',
                                 display: 'flex',
                                 flexDirection: 'column',
+                                gap: '12px',
                             }}
                         >
-                            {/* 自定义延迟 / 录制延迟 切换 */}
-                            <Box sx={{
-                                width: "100%",
-                                padding: "0.5rem 0.425rem",
-                                borderRadius: "1rem",
-                                display: "flex",
-                                flexDirection: "column",
-                                color: theme.palette.text.secondary,
-                                border: `0.0625rem solid ${alpha(theme.palette.text.secondary, 0.45)}`,
-                                gap: ".5rem"
-                            }}>
-                                <Box>
-                                    <ButtonRem
-                                        onClick={() => setStandardDelay(true)}
-                                        disabled={isRecording}
-                                        sx={{
-                                            fontSize: '0.875rem',
-                                            height: '1rem',
-                                            px: '0.5rem',
-                                            minWidth: 'unset',
-                                            textTransform: 'none',
-                                            borderRadius: '0.3rem',
-                                            fontWeight: 500,
-                                            color: standardDelay ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                                            bgcolor: standardDelay ? theme.palette.primary.main : 'transparent',
-                                            border: `0.0625rem solid ${standardDelay ? theme.palette.primary.main : alpha(theme.palette.divider, 0.7)}`,
-                                            '&:hover': { bgcolor: standardDelay ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.08) },
-                                        }}
-                                    >
-                                        {t('1682')}
-                                    </ButtonRem>
-                                    <ButtonRem
-                                        onClick={() => setStandardDelay(false)}
-                                        disabled={isRecording}
-                                        sx={{
-                                            fontSize: '0.875rem',
-                                            height: '1rem',
-                                            px: '0.5rem',
-                                            minWidth: 'unset',
-                                            textTransform: 'none',
-                                            borderRadius: '0.3rem',
-                                            fontWeight: 500,
-                                            color: !standardDelay ? theme.palette.primary.contrastText : theme.palette.text.secondary,
-                                            bgcolor: !standardDelay ? theme.palette.primary.main : 'transparent',
-                                            border: `0.0625rem solid ${!standardDelay ? theme.palette.primary.main : alpha(theme.palette.divider, 0.7)}`,
-                                            '&:hover': { bgcolor: !standardDelay ? theme.palette.primary.dark : alpha(theme.palette.primary.main, 0.08) },
-                                        }}
-                                    >
-                                        {t('1683')}
-                                    </ButtonRem>
-                                </Box>
-                                <Box sx={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-start', visibility: standardDelay ? 'visible' : 'hidden', height: '1.5rem', alignItems: 'center' }}>
-                                    <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                                        {t('1684')}
-                                    </Typography>
-                                    <TextField
-                                        size="small"
-                                        value={delayValue}
-                                        onChange={(e) => {
-                                            const raw = e.target.value;
-                                            if (!/^\d*$/.test(raw)) return;
-                                            setDelayValue(raw);
-                                        }}
-                                        onBlur={(e) => {
-                                            const val = e.target.value;
-                                            if (val === '') { setDelayValue(String(DELAY_MIN)); return; }
-                                            setDelayValue(String(clampDelayValue(val)));
-                                        }}
-                                        disabled={isRecording}
-                                        inputProps={{ min: DELAY_MIN, max: DELAY_MAX }}
-                                        sx={{
-                                            width: '3.5rem',
-                                            '& .MuiInputBase-input': { fontSize: '0.65rem', p: '0.2rem 0.3rem' },
-                                            '& .MuiOutlinedInput-root': { height: '1.5rem' },
-                                        }}
-                                    />
-                                    <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>ms</Typography>
-                                </Box>
+                            <Box sx={{ display: 'flex', flexDirection: 'row', gap: '8px', width: '100%' }}>
+                                <ButtonRem
+                                    onClick={() => setStandardDelay(true)}
+                                    disabled={isRecording}
+                                    sx={{
+                                        flex: 1,
+                                        fontSize: '13px',
+                                        minHeight: '38px',
+                                        px: '6px',
+                                        textTransform: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: 600,
+                                        color: standardDelay ? '#ffffff' : '#64748b',
+                                        bgcolor: standardDelay ? macroBlue : '#ffffff',
+                                        border: `1px solid ${standardDelay ? macroBlue : '#e2e8f0'}`,
+                                        '&:hover': {
+                                            bgcolor: standardDelay ? macroBlueHover : '#f1f5f9',
+                                        },
+                                    }}
+                                >
+                                    {t('1682')}
+                                </ButtonRem>
+                                <ButtonRem
+                                    onClick={() => setStandardDelay(false)}
+                                    disabled={isRecording}
+                                    sx={{
+                                        flex: 1,
+                                        fontSize: '13px',
+                                        minHeight: '38px',
+                                        px: '6px',
+                                        textTransform: 'none',
+                                        borderRadius: '10px',
+                                        fontWeight: 600,
+                                        color: !standardDelay ? '#ffffff' : '#64748b',
+                                        bgcolor: !standardDelay ? macroBlue : '#ffffff',
+                                        border: `1px solid ${!standardDelay ? macroBlue : '#e2e8f0'}`,
+                                        '&:hover': {
+                                            bgcolor: !standardDelay ? macroBlueHover : '#f1f5f9',
+                                        },
+                                    }}
+                                >
+                                    {t('1683')}
+                                </ButtonRem>
                             </Box>
-
-                            {/* 删除宏 / 保存撤销 */}
-                            {pendingActions !== null ? (
-                                <>
-                                    <ButtonRem
-                                        onClick={() => {
-                                            pushToKeyboard(macros);
-                                            setPendingActions(null);
-                                        }}
-                                        sx={{
-                                            fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
-                                            textTransform: 'none', color: '#16a34a',
-                                            border: '0.0625rem solid rgba(22,163,74,0.35)', borderRadius: '0.3rem',
-                                            bgcolor: 'rgba(22,163,74,0.06)', '&:hover': { bgcolor: 'rgba(22,163,74,0.14)' },
-                                        }}
-                                    >
-                                        {t('1685')}
-                                    </ButtonRem>
-                                    <ButtonRem
-                                        onClick={() => {
-                                            if (pendingActions === null) return;
-                                            setMacros(macros.map((m, i) =>
-                                                i === selectedMacroIndex ? { ...m, actions: pendingActions } : m
-                                            ));
-                                            setPendingActions(null);
-                                        }}
-                                        sx={{
-                                            fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
-                                            textTransform: 'none', color: '#f59e0b',
-                                            border: '0.0625rem solid rgba(245,158,11,0.35)', borderRadius: '0.3rem',
-                                            bgcolor: 'rgba(245,158,11,0.06)', '&:hover': { bgcolor: 'rgba(245,158,11,0.14)' },
-                                        }}
-                                    >
-                                        {t('1686')}
-                                    </ButtonRem>
-                                </>
-                            ) : (
-                                <ButtonRem
-                                    onClick={() => {
-                                        if (!selectedMacro) return;
-                                        const updated = macros.map((m, i) =>
-                                            i === selectedMacroIndex ? { ...m, actions: [] } : m
-                                        );
-                                        setMacros(updated);
-                                        pushToKeyboard(updated);
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    gap: '10px',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    visibility: standardDelay ? 'visible' : 'hidden',
+                                    minHeight: standardDelay ? undefined : 0,
+                                    height: standardDelay ? undefined : 0,
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                <Typography sx={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                    {t('1684')}
+                                </Typography>
+                                <TextField
+                                    size="small"
+                                    value={delayValue}
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (!/^\d*$/.test(raw)) return;
+                                        setDelayValue(raw);
                                     }}
+                                    onBlur={(e) => {
+                                        const val = e.target.value;
+                                        if (val === '') {
+                                            setDelayValue(String(DELAY_MIN));
+                                            return;
+                                        }
+                                        setDelayValue(String(clampDelayValue(val)));
+                                    }}
+                                    disabled={isRecording}
+                                    inputProps={{ min: DELAY_MIN, max: DELAY_MAX }}
                                     sx={{
-                                        fontSize: '0.875rem', height: '1rem', px: '0.5rem', minWidth: 'unset',
-                                        textTransform: 'none', color: '#e05555',
-                                        border: '0.0625rem solid rgba(224,85,85,0.35)', borderRadius: '0.3rem',
-                                        bgcolor: 'rgba(224,85,85,0.06)', '&:hover': { bgcolor: 'rgba(224,85,85,0.14)' },
+                                        width: '68px',
+                                        '& .MuiInputBase-input': { fontSize: '13px', py: '7px', fontWeight: 600 },
+                                        '& .MuiOutlinedInput-root': {
+                                            height: '38px',
+                                            bgcolor: '#ffffff',
+                                            borderRadius: '8px',
+                                        },
                                     }}
-                                >
-                                    {t('603')}
-                                </ButtonRem>
-                            )}
-
-                            {/* 开始/停止录制按钮 */}
-                            <Box>
-                                <ButtonRem
-                                    variant="contained"
-                                    onClick={isRecording ? handleStopRecording : handleStartRecording}
-                                    sx={{
-                                        fontSize: '0.875rem', height: '1rem', px: '0.625rem',
-                                        minWidth: '100%', textTransform: 'none', borderRadius: '0.3rem', fontWeight: 500,
-                                        bgcolor: isRecording ? theme.palette.error.main : theme.palette.primary.main,
-                                        '&:hover': { bgcolor: isRecording ? theme.palette.error.dark : theme.palette.primary.dark },
-                                    }}
-                                >
-                                    {isRecording
-                                        ? <><StopRoundedIcon sx={{ fontSize: '1.25rem', mr: '0.25rem' }} />{t('563')}</>
-                                        : <><PlayArrowRoundedIcon sx={{ fontSize: '1.25rem', mr: '0.25rem' }} />{t('564')}</>
-                                    }
-                                </ButtonRem>
+                                />
+                                <Typography sx={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>ms</Typography>
                             </Box>
                         </Box>
 
-                        {/* 右侧 宏动作序列 */}
-                        {selectedMacro && (
-                            <Box
-                                ref={scrollContainerRef}
+                        {pendingActions !== null ? (
+                            <>
+                                <ButtonRem
+                                    onClick={() => {
+                                        pushToKeyboard(macros);
+                                        setPendingActions(null);
+                                    }}
+                                    sx={{
+                                        width: '100%',
+                                        minHeight: '42px',
+                                        fontSize: '13px',
+                                        textTransform: 'none',
+                                        color: '#16a34a',
+                                        border: '1px solid rgba(22,163,74,0.45)',
+                                        borderRadius: '10px',
+                                        bgcolor: '#f0fdf4',
+                                        fontWeight: 600,
+                                        '&:hover': { bgcolor: '#dcfce7' },
+                                    }}
+                                >
+                                    {t('1685')}
+                                </ButtonRem>
+                                <ButtonRem
+                                    onClick={() => {
+                                        if (pendingActions === null) return;
+                                        setMacros(
+                                            macros.map((m, i) =>
+                                                i === selectedMacroIndex ? { ...m, actions: pendingActions } : m,
+                                            ),
+                                        );
+                                        setPendingActions(null);
+                                    }}
+                                    sx={{
+                                        width: '100%',
+                                        minHeight: '42px',
+                                        fontSize: '13px',
+                                        textTransform: 'none',
+                                        color: '#d97706',
+                                        border: '1px solid rgba(245,158,11,0.5)',
+                                        borderRadius: '10px',
+                                        bgcolor: '#fffbeb',
+                                        fontWeight: 600,
+                                        '&:hover': { bgcolor: '#fef3c7' },
+                                    }}
+                                >
+                                    {t('1686')}
+                                </ButtonRem>
+                            </>
+                        ) : (
+                            <ButtonRem
+                                onClick={() => {
+                                    if (!selectedMacro) return;
+                                    const updated = macros.map((m, i) =>
+                                        i === selectedMacroIndex ? { ...m, actions: [] } : m,
+                                    );
+                                    setMacros(updated);
+                                    pushToKeyboard(updated);
+                                }}
                                 sx={{
-                                    flex: 1,
-                                    ...panelCardSx,
-                                    p: '1rem',
-                                    overflow: 'auto',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    '&::-webkit-scrollbar': { width: '0.375rem' },
-                                    '&::-webkit-scrollbar-thumb': { backgroundColor: alpha(theme.palette.text.secondary, 0.35), borderRadius: '0.25rem' },
-                                    '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
+                                    width: '100%',
+                                    minHeight: '44px',
+                                    fontSize: '14px',
+                                    textTransform: 'none',
+                                    color: '#dc2626',
+                                    border: '1px solid rgba(220,38,38,0.45)',
+                                    borderRadius: '10px',
+                                    bgcolor: '#ffffff',
+                                    fontWeight: 600,
+                                    '&:hover': { bgcolor: '#fef2f2' },
                                 }}
                             >
-                                {selectedMacro.actions.length === 0 ? (
-                                    <Typography color="text.secondary" sx={{ textAlign: 'center', fontSize: '0.75rem', py: 2 }}>
-                                        {isRecording ? t('1687') : t('1688')}
-                                    </Typography>
-                                ) : (
-                                    <DragDropContext onDragEnd={handleDragEnd}>
-                                        <Droppable droppableId="macro-actions" direction="horizontal">
-                                            {(provided: any) => (
-                                                <Box
-                                                    ref={provided.innerRef}
-                                                    {...provided.droppableProps}
-                                                    sx={{
-                                                        display: 'flex',
-                                                        flexWrap: 'wrap',
-                                                        gap: '0.5rem',
-                                                        alignItems: 'center',
-                                                        alignContent: 'flex-start',
-                                                        p: '0.25rem',
-                                                    }}
-                                                >
-                                                    {selectedMacro.actions.map((action, index) => (
-                                                        <Draggable key={action.id} draggableId={action.id} index={index}>
-                                                            {(provided: any, snapshot: any) => (
+                                {t('603')}
+                            </ButtonRem>
+                        )}
+
+                        <ButtonRem
+                            variant="contained"
+                            onClick={isRecording ? handleStopRecording : handleStartRecording}
+                            sx={{
+                                width: '100%',
+                                minHeight: '46px',
+                                fontSize: '14px',
+                                textTransform: 'none',
+                                borderRadius: '10px',
+                                fontWeight: 600,
+                                bgcolor: isRecording ? '#ef4444' : macroBlue,
+                                color: '#fff !important',
+                                boxShadow: 'none',
+                                '&:hover': {
+                                    bgcolor: isRecording ? '#dc2626' : macroBlueHover,
+                                    boxShadow: 'none',
+                                },
+                            }}
+                        >
+                            {isRecording ? (
+                                <>
+                                    <StopRoundedIcon sx={{ fontSize: '20px', mr: '6px' }} />
+                                    {t('563')}
+                                </>
+                            ) : (
+                                <>
+                                    <PlayArrowRoundedIcon sx={{ fontSize: '20px', mr: '6px' }} />
+                                    {t('564')}
+                                </>
+                            )}
+                        </ButtonRem>
+
+                        <Box sx={{ display: 'flex', flexDirection: 'row', gap: '10px', width: '100%', pt: '2px' }}>
+                            <ButtonRem
+                                onClick={handleImport}
+                                sx={{
+                                    flex: 1,
+                                    minHeight: '42px',
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    bgcolor: '#ffffff',
+                                    color: '#64748b',
+                                    border: '1px solid #e2e8f0',
+                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' },
+                                }}
+                            >
+                                {t('1680')}
+                            </ButtonRem>
+                            <ButtonRem
+                                onClick={handleExport}
+                                sx={{
+                                    flex: 1,
+                                    minHeight: '42px',
+                                    borderRadius: '10px',
+                                    textTransform: 'none',
+                                    fontSize: '13px',
+                                    fontWeight: 600,
+                                    bgcolor: '#ffffff',
+                                    color: '#64748b',
+                                    border: '1px solid #e2e8f0',
+                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' },
+                                }}
+                            >
+                                {t('1681')}
+                            </ButtonRem>
+                        </Box>
+                    </Box>
+                </Box>
+
+                {/* 右：宏序列（示意：大块浅灰底，约占剩余宽度一半以上） */}
+                <Box
+                    sx={{
+                        flex: '1 1 48%',
+                        minWidth: 0,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
+                >
+                    {selectedMacro && (
+                        <Box
+                            ref={scrollContainerRef}
+                            sx={{
+                                flex: 1,
+                                minHeight: 0,
+                                ...surfaceCardSx,
+                                p: '18px',
+                                overflow: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                bgcolor: '#f1f4f9',
+                                border: '1px solid #e2e8f0',
+                                '&::-webkit-scrollbar': { width: '6px' },
+                                '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: 'rgba(100,116,139,0.35)',
+                                    borderRadius: '4px',
+                                },
+                                '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
+                            }}
+                        >
+                            {selectedMacro.actions.length === 0 ? (
+                                <Typography sx={{ textAlign: 'center', fontSize: '13px', py: 6, color: '#94a3b8', fontWeight: 500 }}>
+                                    {isRecording ? t('1687') : t('1688')}
+                                </Typography>
+                            ) : (
+                                <DragDropContext onDragEnd={handleDragEnd}>
+                                    <Droppable droppableId="macro-actions" direction="horizontal">
+                                        {(provided: any) => (
+                                            <Box
+                                                ref={provided.innerRef}
+                                                {...provided.droppableProps}
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexWrap: 'wrap',
+                                                    gap: '8px',
+                                                    alignItems: 'center',
+                                                    alignContent: 'flex-start',
+                                                    p: '4px',
+                                                }}
+                                            >
+                                                {selectedMacro.actions.map((action, index) => (
+                                                    <Draggable key={action.id} draggableId={action.id} index={index}>
+                                                        {(provided: any, snapshot: any) => (
+                                                            <Box
+                                                                ref={provided.innerRef}
+                                                                {...provided.draggableProps}
+                                                                {...provided.dragHandleProps}
+                                                                sx={{
+                                                                    position: 'relative',
+                                                                    display: 'flex',
+                                                                    flexDirection: 'column',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    gap: '2.4px',
+                                                                    p: '4.8px 6.4px',
+                                                                    borderRadius: '6px',
+                                                                    border:
+                                                                        action.type === 'delay'
+                                                                            ? '1px solid #d9d9d9'
+                                                                            : '1px solid #e2e8f0',
+                                                                    bgcolor: action.type === 'delay' ? '#d9d9d9' : '#f8fafc',
+                                                                    cursor: 'grab',
+                                                                    opacity: snapshot.isDragging ? 0.75 : 1,
+                                                                    boxShadow: snapshot.isDragging
+                                                                        ? '0 4px 12px rgba(59,130,246,0.2)'
+                                                                        : '0 1px 2px rgba(0,0,0,0.06)',
+                                                                    transform: snapshot.isDragging ? 'scale(1.06) rotate(1deg)' : 'scale(1)',
+                                                                    transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+                                                                    minWidth: '48px',
+                                                                    minHeight: '16px',
+                                                                    '&:hover': {
+                                                                        borderColor: action.type === 'delay' ? '#93c5fd' : '#cbd5e1',
+                                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                                                                        '& .delete-btn': { opacity: 1 },
+                                                                    },
+                                                                }}
+                                                            >
                                                                 <Box
-                                                                    ref={provided.innerRef}
-                                                                    {...provided.draggableProps}
-                                                                    {...provided.dragHandleProps}
+                                                                    className="delete-btn"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (!selectedMacro) return;
+                                                                        setPendingActions(selectedMacro.actions);
+                                                                        const updated = macros.map((m, mi) =>
+                                                                            mi === selectedMacroIndex
+                                                                                ? { ...m, actions: m.actions.filter((_, ai) => ai !== index) }
+                                                                                : m,
+                                                                        );
+                                                                        setMacros(updated);
+                                                                    }}
                                                                     sx={{
-                                                                        position: 'relative',
+                                                                        position: 'absolute',
+                                                                        top: '-5.6px',
+                                                                        right: '-5.6px',
+                                                                        width: '14px',
+                                                                        height: '14px',
+                                                                        borderRadius: '50%',
+                                                                        bgcolor: '#ef4444',
+                                                                        color: '#fff',
                                                                         display: 'flex',
-                                                                        flexDirection: 'column',
                                                                         alignItems: 'center',
                                                                         justifyContent: 'center',
-                                                                        gap: '0.15rem',
-                                                                        p: '0.3rem 0.4rem',
-                                                                        borderRadius: '0.375rem',
-                                                                        border: action.type === 'delay' ? '0.0625rem solid #d9d9d9' : '0.0625rem solid #e2e8f0',
-                                                                        bgcolor: action.type === 'delay' ? '#d9d9d9' : '#f8fafc',
-                                                                        cursor: 'grab',
-                                                                        opacity: snapshot.isDragging ? 0.75 : 1,
-                                                                        boxShadow: snapshot.isDragging ? '0 4px 12px rgba(59,130,246,0.2)' : '0 1px 2px rgba(0,0,0,0.06)',
-                                                                        transform: snapshot.isDragging ? 'scale(1.06) rotate(1deg)' : 'scale(1)',
-                                                                        transition: 'box-shadow 0.15s ease, transform 0.15s ease',
-                                                                        minWidth: '3rem',
-                                                                        minHeight: '1rem',
-                                                                        '&:hover': {
-                                                                            borderColor: action.type === 'delay' ? '#93c5fd' : '#cbd5e1',
-                                                                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-                                                                            '& .delete-btn': { opacity: 1 },
-                                                                        },
+                                                                        fontSize: '14px',
+                                                                        fontWeight: 700,
+                                                                        cursor: 'pointer',
+                                                                        opacity: 0,
+                                                                        transition: 'opacity 0.15s ease',
+                                                                        lineHeight: 1,
+                                                                        zIndex: 10,
+                                                                        '&:hover': { bgcolor: '#dc2626' },
                                                                     }}
                                                                 >
-                                                                    {/* 单个删除按钮 */}
-                                                                    <Box
-                                                                        className="delete-btn"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            if (!selectedMacro) return;
-                                                                            setPendingActions(selectedMacro.actions);
-                                                                            const updated = macros.map((m, mi) =>
-                                                                                mi === selectedMacroIndex
-                                                                                    ? { ...m, actions: m.actions.filter((_, ai) => ai !== index) }
-                                                                                    : m
-                                                                            );
-                                                                            setMacros(updated);
-                                                                        }}
-                                                                        sx={{
-                                                                            position: 'absolute',
-                                                                            top: '-0.35rem',
-                                                                            right: '-0.35rem',
-                                                                            width: '0.875rem',
-                                                                            height: '0.875rem',
-                                                                            borderRadius: '50%',
-                                                                            bgcolor: '#ef4444',
-                                                                            color: '#fff',
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            fontSize: '0.875rem',
-                                                                            fontWeight: 700,
-                                                                            cursor: 'pointer',
-                                                                            opacity: 0,
-                                                                            transition: 'opacity 0.15s ease',
-                                                                            lineHeight: 1,
-                                                                            zIndex: 10,
-                                                                            '&:hover': { bgcolor: '#dc2626' },
-                                                                        }}
-                                                                    >
-                                                                        ×
-                                                                    </Box>
-                                                                    {action.type === 'delay' ? (
-                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
-                                                                            <Box
-                                                                                component="input"
-                                                                                type="number"
-                                                                                value={action.key}
-                                                                                onClick={(e: any) => e.stopPropagation()}
-                                                                                onMouseDown={(e: any) => e.stopPropagation()}
-                                                                                onChange={(e: any) => {
-                                                                                    const val = e.target.value as string;
-                                                                                    if (!/^\d*$/.test(val)) return;
-                                                                                    setMacros(prev => prev.map((m, mi) =>
-                                                                                        mi === selectedMacroIndex
-                                                                                            ? { ...m, actions: m.actions.map((a, ai) => ai === index ? { ...a, key: val } : a) }
-                                                                                            : m
-                                                                                    ));
-                                                                                }}
-                                                                                onBlur={(e: any) => {
-                                                                                    const val = e.target.value as string;
-                                                                                    const normalized = String(clampDelayValue(val));
-                                                                                    setMacros(prev => prev.map((m, mi) =>
+                                                                    ×
+                                                                </Box>
+                                                                {action.type === 'delay' ? (
+                                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: '2.4px' }}>
+                                                                        <Box
+                                                                            component="input"
+                                                                            type="number"
+                                                                            value={action.key}
+                                                                            onClick={(e: any) => e.stopPropagation()}
+                                                                            onMouseDown={(e: any) => e.stopPropagation()}
+                                                                            onChange={(e: any) => {
+                                                                                const val = e.target.value as string;
+                                                                                if (!/^\d*$/.test(val)) return;
+                                                                                setMacros((prev) =>
+                                                                                    prev.map((m, mi) =>
                                                                                         mi === selectedMacroIndex
                                                                                             ? {
                                                                                                 ...m,
                                                                                                 actions: m.actions.map((a, ai) =>
-                                                                                                    ai === index ? { ...a, key: normalized } : a
+                                                                                                    ai === index ? { ...a, key: val } : a,
                                                                                                 ),
                                                                                             }
-                                                                                            : m
-                                                                                    ));
-                                                                                }}
-                                                                                min={DELAY_MIN}
-                                                                                max={DELAY_MAX}
-                                                                                sx={{
-                                                                                    width: '1.75rem',
-                                                                                    height: '.75rem',
-                                                                                    border: 'none',
-                                                                                    outline: 'none',
-                                                                                    background: 'transparent',
-                                                                                    fontSize: '0.6rem',
-                                                                                    fontWeight: 700,
-                                                                                    color: '#3B82F6',
-                                                                                    textAlign: 'center',
-                                                                                    lineHeight: 1,
-                                                                                    p: 0,
-                                                                                    cursor: 'text',
-                                                                                    '&::-webkit-inner-spin-button': { display: 'none' },
-                                                                                    '&::-webkit-outer-spin-button': { display: 'none' },
-                                                                                    MozAppearance: 'textfield',
-                                                                                }}
-                                                                            />
-                                                                            <Typography sx={{ fontSize: '0.45rem', color: '#93c5fd', lineHeight: 1, fontWeight: 600, letterSpacing: '0.03em' }}>
-                                                                                ms
-                                                                            </Typography>
-                                                                        </Box>
-                                                                    ) : (
+                                                                                            : m,
+                                                                                    ),
+                                                                                );
+                                                                            }}
+                                                                            onBlur={(e: any) => {
+                                                                                const val = e.target.value as string;
+                                                                                const normalized = String(clampDelayValue(val));
+                                                                                setMacros((prev) =>
+                                                                                    prev.map((m, mi) =>
+                                                                                        mi === selectedMacroIndex
+                                                                                            ? {
+                                                                                                ...m,
+                                                                                                actions: m.actions.map((a, ai) =>
+                                                                                                    ai === index ? { ...a, key: normalized } : a,
+                                                                                                ),
+                                                                                            }
+                                                                                            : m,
+                                                                                    ),
+                                                                                );
+                                                                            }}
+                                                                            min={DELAY_MIN}
+                                                                            max={DELAY_MAX}
+                                                                            sx={{
+                                                                                width: '28px',
+                                                                                height: '12px',
+                                                                                border: 'none',
+                                                                                outline: 'none',
+                                                                                background: 'transparent',
+                                                                                fontSize: '10px',
+                                                                                fontWeight: 700,
+                                                                                color: '#3B82F6',
+                                                                                textAlign: 'center',
+                                                                                lineHeight: 1,
+                                                                                p: 0,
+                                                                                cursor: 'text',
+                                                                                '&::-webkit-inner-spin-button': { display: 'none' },
+                                                                                '&::-webkit-outer-spin-button': { display: 'none' },
+                                                                                MozAppearance: 'textfield',
+                                                                            }}
+                                                                        />
                                                                         <Typography
                                                                             sx={{
-                                                                                fontSize: '0.7rem',
-                                                                                fontWeight: 700,
-                                                                                color: '#334155',
+                                                                                fontSize: '7px',
+                                                                                color: '#93c5fd',
                                                                                 lineHeight: 1,
-                                                                                textAlign: 'center',
-                                                                                letterSpacing: '0.02em',
+                                                                                fontWeight: 600,
+                                                                                letterSpacing: '0.03em',
                                                                             }}
                                                                         >
-                                                                            {action.key}
+                                                                            ms
                                                                         </Typography>
-                                                                    )}
-                                                                    {action.type !== 'delay' && (
-                                                                        <Box
-                                                                            sx={{
-                                                                                display: 'flex',
-                                                                                gap: '0.1rem',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                minHeight: '0.7rem',
-                                                                                mt: '0.1rem',
-                                                                            }}
-                                                                        >
-                                                                            {action.hasDownArrow && (
-                                                                                <Typography sx={{ fontSize: '0.6rem', color: '#fb7185', lineHeight: 1, fontWeight: 700 }}>↓</Typography>
-                                                                            )}
-                                                                            {action.hasUpArrow && (
-                                                                                <Typography sx={{ fontSize: '0.6rem', color: '#60a5fa', lineHeight: 1, fontWeight: 700 }}>↑</Typography>
-                                                                            )}
-                                                                        </Box>
-                                                                    )}
-                                                                </Box>
-                                                            )}
-                                                        </Draggable>
-                                                    ))}
-                                                    {provided.placeholder}
-                                                </Box>
-                                            )}
-                                        </Droppable>
-                                    </DragDropContext>
-                                )}
-                            </Box>
-                        )}
-                    </Box>
+                                                                    </Box>
+                                                                ) : (
+                                                                    <Typography
+                                                                        sx={{
+                                                                            fontSize: '11px',
+                                                                            fontWeight: 700,
+                                                                            color: '#334155',
+                                                                            lineHeight: 1,
+                                                                            textAlign: 'center',
+                                                                            letterSpacing: '0.02em',
+                                                                        }}
+                                                                    >
+                                                                        {action.key}
+                                                                    </Typography>
+                                                                )}
+                                                                {action.type !== 'delay' && (
+                                                                    <Box
+                                                                        sx={{
+                                                                            display: 'flex',
+                                                                            gap: '1.6px',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            minHeight: '11.2px',
+                                                                            mt: '1.6px',
+                                                                        }}
+                                                                    >
+                                                                        {action.hasDownArrow && (
+                                                                            <Typography
+                                                                                sx={{
+                                                                                    fontSize: '10px',
+                                                                                    color: '#fb7185',
+                                                                                    lineHeight: 1,
+                                                                                    fontWeight: 700,
+                                                                                }}
+                                                                            >
+                                                                                ↓
+                                                                            </Typography>
+                                                                        )}
+                                                                        {action.hasUpArrow && (
+                                                                            <Typography
+                                                                                sx={{
+                                                                                    fontSize: '10px',
+                                                                                    color: '#60a5fa',
+                                                                                    lineHeight: 1,
+                                                                                    fontWeight: 700,
+                                                                                }}
+                                                                            >
+                                                                                ↑
+                                                                            </Typography>
+                                                                        )}
+                                                                    </Box>
+                                                                )}
+                                                            </Box>
+                                                        )}
+                                                    </Draggable>
+                                                ))}
+                                                {provided.placeholder}
+                                            </Box>
+                                        )}
+                                    </Droppable>
+                                </DragDropContext>
+                            )}
+                        </Box>
+                    )}
                 </Box>
             </Box>
 
-            {/* Toast 提示 */}
             <Snackbar
                 open={toast.open}
                 autoHideDuration={3000}
-                onClose={() => setToast(t => ({ ...t, open: false }))}
+                onClose={() => setToast((x) => ({ ...x, open: false }))}
                 anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
-                <Alert severity={toast.severity} onClose={() => setToast(t => ({ ...t, open: false }))}>
+                <Alert severity={toast.severity} onClose={() => setToast((x) => ({ ...x, open: false }))}>
                     {toast.msg}
                 </Alert>
             </Snackbar>

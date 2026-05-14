@@ -783,8 +783,8 @@ function BindTest() {
     <Box
       sx={{
         flex: 1,
-        borderRadius: "0.875rem",
-        backdropFilter: "blur(0.375rem)",
+        borderRadius: "14px",
+        backdropFilter: "blur(6px)",
         p: 20,
         display: "flex",
         flexDirection: "column",
@@ -793,8 +793,8 @@ function BindTest() {
     >
       <Box
         sx={{
-          borderRadius: "0.625rem",
-          p: "0.75rem 0.75rem 0.4rem",
+          borderRadius: "10px",
+          p: "12px 12px 6.4px",
           display: "flex",
           flexDirection: "column",
           mx: "auto",
@@ -830,15 +830,15 @@ function BindTest() {
             position: "relative",
             minWidth: 110,
             height: 32,
-            px: "1rem",
-            borderRadius: "0.8rem",
+            px: "16px",
+            borderRadius: "12.8px",
             overflow: "hidden",
             border:
               resetPhase === "done"
-                ? `0.0625rem solid ${RESET_ACCENT}`
+                ? `1px solid ${RESET_ACCENT}`
                 : resetPhase === "busy"
-                  ? `0.0625rem solid ${RESET_ACCENT}`
-                  : "0.0625rem solid rgba(203,213,225,0.95)",
+                  ? `1px solid ${RESET_ACCENT}`
+                  : "1px solid rgba(203,213,225,0.95)",
             bgcolor: resetPhase === "done" ? RESET_ACCENT : "rgba(248,250,252,1)",
             display: "inline-flex",
             alignItems: "center",
@@ -870,10 +870,10 @@ function BindTest() {
                 bottom: 0,
                 width: `${resetProgress}%`,
                 backgroundColor: RESET_ACCENT,
-                borderTopLeftRadius: "0.8rem",
-                borderBottomLeftRadius: "0.8rem",
-                borderTopRightRadius: resetProgress >= 99 ? "0.8rem" : 0,
-                borderBottomRightRadius: resetProgress >= 99 ? "0.8rem" : 0,
+                borderTopLeftRadius: "12.8px",
+                borderBottomLeftRadius: "12.8px",
+                borderTopRightRadius: resetProgress >= 99 ? "12.8px" : 0,
+                borderBottomRightRadius: resetProgress >= 99 ? "12.8px" : 0,
                 transition: "border-radius 0.12s ease-out",
               }}
             />
@@ -883,7 +883,7 @@ function BindTest() {
             sx={{
               position: "relative",
               zIndex: 1,
-              fontSize: "1rem",
+              fontSize: "16px",
               fontWeight: resetPhase === "done" ? 600 : 400,
               color:
                 resetPhase === "busy"
@@ -900,20 +900,20 @@ function BindTest() {
 
       <Box
         sx={{
-          borderRadius: "1rem",
-          border: "0.0625rem solid rgba(153,169,191,0.18)",
+          borderRadius: "16px",
+          border: "1px solid rgba(153,169,191,0.18)",
           background: "linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)",
-          px: "2rem",
-          py: "1rem",
+          px: "32px",
+          py: "16px",
           display: "flex",
           flexDirection: "column",
-          gap: "1rem",
+          gap: "16px",
           width: "70%",
           mx: "auto",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography sx={{ fontSize: "1rem", color: "rgba(100, 116, 139, 1)", fontWeight: 500 }}>
+          <Typography sx={{ fontSize: "16px", color: "rgba(100, 116, 139, 1)", fontWeight: 500 }}>
             {t("2715")}
           </Typography>
           <ToggleSlider

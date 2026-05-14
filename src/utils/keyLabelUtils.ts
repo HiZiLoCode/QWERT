@@ -169,9 +169,9 @@ const BYTE_TO_CODE: Record<number, string> = Object.entries(CODE_TO_BYTE).reduce
   {} as Record<number, string>,
 );
 
-// ============================================================
+// ====================
 // 自定义按键（customKeycodes）支持
-// ============================================================
+// ====================
 
 /** 当前键盘定义的自定义按键列表（由调用方注入） */
 let _customKeycodes: Array<{ name: string; title: string; shortName: string }> | null = null;
@@ -200,9 +200,9 @@ function _getCustomKeycodeName(byte: number): string | null {
   return kc.shortName || kc.name || null;
 }
 
-// ============================================================
+// ====================
 // 完整按键显示名称表（参考 keyboard-demo/lib/keycode-names.ts）
-// ============================================================
+// ====================
 const KEYCODE_DISPLAY_NAMES: Record<string, string> = {
   KC_NO: '', KC_TRNS: '▽',
   // 字母（单字母直接大写显示）
@@ -319,9 +319,9 @@ const SHIFT_DISPLAY_NAMES: Record<string, string> = {
   'LSFT(KC_COMM)':'<','LSFT(KC_DOT)':'>','LSFT(KC_SLSH)':'?',
 };
 
-// ============================================================
+// ====================
 // 高级按键解析（ported from keyboard-demo/lib/advanced-keys.ts）
-// ============================================================
+// ====================
 // 与 keyboard-demo basicKeyToByte 完全对齐的范围常量
 const _QK_MODS             = 0x0100; const _QK_MODS_MAX             = 0x1fff;
 const _QK_MOD_TAP          = 0x6000; const _QK_MOD_TAP_MAX          = 0x7fff;

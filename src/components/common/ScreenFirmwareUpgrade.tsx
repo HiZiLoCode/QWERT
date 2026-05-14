@@ -348,7 +348,7 @@ export default function ScreenFirmwareUpgrade({
         ...s,
         isUpgrading: false,
         statusType: 'error',
-        error: (e as Error)?.message || String(e),
+        error: t('2882'),
         status: t('2850'),
         detail: undefined,
         progress: 0,
@@ -401,7 +401,7 @@ export default function ScreenFirmwareUpgrade({
           backdropFilter: 'blur(20px)',
           border: `1px solid ${isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'}`,
           borderRadius: '18px',
-          p: '2rem !important',
+          p: '32px !important',
           boxShadow: isLightMode
             ? '0 24px 64px rgba(15, 23, 42, 0.12)'
             : '0 24px 64px rgba(0, 0, 0, 0.45)',
@@ -409,46 +409,26 @@ export default function ScreenFirmwareUpgrade({
       >
         <Box
           sx={{
+            position: 'relative',
             display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            mb: '1.75rem',
-            gap: 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            mb: '28px',
+            minHeight: '40px',
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, minWidth: 0 }}>
-            <Box
-              sx={{
-                width: 52,
-                height: 52,
-                borderRadius: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.75rem',
-                flexShrink: 0,
-                background: isLightMode
-                  ? 'linear-gradient(145deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))'
-                  : 'linear-gradient(145deg, rgba(99,102,241,0.25), rgba(30,27,75,0.5))',
-                border: `1px solid ${isLightMode ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)'}`,
-              }}
-            >
-              🖥
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.25 }}>
-                {t('2800')}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem', display: 'block', mt: 0.35 }}>
-                WebHID OTA · 0x1919
-              </Typography>
-            </Box>
-          </Box>
+          <Typography sx={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', textAlign: 'center' }}>
+            {t('2800')}
+          </Typography>
           {!upgradeState.isUpgrading && (
             <IconButton
               onClick={handleClose}
               size="small"
               sx={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
                 flexShrink: 0,
                 '&:hover': {
                   bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.06)',
@@ -460,11 +440,11 @@ export default function ScreenFirmwareUpgrade({
           )}
         </Box>
 
-        <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '1.5rem !important' } }}>
+        <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '24px !important' } }}>
           {!lcdConnected ? (
             <Alert severity="warning" sx={{ borderRadius: '12px' }}>
-              <AlertTitle sx={{ fontSize: '0.9rem', fontWeight: 700 }}>{t('1210')}</AlertTitle>
-              <Typography sx={{ fontSize: '0.8125rem', lineHeight: 1.65, mb: 1.25 }}>
+              <AlertTitle sx={{ fontSize: '14px', fontWeight: 700 }}>{t('1210')}</AlertTitle>
+              <Typography sx={{ fontSize: '13px', lineHeight: 1.65, mb: 1.25 }}>
                 {t('2856', { connect: t('16') })}
               </Typography>
               <ButtonRem
@@ -473,14 +453,14 @@ export default function ScreenFirmwareUpgrade({
                 disabled={upgradeState.isUpgrading || isConnectingLcd || isOpeningLcd}
                 sx={{
                   textTransform: 'none',
-                  height: '2.25rem',
-                  px: '1.25rem',
-                  fontSize: '0.875rem',
+                  height: '36px',
+                  px: '20px',
+                  fontSize: '14px',
                   fontWeight: 600,
                   color: '#fff',
                   bgcolor: '#3B82F6',
-                  border: '0.0625rem solid #3B82F6',
-                  borderRadius: '0.5rem',
+                  border: '1px solid #3B82F6',
+                  borderRadius: '8px',
                   boxShadow: 'none',
                   '&:hover': { bgcolor: '#2f70dc', borderColor: '#2f70dc' },
                   '&.Mui-disabled': { color: 'rgba(255,255,255,0.75)', bgcolor: '#93c5fd', borderColor: '#93c5fd' },
@@ -496,12 +476,9 @@ export default function ScreenFirmwareUpgrade({
           ) : null}
 
           <Box>
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: '0.75rem', color: 'text.primary' }}>
-              📱 {t('1202')}
-            </Typography>
             <Paper
               sx={{
-                p: '1.25rem !important',
+                p: '20px !important',
                 bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.28)',
                 border: `1px solid ${lcdConnected ? borderOk : borderWarn}`,
                 borderRadius: '14px',
@@ -510,9 +487,9 @@ export default function ScreenFirmwareUpgrade({
               <Typography
                 sx={{
                   color: lcdConnected ? 'success.main' : 'warning.main',
-                  fontSize: '0.9rem',
+                  fontSize: '14px',
                   fontWeight: 600,
-                  mb: deviceInfo?.currentVersion || deviceInfo?.upgradeVersion ? '1rem' : 0,
+                  mb: deviceInfo?.currentVersion || deviceInfo?.upgradeVersion ? '16px' : 0,
                 }}
               >
                 {lcdConnected ? `✅ ${t('2854')}` : `⚠️ ${t('2855', { connect: t('16') })}`}
@@ -521,20 +498,20 @@ export default function ScreenFirmwareUpgrade({
                 <Stack
                   spacing={1}
                   sx={{
-                    pt: '1rem',
+                    pt: '16px',
                     borderTop: `1px solid ${isLightMode ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
                   }}
                 >
                   {deviceInfo?.currentVersion ? (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{t('1206')}</Typography>
-                      <Typography sx={{ fontSize: '0.8125rem', fontWeight: 600 }}>v{deviceInfo.currentVersion}</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>{t('1206')}</Typography>
+                      <Typography sx={{ fontSize: '13px', fontWeight: 600 }}>v{deviceInfo.currentVersion}</Typography>
                     </Box>
                   ) : null}
                   {deviceInfo?.upgradeVersion ? (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>{t('1207')}</Typography>
-                      <Typography sx={{ fontSize: '0.875rem', fontWeight: 700, color: primaryColor }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>{t('1207')}</Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
                         v{deviceInfo.upgradeVersion}
                       </Typography>
                     </Box>
@@ -545,7 +522,7 @@ export default function ScreenFirmwareUpgrade({
           </Box>
 
           <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '0.75rem' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '12px' }}>
               <Typography
                 sx={{
                   color:
@@ -554,13 +531,13 @@ export default function ScreenFirmwareUpgrade({
                       : upgradeState.statusType === 'warning'
                         ? 'warning.main'
                         : 'text.primary',
-                  fontSize: '0.8125rem',
+                  fontSize: '13px',
                   fontWeight: 600,
                 }}
               >
                 {upgradeState.status}
               </Typography>
-              <Typography sx={{ color: primaryColor, fontSize: '0.875rem', fontWeight: 700 }}>
+              <Typography sx={{ color: primaryColor, fontSize: '14px', fontWeight: 700 }}>
                 {Math.min(100, Math.max(0, Math.round(upgradeState.progress)))}%
               </Typography>
             </Box>
@@ -569,9 +546,9 @@ export default function ScreenFirmwareUpgrade({
                 variant="caption"
                 sx={{
                   display: 'block',
-                  mb: '0.65rem',
+                  mb: '10.4px',
                   color: 'text.secondary',
-                  fontSize: '0.72rem',
+                  fontSize: '12px',
                   lineHeight: 1.55,
                   opacity: 0.92,
                 }}
@@ -601,36 +578,36 @@ export default function ScreenFirmwareUpgrade({
 
           {upgradeState.error ? (
             <Alert severity="error" sx={{ borderRadius: '12px' }}>
-              <AlertTitle sx={{ fontSize: '0.9rem' }}>{t('1219')}</AlertTitle>
-              <Typography sx={{ fontSize: '0.8125rem' }}>{upgradeState.error}</Typography>
+              <AlertTitle sx={{ fontSize: '14px' }}>{t('1219')}</AlertTitle>
+              <Typography sx={{ fontSize: '13px' }}>{upgradeState.error}</Typography>
             </Alert>
           ) : null}
 
           <Paper
             sx={{
-              p: '1.25rem !important',
+              p: '20px !important',
               bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.28)',
               border: `1px solid ${borderMuted}`,
               borderRadius: '14px',
             }}
           >
-            <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, mb: '1rem !important', color: 'text.primary' }}>
+            <Typography sx={{ fontSize: '14px', fontWeight: 600, mb: '16px !important', color: 'text.primary' }}>
               ⚠️ {t('1210')}
             </Typography>
-            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '0.75rem !important' } }}>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.65 }}>
+            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '12px !important' } }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
                 {t('1211')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.65 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
                 {t('1212')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.65 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
                 {t('1213')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.65 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
                 {t('1214')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1.65 }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
                 {t('2733')}
               </Typography>
             </Stack>
@@ -645,10 +622,11 @@ export default function ScreenFirmwareUpgrade({
             sx={{
               py: 1.35,
               textTransform: 'none',
+              justifyContent: 'center',
               bgcolor: upgradeState.done ? '#4caf50' : primaryColor,
-              color: '#000 !important',
+              color: '#fff !important',
               fontWeight: 700,
-              fontSize: '0.9375rem',
+              fontSize: '15px',
               borderRadius: '12px',
               boxShadow: upgradeState.done
                 ? '0 6px 20px rgba(76, 175, 80, 0.35)'
@@ -664,7 +642,7 @@ export default function ScreenFirmwareUpgrade({
               },
             }}
           >
-            {upgradeState.done ? `✅ ${t('1218')}` : `🚀 ${t('1217')}`}
+            {upgradeState.done ? t('1218') : t('1217')}
           </Button>
         </Stack>
       </Paper>

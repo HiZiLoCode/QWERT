@@ -8,8 +8,8 @@ import keyboardLayoutDe from '@/data/keyboardLayout/full_keyboard_de.json';
 import { getKeyByKeyNameValue, getKeyName } from '@/keyboard/keycode';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 
-const KEY_UNIT_REM = 3.5;
-const KEY_GAP_REM = 0.2;
+const KEY_UNIT_PX = 3.5 * 16;
+const KEY_GAP_PX = 0.2 * 16;
 
 const StyledKeyboardWrapper = styled(Box)`
   position: relative;
@@ -28,11 +28,11 @@ const StyledKeyWrapper = styled('div')<{
   top: number;
 }>`
   position: absolute;
-  width: ${(props) => props.width}rem;
-  height: ${(props) => props.height}rem;
-  left: ${(props) => props.left}rem;
-  top: ${(props) => props.top}rem;
-  padding: 0.125rem;
+  width: ${(props) => `${props.width}px`};
+  height: ${(props) => `${props.height}px`};
+  left: ${(props) => `${props.left}px`};
+  top: ${(props) => `${props.top}px`};
+  padding: 2px;
   box-sizing: border-box;
 `;
 
@@ -79,9 +79,9 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
     return { maxX, maxY };
   }, [currentLayout]);
 
-  const boardRem = useMemo(() => {
-    const width = boardBounds.maxX * KEY_UNIT_REM + Math.max(boardBounds.maxX - 1, 0) * KEY_GAP_REM;
-    const height = boardBounds.maxY * KEY_UNIT_REM + Math.max(boardBounds.maxY - 1, 0) * KEY_GAP_REM;
+  const boardPx = useMemo(() => {
+    const width = boardBounds.maxX * KEY_UNIT_PX + Math.max(boardBounds.maxX - 1, 0) * KEY_GAP_PX;
+    const height = boardBounds.maxY * KEY_UNIT_PX + Math.max(boardBounds.maxY - 1, 0) * KEY_GAP_PX;
 
     return {
       width: width || 1,
@@ -92,14 +92,13 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
   const scale = useMemo(() => {
     if (!containerSize.width || !containerSize.height || typeof window === 'undefined') return 1;
 
-    const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const boardWidthPx = boardRem.width * rootFontSize;
-    const boardHeightPx = boardRem.height * rootFontSize;
+    const boardWidthPx = boardPx.width;
+    const boardHeightPx = boardPx.height;
 
     if (!boardWidthPx || !boardHeightPx) return 1;
 
     return Math.min(containerSize.width / boardWidthPx, containerSize.height / boardHeightPx);
-  }, [boardRem, containerSize]);
+  }, [boardPx, containerSize]);
 
   const getKeyLabel = (index: number) => currentLayout.codes?.[index]?.name || '';
   const isImageIcon = (value: string) => {
@@ -130,8 +129,8 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
         <Box
           sx={{
             position: 'relative',
-            width: `${boardRem.width}rem`,
-            height: `${boardRem.height}rem`,
+            width: `${boardPx.width}px`,
+            height: `${boardPx.height}px`,
             transform: `scale(${scale * 1})`,
             transformOrigin: 'top left',
           }}
@@ -139,10 +138,10 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
           {currentLayout.keys?.map((keyItem: LayoutKey, index: number) => {
             const keyLabel = getKeyLabel(index);
             const keyCodeLabel = getKeyCodeLabel(index);
-            const keyWidth = (keyItem.w ?? 1) * KEY_UNIT_REM + ((keyItem.w ?? 1) - 1) * KEY_GAP_REM;
-            const keyHeight = (keyItem.h ?? 1) * KEY_UNIT_REM + ((keyItem.h ?? 1) - 1) * KEY_GAP_REM;
-            const keyLeft = (keyItem.x ?? 0) * (KEY_UNIT_REM + KEY_GAP_REM);
-            const keyTop = (keyItem.y ?? 0) * (KEY_UNIT_REM + KEY_GAP_REM);
+            const keyWidth = (keyItem.w ?? 1) * KEY_UNIT_PX + ((keyItem.w ?? 1) - 1) * KEY_GAP_PX;
+            const keyHeight = (keyItem.h ?? 1) * KEY_UNIT_PX + ((keyItem.h ?? 1) - 1) * KEY_GAP_PX;
+            const keyLeft = (keyItem.x ?? 0) * (KEY_UNIT_PX + KEY_GAP_PX);
+            const keyTop = (keyItem.y ?? 0) * (KEY_UNIT_PX + KEY_GAP_PX);
 
             return (
               <StyledKeyWrapper
@@ -159,11 +158,11 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                     sx={{
                       width: '100%',
                       height: '100%',
-                      borderRadius: '0.25rem',
-                      border: '0.0625rem solid #d2dae7',
+                      borderRadius: '4px',
+                      border: '1px solid #d2dae7',
                       transition: 'background-color 0.2s ease',
                       color: '#68798f',
-                      fontSize: '0.75rem',
+                      fontSize: '12px',
                       lineHeight: 1.1,
                       textAlign: 'center',
                       display: 'flex',
@@ -184,7 +183,7 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                         component="img"
                         src={String(keyLabel).trim()}
                         alt={keyCodeLabel || keyLabel}
-                        sx={{ width: '1.35rem', height: '1.35rem', objectFit: 'contain' }}
+                        sx={{ width: '21.6px', height: '21.6px', objectFit: 'contain' }}
                       />
                     ) : (
                       keyLabel

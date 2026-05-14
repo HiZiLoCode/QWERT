@@ -18,6 +18,7 @@ import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
 import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
 import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
 import ScreenThemeConfirmDialog from "./ScreenThemeConfirmDialog";
+import { screenThemeColors } from "./theme";
 import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
@@ -1941,7 +1942,7 @@ export default function ScreenThemePage() {
     <Box
       sx={{
         flex: 1,
-        minHeight: "16.25rem",
+        minHeight: "260px",
         display: "flex",
         flexDirection: "row",
         alignItems: "stretch",
@@ -1949,9 +1950,9 @@ export default function ScreenThemePage() {
         p: 25,
         gap: 0,
         boxSizing: "border-box",
-        borderRadius: "1.25rem",
-        background: "linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)",
-        border: "0.0625rem solid rgba(181,187,196,0.32)",
+        borderRadius: "20px",
+        backgroundColor: screenThemeColors.cardBg,
+        border: "1px solid rgba(181,187,196,0.32)",
       }}
     >
       <ScreenThemeImportPanel
@@ -2149,11 +2150,11 @@ export default function ScreenThemePage() {
       >
         <DialogTitle>{t("2565")}</DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 1, color: "#334155", fontSize: "0.9375rem" }}>{transferStageText}</Typography>
+          <Typography sx={{ mb: 1, color: "#334155", fontSize: "18px" }}>{transferStageText}</Typography>
           <LinearProgress
             variant={transferDialog.stage === "download" ? "determinate" : "indeterminate"}
             value={transferDialog.progress}
-            sx={{ height: "0.5rem", borderRadius: "0.375rem" }}
+            sx={{ height: "8px", borderRadius: "6px" }}
           />
         </DialogContent>
       </Dialog>
@@ -2205,7 +2206,7 @@ export default function ScreenThemePage() {
           sx={{
             flex: 1,
             minHeight: 0,
-            borderRadius: "0.75rem",
+            borderRadius: "12px",
             display: "flex",
             flexDirection: "row",
             alignItems: "stretch",

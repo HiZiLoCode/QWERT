@@ -57,7 +57,7 @@ const TimeSync = ({ onSyncTime, onClearData, t }: TimeSyncProps) => {
       <Text 
          
         fontWeight="700" 
-        fontSize="1.125rem" 
+        fontSize="18px" 
         textAlign="center" 
         mb={4}
         textShadow="0 2px 4px rgba(0, 0, 0, 0.3)"
@@ -69,14 +69,14 @@ const TimeSync = ({ onSyncTime, onClearData, t }: TimeSyncProps) => {
       <VStack spacing={3} align="center" h='80%' justifyContent='space-evenly'>
         {/* 当前时间显示 */}
         <Box textAlign="center" role="timer" aria-live="polite">
-          <Text fontSize="0.875rem" fontWeight="600" >
+          <Text fontSize="14px" fontWeight="600" >
             {currentTime.getFullYear()}-{String(currentTime.getMonth() + 1).padStart(2, '0')}-{String(currentTime.getDate()).padStart(2, '0')}
           </Text>
-          <Text fontSize="0.75rem" color="rgba(100, 150, 255, 0.8)" mb={2}>
+          <Text fontSize="12px" color="rgba(100, 150, 255, 0.8)" mb={2}>
             {getWeekday(currentTime)}
           </Text>
           <Text 
-            fontSize="1.5rem" 
+            fontSize="24px" 
             fontWeight="700" 
             
             fontFamily="monospace"

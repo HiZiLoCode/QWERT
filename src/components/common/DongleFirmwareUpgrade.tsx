@@ -687,26 +687,29 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
             : '0 20px 60px rgba(0, 0, 0, 0.4)',
         }}
       >
-        {/* 标题栏 */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px !important' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box sx={{ fontSize: '28px', mr: 1.5 }}>
-              📡
-            </Box>
-            <Box>
-              <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, mb: 0.3 }}>
-                {t("1250")} {/* 2.4G 接收器固件升级 */}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '11px' }}>
-                {t("1251")} {/* 基于 WebHID 的无线接收器升级工具 */}
-              </Typography>
-            </Box>
-          </Box>
+        {/* 标题栏：标题居中，关闭在右上角 */}
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '24px !important',
+            minHeight: '40px',
+          }}
+        >
+          <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, textAlign: 'center' }}>
+            {t("1250")} {/* 2.4G 接收器固件升级 */}
+          </Typography>
           {!upgradeState.isUpgrading && (
             <IconButton
               onClick={handleClose}
               size="small"
               sx={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
                 '&:hover': {
                   bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
                 },
@@ -720,9 +723,6 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
         <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '24px !important' } }}>
           {/* 设备信息 */}
           <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px !important', color: 'text.primary' }}>
-              📱 {t("1202")} {/* 设备状态 */}
-            </Typography>
             <Paper
               sx={{
                 padding: '20px !important',
@@ -853,8 +853,9 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
             sx={{
               paddingTop: '10px !important',
               paddingBottom: '10px !important',
+              justifyContent: 'center',
               bgcolor: primaryColor,
-              color: '#000 !important',
+              color: '#fff !important',
               fontWeight: 600,
               fontSize: '14px',
               borderRadius: '10px',
@@ -869,7 +870,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
               },
             }}
           >
-            🚀 {t("1217")} {/* 开始升级 */}
+            {t("1217")} {/* 开始升级 */}
           </Button>
         </Stack>
       </Paper>

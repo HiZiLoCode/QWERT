@@ -45,14 +45,14 @@ export default function ScreenThemeVideoSettingsPanel({
           gap: 2,
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 12rem)" }}>
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 192px)" }}>
           <Typography
             variant="caption"
             component="p"
             sx={{
               m: 0,
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "12px",
               lineHeight: 1.55,
             }}
           >
@@ -63,9 +63,9 @@ export default function ScreenThemeVideoSettingsPanel({
             component="p"
             sx={{
               m: 0,
-              mt: "0.375rem",
+              mt: "6px",
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "12px",
               lineHeight: 1.55,
             }}
           >
@@ -82,8 +82,8 @@ export default function ScreenThemeVideoSettingsPanel({
             flexShrink: 0,
             px: 2.5,
             py: 0.75,
-            width: "10.75rem",
-            minWidth: "10.75rem",
+            width: "172px",
+            minWidth: "172px",
           }}
         >
           {isSaving ? t("1645") : t("1609")}
@@ -96,7 +96,7 @@ export default function ScreenThemeVideoSettingsPanel({
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
           <Typography
             variant="body2"
-            sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "0.875rem", wordBreak: "break-all", pr: 1 }}
+            sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "14px", wordBreak: "break-all", pr: 1 }}
           >
             {t("1635")}
             {fileName}
@@ -109,9 +109,9 @@ export default function ScreenThemeVideoSettingsPanel({
             sx={{
               ...screenThemeOutlinedPillButtonSx,
               flexShrink: 0,
-              minHeight: "2.25rem",
-              width: "10.75rem",
-              minWidth: "10.75rem",
+              minHeight: "36px",
+              width: "172px",
+              minWidth: "172px",
             }}
           >
             {t("1636")}
@@ -119,10 +119,10 @@ export default function ScreenThemeVideoSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between", mt: 61 }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "5.5rem", fontSize: "0.875rem" }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "14px" }}>
             {t("1637")}
           </Typography>
-          <FormControl size="small" sx={{ minWidth: "10.75rem" }}>
+          <FormControl size="small" sx={{ minWidth: "172px" }}>
             <Select
               value={VIDEO_SPEED_OPTIONS.some((o) => o.value === speed) ? speed : VIDEO_SPEED_OPTIONS[0]!.value}
               disabled={isLocked}
@@ -140,7 +140,7 @@ export default function ScreenThemeVideoSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between", mt: 61 }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "5.5rem", fontSize: "0.875rem" }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "14px" }}>
             {t("2571")}
           </Typography>
           <Button
@@ -151,9 +151,9 @@ export default function ScreenThemeVideoSettingsPanel({
             sx={{
               ...screenThemeOutlinedPillButtonSx,
               flexShrink: 0,
-              minHeight: "2.25rem",
-              width: "10.75rem",
-              minWidth: "10.75rem",
+              minHeight: "36px",
+              width: "172px",
+              minWidth: "172px",
             }}
           >
             {t("2572")}

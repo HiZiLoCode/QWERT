@@ -31,7 +31,7 @@ type Props = {
   gifFrameLimit?: number;
 };
 
-const pxToRem = (px: number) => `${px * 0.0625}rem`;
+const toCssPx = (v: number) => `${v}px`;
 
 const PLACEHOLDER_BG =
   "linear-gradient(135deg, #ff8a4a 0%, #4a7cff 45%, #ff3c5c 78%, #9aa3ad 100%)";
@@ -83,27 +83,27 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
     <Box
       sx={{
         flexShrink: 0,
-        width: "25rem",
-        minHeight: "25rem",
+        width: "400px",
+        minHeight: "400px",
         mx: 36,
-        border: "0.0625rem solid rgba(181,187,196,0.35)",
+        border: "1px solid rgba(59, 130, 246, 1)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: "0.8125rem",
+        borderRadius: "13px",
         background: "rgba(255, 255, 255, 0.6)",
-        boxShadow: "inset 0 0.125rem 0.25rem rgba(0, 0, 0, 0.25)",
+        boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.25)",
       }}
     >
       <Box
         sx={{
           position: "relative",
-          width: "10.9375rem",
-          height: "23.75rem",
-          borderRadius: "0.75rem",
+          width: "175px",
+          height: "380px",
+          borderRadius: "12px",
           overflow: "hidden",
           background: "rgba(241,243,247,0.9)",
-          boxShadow: "inset 0 0 0 0.0625rem rgba(0,0,0,0.07)",
+          boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.07)",
         }}
       >
         {!previewUrl ? (
@@ -152,16 +152,16 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
               }}
               sx={{
                 position: "absolute",
-                left: "0.25rem",
+                left: "4px",
                 top: "50%",
                 transform: "translateY(-50%)",
                 zIndex: 2,
                 bgcolor: "rgba(255,255,255,0.92)",
-                boxShadow: "0 0.0625rem 0.25rem rgba(0,0,0,0.12)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
                 "&:hover": { bgcolor: "#fff" },
               }}
             >
-              <ChevronLeft sx={{ fontSize: "1.25rem", color: screenThemeColors.textDark }} />
+              <ChevronLeft sx={{ fontSize: "20px", color: screenThemeColors.textDark }} />
             </IconButton>
             <IconButton
               type="button"
@@ -173,23 +173,23 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
               }}
               sx={{
                 position: "absolute",
-                right: "0.25rem",
+                right: "4px",
                 top: "50%",
                 transform: "translateY(-50%)",
                 zIndex: 2,
                 bgcolor: "rgba(255,255,255,0.92)",
-                boxShadow: "0 0.0625rem 0.25rem rgba(0,0,0,0.12)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
                 "&:hover": { bgcolor: "#fff" },
               }}
             >
-              <ChevronRight sx={{ fontSize: "1.25rem", color: screenThemeColors.textDark }} />
+              <ChevronRight sx={{ fontSize: "20px", color: screenThemeColors.textDark }} />
             </IconButton>
             <Stack
               direction="row"
               spacing={0.5}
               sx={{
                 position: "absolute",
-                bottom: "0.5rem",
+                bottom: "8px",
                 left: 0,
                 right: 0,
                 justifyContent: "center",
@@ -202,8 +202,8 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
                 <Box
                   key={i}
                   sx={{
-                    width: "0.375rem",
-                    height: "0.375rem",
+                    width: "6px",
+                    height: "6px",
                     borderRadius: "50%",
                     bgcolor: i === albumCarousel.index ? screenThemeColors.primary : "rgba(0,0,0,0.22)",
                     transition: "background-color 0.2s ease",
@@ -217,12 +217,12 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
         <Box
           sx={{
             position: "absolute",
-            left: pxToRem(frameRect.left),
-            top: pxToRem(frameRect.top),
-            width: pxToRem(frameRect.width),
-            height: pxToRem(frameRect.height),
-            borderRadius: "0.75rem",
-            border: "0.125rem dashed rgba(0, 0, 0, 0.72)",
+            left: toCssPx(frameRect.left),
+            top: toCssPx(frameRect.top),
+            width: toCssPx(frameRect.width),
+            height: toCssPx(frameRect.height),
+            borderRadius: "12px",
+            border: "2px dashed rgba(0, 0, 0, 0.72)",
             pointerEvents: "none",
             boxSizing: "border-box",
             zIndex: 1,

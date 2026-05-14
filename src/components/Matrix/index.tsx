@@ -166,7 +166,7 @@ const Matrix = () => {
                     height: '50%',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '1.25rem',
+                    gap: '20px',
                     minHeight: 0,
                     margin: '0 auto',
                     width: "100%",
@@ -189,27 +189,42 @@ const Matrix = () => {
                     </Box>
                 </Box>
             </Box>
-            <Box sx={{ flex: 1, minHeight: '20rem', display: 'grid', mx: 167, gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem' }}>
-                <Box sx={{ borderRadius: '0.875rem', border: '0.0625rem solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(0.375rem)', p: 20 }}>
+            <Box sx={{
+                flex: 1, display: 'flex',  gap: '22px', maxWidth: "1800px",
+                minWidth: "1200px",
+                maxHeight: "500px",
+                height: '100%',
+                width: '100%',
+                margin: '0 auto',
+                minHeight: 0,
+                justifyContent: "center"
+            }}>
+                <Box sx={{
+                    width: "550px",
+                    minWidth: "450px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    boxSizing: "border-box",
+                    overflow: "auto"
+                }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, mb: 2 }}>
-                        <Typography sx={{ fontSize: '1.125rem', fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11 }}>{t("1001")}</Typography>
+                        <Typography sx={{ fontSize: '18px', fontWeight: "500", color: "rgba(100, 116, 139, 1)", mb: 11 }}>{t("1001")}</Typography>
                     </Box>
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "0.625rem", overflowY: "auto" }}>
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "0.325rem" }}>
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: "8px", overflowY: "auto" }}>
+                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "5.2px" }}>
                             <ButtonRem
                                 onClick={() => handleLightModeToggle(deviceBaseInfo?.matrixScreenLightSize || 0)}
                                 fullWidth
                                 variant="text"
                                 sx={{
-                                    height: '2.125rem',
-                                    borderRadius: '0.5rem',
-                                    fontSize: '0.875rem',
+                                    height: '34px',
+                                    borderRadius: '8px',
+                                    fontSize: '15px',
                                     textTransform: 'none',
+                                    fontWeight: "500",
                                     color: (deviceBaseInfo?.matrixScreenLightSize || 0) === LightMode ? '#fff' : '#5f7089',
                                     backgroundColor: (deviceBaseInfo?.matrixScreenLightSize || 0) === LightMode ? '#3B82F6' : '',
                                     '&:hover': {
-                                        border: '0.0625rem solid #3B82F6',
-                                        boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                                        border: '1px solid #3B82F6',
+                                        boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                                     },
                                 }}
                             >
@@ -218,21 +233,22 @@ const Matrix = () => {
                         </Box>
                         {matrixLightList.map((item: any, index: number) =>
                             item.brightness ? (
-                                <Box key={index} sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "0.325rem" }}>
+                                <Box key={index} sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "5.2px" }}>
                                     <ButtonRem
                                         onClick={() => handleLightModeToggle(item.value)}
                                         fullWidth
                                         variant="text"
                                         sx={{
-                                            height: '2.125rem',
-                                            borderRadius: '0.5rem',
-                                            fontSize: '0.875rem',
+                                            height: '34px',
+                                            borderRadius: '8px',
+                                            fontSize: '15px',
                                             textTransform: 'none',
+                                            fontWeight: "500",
                                             color: LightMode === item.value ? '#fff' : '#5f7089',
                                             backgroundColor: LightMode === item.value ? '#3B82F6' : '',
                                             '&:hover': {
-                                                border: '0.0625rem solid #3B82F6',
-                                                boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                                                border: '1px solid #3B82F6',
+                                                boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                                             },
                                         }}
                                     >
@@ -244,8 +260,12 @@ const Matrix = () => {
                     </Box>
                 </Box>
 
-                <Box sx={{ borderRadius: '0.875rem', border: '0.0625rem solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(0.375rem)', p: 20 }}>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1676")}</Typography>
+                <Box sx={{
+                    width: "400px", minWidth: "350px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    boxSizing: "border-box",
+                    overflow: "auto"
+                }}>
+                    <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1676")}</Typography>
                     <Box sx={{ mb: 3 }}>
                         <SliderBlock>
                             <SliderRem
@@ -256,13 +276,13 @@ const Matrix = () => {
                                 onChange={(_, newValue) => handleBrightnessChange(newValue as number)}
                                 sx={{
                                     color: '#3B82F6',
-                                    '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
-                                    '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                                    '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
+                                    '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
                                     '& .MuiSlider-thumb': {
-                                        width: '2rem',
-                                        height: '2rem',
-                                        border: '0.25rem solid #fff',
-                                        boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                                        width: '32px',
+                                        height: '32px',
+                                        border: '4px solid #fff',
+                                        boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                                     },
                                 }}
                             />
@@ -281,10 +301,10 @@ const Matrix = () => {
                                 }}
                                 sx={valueInputSx}
                             />
-                            <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
+                            <Typography sx={{ color: '#94A3B8', fontSize: '20px', fontWeight: 600 }}>%</Typography>
                         </SliderBlock>
                     </Box>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1677")}</Typography>
+                    <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1677")}</Typography>
                     <SliderBlock>
                         <SliderRem
                             value={speedValue}
@@ -295,23 +315,27 @@ const Matrix = () => {
                             sx={{
                                 color: '#3B82F6',
 
-                                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
-                                '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
+                                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
                                 '& .MuiSlider-thumb': {
-                                    width: '1.9rem',
-                                    height: '2rem',
-                                    border: '0.25rem solid #fff',
-                                    boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                                    width: '30.4px',
+                                    height: '32px',
+                                    border: '4px solid #fff',
+                                    boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                                 },
                             }}
                         />
-                        <Box sx={{ width: '3.125rem', height: '2rem' }} />
-                        <Typography sx={{ color: 'transparent', fontSize: '1.25rem', fontWeight: 600, userSelect: 'none' }}>%</Typography>
+                        <Box sx={{ width: '50px', height: '32px' }} />
+                        <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
                     </SliderBlock>
                 </Box>
 
-                <Box sx={{ borderRadius: '0.875rem', border: '0.0625rem solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(0.375rem)', p: 20 }}>
-                    <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 2, borderBottom: '1px solid rgba(226,232,240,1)', pb: 1 }}>{t("1003")}</Typography>
+                <Box sx={{
+                    width: "350px",
+                    minWidth: "350px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    boxSizing: "border-box",
+                    overflow: "auto"
+                }}>
                     <ColorPicker
                         selectColor={selectedColor}
                         setSelectColor={handleColorChange}
@@ -319,7 +343,6 @@ const Matrix = () => {
                 </Box>
             </Box>
         </>
-
     );
 };
 
@@ -334,13 +357,13 @@ function SliderBlock({ children }: { children: React.ReactNode }) {
 }
 
 const valueInputSx = {
-    width: '3.125rem',
-    height: '2rem',
-    borderRadius: '0.5rem',
-    border: '0.0625rem solid #E2E8F0',
+    width: '50px',
+    height: '32px',
+    borderRadius: '8px',
+    border: '1px solid #E2E8F0',
     textAlign: 'center',
     color: '#64748b',
-    fontSize: '.95rem',
+    fontSize: '15px',
     fontWeight: 600,
     backgroundColor: '#fff',
     display: 'flex',

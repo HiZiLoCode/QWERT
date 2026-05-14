@@ -77,21 +77,21 @@ export default function FirmwareChangelogSection({
 
     const cardSx = {
         background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-        borderRadius: '0.75rem',
+        borderRadius: '12px',
         boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-        border: '0.0625rem solid rgba(255, 255, 255, 1)',
-        px: '1.25rem',
-        py: '1.125rem',
+        border: '1px solid rgba(255, 255, 255, 1)',
+        px: '20px',
+        py: '18px',
         
     } as const;
 
     if (demoSession) {
         return (
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '0.95rem', color: '#334155', fontWeight: 600, mb: '0.5rem' }}>
+                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '8px' }}>
                     {t('737')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>{t('2596')}</Typography>
+                <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2596')}</Typography>
             </Box>
         );
     }
@@ -99,10 +99,10 @@ export default function FirmwareChangelogSection({
     if (!connected) {
         return (
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '0.95rem', color: '#334155', fontWeight: 600, mb: '0.5rem' }}>
+                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '8px' }}>
                     {t('2508')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>{t('2527')}</Typography>
+                <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2527')}</Typography>
             </Box>
         );
     }
@@ -110,68 +110,68 @@ export default function FirmwareChangelogSection({
     return (
         <>
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '0.95rem', color: '#334155', fontWeight: 600, mb: '0.35rem' }}>
+                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '5.6px' }}>
                     {t('2508')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mb: '0.5rem' }}>
+                <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
                     {t('2521')}: V{deviceVersion || '—'}
                     {currentRelease?.date ? ` · ${currentRelease.date}` : null}
                 </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mb: '0.35rem' }}>{t('2522')}</Typography>
+                <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>{t('2522')}</Typography>
                 {releases.length === 0 ? (
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>{t('2531')}</Typography>
+                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2531')}</Typography>
                 ) : currentItems.length > 0 ? (
                     <Box
                         component="ul"
-                        sx={{ m: 0, pl: '1.25rem', color: '#475569', fontSize: '0.8125rem', lineHeight: 1.6 }}
+                        sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
                     >
                         {currentItems.map((line, idx) => (
                             <li key={idx}>{line}</li>
                         ))}
                     </Box>
                 ) : (
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>{t('2526')}</Typography>
+                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2526')}</Typography>
                 )}
 
                 {deviceNeedsUpgrade && deviceUpgradeVersion && (
-                    <Box sx={{ mt: '1.25rem', pt: '1rem', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
-                        <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mb: '0.5rem' }}>
+                    <Box sx={{ mt: '20px', pt: '16px', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                        <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
                             {t('2533')}: V{deviceVersion || '—'}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.8125rem', color: '#b45309', fontWeight: 600, mb: '0.35rem' }}>
+                        <Typography sx={{ fontSize: '13px', color: '#b45309', fontWeight: 600, mb: '5.6px' }}>
                             {t('2509')}: V{deviceUpgradeVersion}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mb: '0.35rem' }}>{t('2529')}</Typography>
+                        <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>{t('2529')}</Typography>
                         {upgradeItems.length > 0 ? (
                             <Box
                                 component="ul"
-                                sx={{ m: 0, pl: '1.25rem', color: '#475569', fontSize: '0.8125rem', lineHeight: 1.6 }}
+                                sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
                             >
                                 {upgradeItems.map((line, idx) => (
                                     <li key={idx}>{line}</li>
                                 ))}
                             </Box>
                         ) : (
-                            <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>{t('2532')}</Typography>
+                            <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2532')}</Typography>
                         )}
                     </Box>
                 )}
 
-                <Box sx={{ mt: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
+                <Box sx={{ mt: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
                     <ButtonRem
                         type="button"
                         onClick={onCheckUpdates}
                         disabled={checkingForUpdates}
                         sx={{
                             textTransform: 'none',
-                            height: '2.25rem',
-                            px: '1.25rem',
-                            fontSize: '0.875rem',
+                            height: '36px',
+                            px: '20px',
+                            fontSize: '14px',
                             fontWeight: 500,
                             color: '#64748b',
                             background: ' rgba(255, 255, 255, 1)',
-                            border: '0.0625rem solid rgba(148, 163, 184, 0.55)',
-                            borderRadius: '0.5rem',
+                            border: '1px solid rgba(148, 163, 184, 0.55)',
+                            borderRadius: '8px',
                             boxShadow: 'none',
                             '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
                             '&.Mui-disabled': { color: '#94a3b8', borderColor: '#e2e8f0' },
@@ -185,9 +185,9 @@ export default function FirmwareChangelogSection({
                             onClick={() => setHistoryOpen(true)}
                             sx={{
                                 textTransform: 'none',
-                                height: '2rem',
-                                px: '1rem',
-                                fontSize: '0.8125rem',
+                                height: '32px',
+                                px: '16px',
+                                fontSize: '13px',
                                 fontWeight: 500,
                                 color: '#3b82f6',
                                 bgcolor: 'transparent',
@@ -206,9 +206,9 @@ export default function FirmwareChangelogSection({
                 onClose={() => setHistoryOpen(false)}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: '0.75rem' } }}
+                PaperProps={{ sx: { borderRadius: '12px' } }}
             >
-                <DialogTitle sx={{ fontSize: '1rem', fontWeight: 600, color: '#334155', pb: 10 }}>
+                <DialogTitle sx={{ fontSize: '16px', fontWeight: 600, color: '#334155', pb: 10 }}>
                     {t('2530')}
                 </DialogTitle>
                 <DialogContent dividers sx={{ maxHeight: '50vh' }}>
@@ -222,34 +222,34 @@ export default function FirmwareChangelogSection({
                                 elevation={0}
                                 sx={{
                                     border: '1px solid rgba(148, 163, 184, 0.25)',
-                                    borderRadius: '0.5rem !important',
+                                    borderRadius: '8px !important',
                                     mb: 10,
                                     '&:before': { display: 'none' },
                                     overflow: 'hidden',
-                                    padding: '0.75rem',
+                                    padding: '12px',
                                 }}
                             >
                                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#64748b' }} />}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
-                                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
+                                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                                             V{release.version}
                                             {isCurrent ? ` · ${t('2521')}` : ''}
                                         </Typography>
-                                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>{release.date}</Typography>
+                                        <Typography sx={{ fontSize: '12px', color: '#94a3b8' }}>{release.date}</Typography>
                                     </Box>
                                 </AccordionSummary>
                                 <AccordionDetails sx={{ pt: 0 }}>
                                     {items.length > 0 ? (
                                         <Box
                                             component="ul"
-                                            sx={{ m: 0, pl: '1.25rem', color: '#475569', fontSize: '0.8125rem', lineHeight: 1.6 }}
+                                            sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
                                         >
                                             {items.map((line, idx) => (
                                                 <li key={idx}>{line}</li>
                                             ))}
                                         </Box>
                                     ) : (
-                                        <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>{t('2526')}</Typography>
+                                        <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2526')}</Typography>
                                     )}
                                 </AccordionDetails>
                             </Accordion>

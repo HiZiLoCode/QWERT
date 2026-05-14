@@ -2731,8 +2731,8 @@ const mouseKeys = [
   { "type": 32, "code1": 0, "code2": 1, "name": "Left Button", "icon": "/KeyType/mouse_left_button.svg" },
   { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_middle_button.svg" },
   { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_scroll_down.svg" },
-  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_right_button.svg" },
-  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_forward.svg" },
+  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_forward.svg" },
+  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_right_button.svg" },
   { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_backward.svg" },
   { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_scroll_up.svg" }
 ]

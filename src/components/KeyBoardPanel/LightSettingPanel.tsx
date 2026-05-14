@@ -68,6 +68,35 @@ function getGroupTypeByContentId(contentId: string): 'backlight' | 'logo' | null
   return null;
 }
 
+/** 自定义灯色点涂提示：左/右键高亮的小鼠标图标 */
+function CustomPaintMouseHintIcon({ activeButton }: { activeButton: 'left' | 'right' }) {
+  const accent = '#14b8a6';
+  const line = '#94a3b8';
+  const isLeft = activeButton === 'left';
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 20 24"
+      aria-hidden
+      sx={{ width: '18px', height: '22px', flexShrink: 0, display: 'block' }}
+    >
+      {isLeft ? (
+        <path d="M10 2.5C6.2 2.5 3 5.2 3 9v1.2h7V2.6c0-.04 0-.08.02-.1z" fill={accent} />
+      ) : (
+        <path d="M10 2.5c3.8 0 7 2.7 7 6.5v1.2h-7V2.6c0-.04 0-.08-.02-.1z" fill={accent} />
+      )}
+      <path
+        d="M10 2.5C5.8 2.5 2.5 5.8 2.5 10v7.5C2.5 21 5.5 23.5 10 23.5S17.5 21 17.5 17.5V10C17.5 5.8 14.2 2.5 10 2.5z"
+        fill="none"
+        stroke={line}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path d="M10 2.5v9.2" stroke={line} strokeWidth="1" strokeLinecap="round" />
+    </Box>
+  );
+}
+
 function findMenuContentId(
   menus: any[] | undefined,
   lightType: string,
@@ -814,7 +843,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           height: '50%',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
+          gap: '20px',
           minHeight: 0,
           margin: '0 auto',
           justifyContent: "center",
@@ -936,7 +965,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       <Box
         sx={{
           mx: 167,
-          width: '71%',
+          width: '50%',
           alignSelf: 'center',
           py: 10,
           textAlign: 'left',
@@ -945,24 +974,53 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
         }}
       >
-        <Typography
-          component="div"
+        <Box
           sx={{
-            fontSize: '0.875rem',
-            lineHeight: 1.65,
-            color: '#64748b',
-            whiteSpace: 'pre-line',
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            columnGap: '20px',
+            rowGap: '6px',
+            justifyContent: 'flex-end',
             visibility: canCustomPaint ? 'visible' : 'hidden',
             userSelect: canCustomPaint ? 'text' : 'none',
           }}
         >
-          {t('2728')}
-        </Typography>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', maxWidth: '100%' }}>
+            <CustomPaintMouseHintIcon activeButton="left" />
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '13px',
+                lineHeight: 1.65,
+                color: 'rgba(40, 44, 52, 1)',
+                fontWeight: 600
+              }}
+            >
+              {t('7040')}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', maxWidth: '100%' }}>
+            <CustomPaintMouseHintIcon activeButton="right" />
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '13px',
+                lineHeight: 1.65,
+                color: '#64748b',
+                fontWeight: 600
+              }}
+            >
+              {t('7041')}
+            </Typography>
+          </Box>
+        </Box>
       </Box>
       <Box sx={{
-        flex: 1, display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.95fr', gap: '1rem', maxWidth: "112.5rem",
-        minWidth: "75rem",
-        maxHeight: "31.25rem",
+        flex: 1, display: 'flex', justifyContent: "center", gap: '16px', maxWidth: "1800px",
+        minWidth: "1200px",
+        maxHeight: "500px",
         height: '100%',
         width: '100%',
         margin: '0 auto',
@@ -970,19 +1028,31 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       }}>
         <Box
           sx={{
-            borderRadius: '0.875rem',
-            border: '0.0625rem solid rgba(153,169,191,0.22)',
+            width: "550px",
+            minWidth: "450px",
+            borderRadius: '14px',
+            border: '1px solid rgba(153,169,191,0.22)',
             background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(0.375rem)',
+            backdropFilter: 'blur(6px)',
             p: 20,
+            boxSizing: "border-box",
+            overflow: "auto"
           }}
         >
           {effectGroups.map((group) => (
             <Box key={group.title} sx={{ mb: 10 }}>
-              <Typography sx={{ fontSize: '1.125rem', fontWeight: "400", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
+              <Typography sx={{ fontSize: '18px', fontWeight: "500", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
                 {group.title}
               </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 8 }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: isPickupLightingModule
+                    ? 'repeat(3, minmax(0, 1fr))'
+                    : 'repeat(4, minmax(0, 1fr))',
+                  gap: 8,
+                }}
+              >
                 {group.items.map((item) => {
                   const active = selectedEffect === item.value;
                   return (
@@ -992,15 +1062,16 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                       variant="text"
 
                       sx={{
-                        height: '2.125rem',
-                        borderRadius: '0.5rem',
-                        fontSize: '1rem',
+                        height: '34px',
+                        borderRadius: '8px',
+                        fontSize: '15px',
                         textTransform: 'none',
+                        fontWeight: "500",
                         color: active ? '#fff' : '#5f7089',
                         backgroundColor: active ? '#3B82F6' : '',
                         '&:hover': {
-                          border: '0.0625rem solid #3B82F6',
-                          boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                          border: '1px solid #3B82F6',
+                          boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                         },
                       }}
                     >
@@ -1015,18 +1086,20 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
         <Box
           sx={{
-            minWidth: 0,
-            borderRadius: '0.875rem',
-            border: '0.0625rem solid rgba(153,169,191,0.22)',
+            width: "400px", minWidth: "350px",
+            borderRadius: '14px',
+            border: '1px solid rgba(153,169,191,0.22)',
             background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(0.375rem)',
+            backdropFilter: 'blur(6px)',
             p: 20,
+            boxSizing: "border-box",
+            overflow: "auto",
           }}
         >
 
           {isPickupLightingModule ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 12 }}>
-              <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700 }}>
+              <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700 }}>
                 {t('1305')}
               </Typography>
               <ToggleSlider
@@ -1039,7 +1112,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               />
             </Box>
           ) : null}
-          <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1676')}</Typography>
+          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1676')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
             <SliderRem
               value={brightness}
@@ -1050,16 +1123,16 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               onChangeCommitted={handleBrightnessCommit}
               sx={{
                 color: '#3B82F6',
-                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
-                '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
+                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
                 '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
-                  border: '0.0625rem solid currentColor',
+                  border: '1px solid currentColor',
                 },
                 '& .MuiSlider-thumb': {
-                  width: '2rem',
-                  height: '2rem',
-                  border: '0.25rem solid #fff',
-                  boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                  width: '32px',
+                  height: '32px',
+                  border: '4px solid #fff',
+                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                 },
               }}
             />
@@ -1079,23 +1152,23 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               }}
               sx={{
                 ml: 10,
-                width: '3.125rem',
-                height: '2rem',
-                borderRadius: '0.5rem',
-                border: '0.0625rem solid #E2E8F0',
+                width: '50px',
+                height: '32px',
+                borderRadius: '8px',
+                border: '1px solid #E2E8F0',
                 textAlign: 'center',
                 color: '#64748b',
-                fontSize: '.95rem',
+                fontSize: '15px',
                 fontWeight: 600,
                 outline: 'none',
                 backgroundColor: '#fff',
               }}
             />
-            <Typography sx={{ color: '#94A3B8', fontSize: '1.25rem', fontWeight: 600 }}>%</Typography>
+            <Typography sx={{ color: '#94A3B8', fontSize: '20px', fontWeight: 600 }}>%</Typography>
           </Box>
 
 
-          <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1677')}</Typography>
+          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1677')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 9, mb: 3.5 }}>
             <SliderRem
               value={speed}
@@ -1106,38 +1179,38 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               onChangeCommitted={handleSpeedCommit}
               sx={{
                 color: '#3B82F6',
-                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '0.75rem', borderRadius: '999px' },
-                '& .MuiSlider-track': { height: '0.75rem', borderRadius: '999px', border: 'none' },
+                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
+                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
                 '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
-                  border: '0.0625rem solid currentColor',
+                  border: '1px solid currentColor',
                 },
                 '& .MuiSlider-thumb': {
-                  width: '2rem',
-                  height: '2rem',
-                  border: '0.25rem solid #fff',
-                  boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                  width: '32px',
+                  height: '32px',
+                  border: '4px solid #fff',
+                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                 },
               }}
             />
-            <Box sx={{ width: '3.125rem', height: '2rem' }} />
-            <Typography sx={{ color: 'transparent', fontSize: '1.25rem', fontWeight: 600, userSelect: 'none' }}>%</Typography>
+            <Box sx={{ width: '50px', height: '32px' }} />
+            <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
           </Box>
 
           {canAdjustDirection ? (
             <>
-              <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1678')}</Typography>
+              <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1678')}</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <ButtonRem
                   variant="text"
                   onClick={() => void handleDirectionChange(0)}
                   sx={{
-                    height: '2.25rem',
-                    borderRadius: '0.55rem',
-                    fontSize: '.95rem',
+                    height: '36px',
+                    borderRadius: '8.8px',
+                    fontSize: '15px',
                     textTransform: 'none',
                     color: playDirection === 0 ? '#fff' : '#5f7089',
                     backgroundColor: playDirection === 0 ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                    '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
+                    '&:hover': { border: '1px solid #3B82F6', boxShadow: '0 2px 8px rgba(59,130,246,0.35)', },
                   }}
                 >
                   {t(directionLabels[0])}
@@ -1146,13 +1219,13 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                   variant="text"
                   onClick={() => void handleDirectionChange(1)}
                   sx={{
-                    height: '2.25rem',
-                    borderRadius: '0.55rem',
-                    fontSize: '.95rem',
+                    height: '36px',
+                    borderRadius: '8.8px',
+                    fontSize: '15px',
                     textTransform: 'none',
                     color: playDirection === 1 ? '#fff' : '#5f7089',
                     backgroundColor: playDirection === 1 ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                    '&:hover': { border: '0.0625rem solid #3B82F6', boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)', },
+                    '&:hover': { border: '1px solid #3B82F6', boxShadow: '0 2px 8px rgba(59,130,246,0.35)', },
                   }}
                 >
                   {t(directionLabels[1])}
@@ -1161,22 +1234,22 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
             </>
           ) : null}
 
-          <Typography sx={{ fontSize: '1rem', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
+          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <ButtonRem
               disabled={pickupStaticDisableSwatch || !canEnableSingleColor}
               onClick={() => void handleColorfulSwitch(false)}
               variant="text"
               sx={{
-                height: '2.25rem',
-                borderRadius: '0.55rem',
-                fontSize: '.95rem',
+                height: '36px',
+                borderRadius: '8.8px',
+                fontSize: '15px',
                 textTransform: 'none',
                 color: singleColorMode ? '#fff' : '#5f7089',
                 backgroundColor: singleColorMode ? '#3B82F6' : 'rgba(255,255,255,.35)',
                 '&:hover': {
-                  border: '0.0625rem solid #3B82F6',
-                  boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                  border: '1px solid #3B82F6',
+                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                 },
               }}
             >
@@ -1187,15 +1260,15 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               onClick={() => void handleColorfulSwitch(true)}
               variant="text"
               sx={{
-                height: '2.25rem',
-                borderRadius: '0.55rem',
-                fontSize: '.95rem',
+                height: '36px',
+                borderRadius: '8.8px',
+                fontSize: '15px',
                 textTransform: 'none',
                 color: !singleColorMode ? '#fff' : '#5f7089',
                 backgroundColor: !singleColorMode ? '#3B82F6' : 'rgba(255,255,255,.35)',
                 '&:hover': {
-                  border: '0.0625rem solid #3B82F6',
-                  boxShadow: '0 0.125rem 0.5rem rgba(59,130,246,0.35)',
+                  border: '1px solid #3B82F6',
+                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
                 },
               }}
             >
@@ -1219,12 +1292,12 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               }}
               sx={{
                 mt: 14,
-                height: '2.25rem',
-                borderRadius: '0.55rem',
-                fontSize: '.95rem',
+                height: '36px',
+                borderRadius: '8.8px',
+                fontSize: '15px',
                 textTransform: 'none',
                 color: '#5f7089',
-                border: '0.0625rem solid rgba(148,163,184,0.55)',
+                border: '1px solid rgba(148,163,184,0.55)',
                 backgroundColor: 'rgba(255,255,255,.45)',
                 '&:hover': {
                   borderColor: '#3B82F6',
@@ -1240,11 +1313,14 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
         <Box
           sx={{
-            minWidth: 0,
-            borderRadius: '0.875rem',
-            border: '0.0625rem solid rgba(153,169,191,0.22)',
+            width: "350px",
+            minWidth: "350px",
+            borderRadius: '14px',
+            border: '1px solid rgba(153,169,191,0.22)',
             background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(0.375rem)',
+            backdropFilter: 'blur(6px)',
+            boxSizing: "border-box",
+            overflow: "auto",
             p: 20,
           }}
         >

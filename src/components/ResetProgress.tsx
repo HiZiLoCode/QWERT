@@ -39,11 +39,11 @@ export default function ResetProgress({
     >
       <Paper
         sx={{
-          width: '16.25rem',
-          p: '1rem',
+          width: '260px',
+          p: '16px',
           display: 'flex',
           flexDirection: 'column',
-          borderRadius: '0.5rem',
+          borderRadius: '8px',
           boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
         }}
       >
@@ -51,8 +51,8 @@ export default function ResetProgress({
           sx={{
             color: '#1a1a1a',
             fontWeight: 'bold',
-            mb: '0.5rem',
-            fontSize: '0.9rem'
+            mb: '8px',
+            fontSize: '14px'
           }}
         >
           {t("791")}
@@ -61,8 +61,8 @@ export default function ResetProgress({
           sx={{
             textAlign: 'center',
             color: '#5f7089',
-            fontSize: '0.8rem',
-            mb: '0.5rem'
+            fontSize: '13px',
+            mb: '8px'
           }}
         >
           {t("792")} {resetProgress}%

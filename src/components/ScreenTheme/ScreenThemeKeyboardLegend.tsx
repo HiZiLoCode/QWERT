@@ -8,7 +8,7 @@ import { screenThemePillRadius } from "./screenThemeButtonSx";
 
 export type ScreenThemeKeyboardLegendVariant = "media" | "typing";
 
-const CIRCLE_REM = "1.125rem";
+const CIRCLE_REM = "18px";
 
 type Props = {
   variant?: ScreenThemeKeyboardLegendVariant;
@@ -43,7 +43,7 @@ export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) 
           borderRadius: screenThemePillRadius,
           "&:hover": {
             backgroundColor: "rgba(0, 102, 255, 0.06)",
-            boxShadow: "0 0 0 0.125rem rgba(0, 102, 255, 0.18)",
+            boxShadow: "0 0 0 2px rgba(0, 102, 255, 0.18)",
           },
         }}
       >
@@ -53,7 +53,7 @@ export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) 
             height: CIRCLE_REM,
             borderRadius: "50%",
             flexShrink: 0,
-            border: `0.125rem solid ${borderColor}`,
+            border: `2px solid ${borderColor}`,
             background: on ? `${borderColor}14` : "transparent",
             boxSizing: "border-box",
           }}
@@ -61,7 +61,7 @@ export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) 
         <Typography
           variant="body2"
           sx={{
-            fontSize: "0.8125rem",
+            fontSize: "13px",
             color: screenThemeColors.textDark,
             fontWeight: on ? 600 : 500,
             textAlign: "left",

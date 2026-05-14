@@ -197,7 +197,7 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                         />
                     ))}
                 </Box>
-                <Box sx={{ display: 'flex', minHeight: 0, alignItems: 'flex-end', gap: 0, height:"1.25rem"}}>
+                <Box sx={{ display: 'flex', minHeight: 0, alignItems: 'flex-end', gap: 0, height:"20px"}}>
                     {buttons.map((label, i) => (
                         <Box
                             key={`${label}-${i}`}
@@ -218,7 +218,7 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                                 justifyContent: 'center',
                                 lineHeight: 1,
                                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95)',
-                                height:"1.25rem"
+                                height:"20px"
                             }}
                         >
                             {label}

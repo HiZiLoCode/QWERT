@@ -1,17 +1,17 @@
 import { styled } from "@mui/material";
 
 export const LoadingText = styled("div")`
-  height: 3.75rem;
-  font-size: 3rem;
+  height: 60px;
+  font-size: 48px;
   font-family: Arial, Helvetica, sans-serif;
   font-weight: bold;
   color: #0a0101;
   text-shadow: 0 0 0.125remvar(--key--color_accent),
-    0 0 0.0625rem var(--key--color_accent), 0 0 0.0625rem var(--key--color_accent);
-  letter-spacing: 0.125rem;
+    0 0 1px var(--key--color_accent), 0 0 1px var(--key--color_accent);
+  letter-spacing: 2px;
   position: relative;
   &::after {
-    height: 5rem;
+    height: 80px;
     content: "loading...";
     position: absolute;
     left: 0;
@@ -50,10 +50,10 @@ export const InsideLoadingContainer = styled("div")(({ theme }) => ({
 }));
 export const ProgressBarContainer = styled("div")`
   position: relative;
-  width: 20rem;
-  height: 1rem;
+  width: 320px;
+  height: 16px;
   background-color: #4a5568;
-  border-radius: 624.9375rem;
+  border-radius: 9999px;
   overflow: hidden;
   @keyframes spin {
     to {
@@ -69,7 +69,7 @@ export const ProgressBar = styled("div")`
   height: 100%;
   width: 0;
   background: linear-gradient(to right, #c6c09c, #ffc98b, #e79796);
-  border-radius: 624.9375rem;
+  border-radius: 9999px;
   animation: progressAnimation 3s infinite;
   transition: width 0.2s ease-in-out;
   @keyframes progressAnimation {
@@ -87,6 +87,6 @@ export const ProgressBar = styled("div")`
 
 export const LoadingSpan = styled("span")`
   display: inline-block;
-  margin-top: 1.25rem;
-  height: 3.75rem;
+  margin-top: 20px;
+  height: 60px;
 `;

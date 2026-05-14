@@ -14,27 +14,27 @@ export default function ScreenThemeThemeColorPreview({ themeColor, dateColor, po
     <Box
       sx={{
         flexShrink: 0,
-        width: "25rem",
-        minHeight: "25rem",
+        width: "400px",
+        minHeight: "400px",
         mx: 36,
-        border: "0.0625rem solid rgba(181,187,196,0.35)",
+        border: "1px solid rgba(59, 130, 246, 1)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: "0.8125rem",
+        borderRadius: "13px",
         background: "rgba(255, 255, 255, 0.6)",
-        boxShadow: "inset 0 0.125rem 0.25rem rgba(0, 0, 0, 0.25)",
+        boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.25)",
       }}
     >
       <Box
         sx={{
           position: "relative",
-          width: "10.9375rem",
-          height: "23.75rem",
-          borderRadius: "1.125rem",
+          width: "175px",
+          height: "380px",
+          borderRadius: "18px",
           overflow: "hidden",
           background: "#020407",
-          boxShadow: "inset 0 0 0 0.0625rem rgba(255,255,255,0.1)",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.1)",
           p: 1,
           boxSizing: "border-box",
         }}
@@ -45,7 +45,7 @@ export default function ScreenThemeThemeColorPreview({ themeColor, dateColor, po
           aria-hidden
           sx={{
             width: "100%",
-            height: "12rem",
+            height: "192px",
             background: "#04070B",
             display: "block",
           }}

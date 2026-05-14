@@ -27,12 +27,12 @@ const Snackbar = styled(MUI_Snackbar)<StyledSnackbarProps>`
   color: #ffffff !important;
   background-color: #3b82f6 !important;
 
-  border-radius: 0.625rem;
+  border-radius: 10px;
 
   & > .MuiPaper-root {
     color: #ffffff !important;
     background-color: #3b82f6 !important;
-    border-radius: 0.625rem;
+    border-radius: 10px;
   }
 
   & .MuiSnackbarContent-message {
@@ -86,7 +86,7 @@ const SnackbarDialogContext = React.createContext<
 >(undefined);
 
 const SNACKBAR_MESSAGE_TEXT_STYLE = {
-  fontSize: "0.875rem",
+  fontSize: "14px",
   fontWeight: 600,
   lineHeight: 1.4,
 } as const;
@@ -177,7 +177,7 @@ function DeviceCardToast({
               component="div"
               sx={{
                 fontWeight: 600,
-                fontSize: "0.8125rem",
+                fontSize: "13px",
                 lineHeight: 1.3,
                 color: "#f5f5f5",
                 letterSpacing: "0.01em",
@@ -208,7 +208,7 @@ function DeviceCardToast({
               component="div"
               sx={{
                 fontWeight: 600,
-                fontSize: "0.8125rem",
+                fontSize: "13px",
                 lineHeight: 1.3,
                 color: "#ffffff",
                 letterSpacing: "0.01em",

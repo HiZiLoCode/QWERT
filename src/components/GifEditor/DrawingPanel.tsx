@@ -52,7 +52,7 @@ export default function DrawingPanel({
               bg: drawingTool === tool ? "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)" : "rgba(100, 150, 255, 0.1)"
             }}
             borderRadius="8px"
-            fontSize="0.75rem"
+            fontSize="12px"
             border='1px solid rgba(100, 150, 255, 0.1)'
             p={8}
           >

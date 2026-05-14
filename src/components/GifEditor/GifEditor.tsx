@@ -352,7 +352,7 @@ const GifEditor = ({
             mb={4}
             fontWeight="700"
             textAlign="center"
-            fontSize="1.125rem"
+            fontSize="18px"
             textShadow="0 2px 4px rgba(0, 0, 0, 0.3)"
             as="h2"
           >

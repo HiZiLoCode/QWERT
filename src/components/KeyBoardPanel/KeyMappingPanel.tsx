@@ -11,6 +11,8 @@ import MacroRecorder from '@/components/KeyBoardPanel/MacroRecorder';
 import customKeys from '@/data/customkeys.json';
 import type { LayoutKey } from '@/types/types_v1';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
+import { keyTypeIconVisualScale } from '@/utils/keyTypeIconVisualScale';
+import { expandKeyedPool, type KeyPoolItem } from '@/utils/customkeysUiLayout';
 import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
@@ -53,6 +55,62 @@ const MAP = {
     /** 仅限制顶部区域最小高度，避免键盘被压扁；略小以贴近设计稿比例 */
     topAreaMinHeight: 300,
 } as const;
+
+type DeviceLightCaps = {
+    hasBacklight: boolean;
+    hasLogoLight: boolean;
+    hasSideLight: boolean;
+    hasMatrixLight: boolean;
+};
+
+function isCustomKeyVisibleForDevice(item: KeyItem, caps: DeviceLightCaps): boolean {
+    const code = String(item.code || '').toUpperCase();
+    const isBacklightKey = code.startsWith('KEY_LIGHT_') || code.startsWith('BL_');
+    const isLogoKey = code.startsWith('LOGO_LIGHT_') || code.startsWith('LG_');
+    const isSideKey = code.startsWith('SIDE_LIGHT_') || code.startsWith('SD_');
+    const isMatrixKey = code.startsWith('MATRIX_LIGHT_') || code.startsWith('MATRIX_');
+
+    if (isBacklightKey && !caps.hasBacklight) return false;
+    if (isLogoKey && !caps.hasLogoLight) return false;
+    if (isSideKey && !caps.hasSideLight) return false;
+    if (isMatrixKey && !caps.hasMatrixLight) return false;
+    return true;
+}
+
+/** 灯光键位池：轴灯分区外的「尾部」里不再展示这些键（与产品稿红框一致）。 */
+function isHiddenFromCustomLightingKeyedPool(item: KeyItem): boolean {
+    const c = String(item.code || '');
+    if (c.startsWith('FN_')) return true;
+    if (c.startsWith('TO_')) return true;
+    if (c.startsWith('CUSTOM_LIGHT_') && c !== 'CUSTOM_LIGHT_1') return true;
+    if (c === 'COLOR_BOARD') return true;
+    if (c.startsWith('SIDE_LIGHT_')) return true;
+    if (c === 'RESET') return true;
+    if (c.startsWith('BLE_MODE_')) return true;
+    if (c === 'MODE_24G' || c === 'USB_MODE' || c === 'BATTERY_STATUS') return true;
+    if (
+        c === 'NK_TOGGLE' ||
+        c === 'MACWIN_TOGGLE' ||
+        c === 'WIN_LOCK_TOGGLE' ||
+        c === 'WASD_TOGGLE' ||
+        c === 'KEY_DELAY_TOGGLE' ||
+        c === 'FROW_MODE_TOGGLE' ||
+        c === 'WHEEL_FUNCTION_TOGGLE' ||
+        c === 'ALL_POWER_TOGGLE'
+    ) {
+        return true;
+    }
+    if (c.startsWith('LCD_')) return true;
+    if (c === 'WHEEL_LEFT' || c === 'WHEEL_RIGHT' || c === 'WHEEL_CONFIRM') return true;
+    if (c === 'TEST_MODE') return true;
+    return false;
+}
+
+function isSectionPoolItem(
+    item: KeyPoolItem,
+): item is { isSectionHeader: true; sectionTitleKey: string; code: string } {
+    return 'isSectionHeader' in item && item.isSectionHeader === true;
+}
 
 type KeyItem = {
     name: string;
@@ -109,14 +167,14 @@ const KeyButton = ({
                         width: '80px',
                         minWidth: '44px',
                         height: '56px',
-                        borderRadius: '0.625rem',
+                        borderRadius: '10px',
                         textTransform: 'none',
-                        fontSize: '0.9rem',
+                        fontSize: '14px',
                         fontWeight: 600,
-                        border: '0.0625rem solid #cfe0ff',
+                        border: '1px solid #cfe0ff',
                         color: hover ? '#2f6fe8' : '#2d4a75',
                         backgroundColor: hover ? '#f2f7ff' : '#ffffff',
-                        boxShadow: hover ? '0 0 0 0.0625rem #9fc2ff inset' : '0 0.125rem 0.375rem rgba(63, 115, 197, 0.06)',
+                        boxShadow: hover ? '0 0 0 1px #9fc2ff inset' : '0 2px 6px rgba(63, 115, 197, 0.06)',
                         wordBreak: 'keep-all',
                         overflowWrap: 'break-word',
                         whiteSpace: 'nowrap',
@@ -130,12 +188,34 @@ const KeyButton = ({
                 >
                     {keyItem.icon ? (
                         isImageIcon ? (
-                            <Box
-                                component="img"
-                                src={iconValue}
-                                alt={displayLabel}
-                                sx={{ width: 28, height: 28, objectFit: 'contain' }}
-                            />
+                            (() => {
+                                const iconScale = keyTypeIconVisualScale(iconValue);
+                                return (
+                                    <Box
+                                        sx={{
+                                            width: 28,
+                                            height: 28,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Box
+                                            component="img"
+                                            src={iconValue}
+                                            alt={displayLabel}
+                                            sx={{
+                                                width: 28,
+                                                height: 28,
+                                                objectFit: 'contain',
+                                                transform: iconScale !== 1 ? `scale(${iconScale})` : undefined,
+                                                transformOrigin: 'center center',
+                                            }}
+                                        />
+                                    </Box>
+                                );
+                            })()
                         ) : (
                             <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
                         )
@@ -150,7 +230,7 @@ const KeyButton = ({
     );
 };
 
-type CategoryId = 'basic' | 'media' | 'mouse' | 'shortcut' | 'custom' | 'macro' | 'combination';
+type CategoryId = 'basic' | 'media' | 'shortcut' | 'custom' | 'macro' | 'combination';
 
 type Category = {
     id: CategoryId;
@@ -160,9 +240,8 @@ type Category = {
 const CATEGORIES: Category[] = [
     { id: 'basic', labelKey: '1500' },
     { id: 'media', labelKey: '1501' },
-    { id: 'mouse', labelKey: '102' },
-    { id: 'shortcut', labelKey: '103' },
     { id: 'custom', labelKey: '104' },
+    { id: 'shortcut', labelKey: '103' },
     { id: 'macro', labelKey: '105' },
     { id: 'combination', labelKey: '106' },
 ];
@@ -209,38 +288,79 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
         return (item?.keycodes ?? []) as KeyItem[];
     }, []);
 
-    const filteredCustomList = useMemo(() => {
+    const deviceLightCaps = useMemo((): DeviceLightCaps => {
         const lighting = keyboardLayout?.lighting;
         const baseInfo = keyboard?.deviceBaseInfo ?? connectedKeyboard?.deviceBaseInfo;
         const hasRuntimeCapability = !!baseInfo;
 
-        const hasBacklight = hasRuntimeCapability
-            ? Boolean(baseInfo?.showLight)
-            : Array.isArray(lighting?.backlight) && lighting.backlight.length > 0;
-        const hasLogoLight = hasRuntimeCapability
-            ? Boolean(baseInfo?.showLogoLight)
-            : Array.isArray(lighting?.logolight) && lighting.logolight.length > 0;
-        const hasSideLight = hasRuntimeCapability
-            ? Boolean(baseInfo?.showLightSideLight)
-            : Array.isArray(lighting?.sidelight) && lighting.sidelight.length > 0;
-        const hasMatrixLight = hasRuntimeCapability
-            ? Boolean(baseInfo?.matrixScreen)
-            : Array.isArray(lighting?.matrixlight) && lighting.matrixlight.length > 0;
+        return {
+            hasBacklight: hasRuntimeCapability
+                ? Boolean(baseInfo?.showLight)
+                : Array.isArray(lighting?.backlight) && lighting.backlight.length > 0,
+            hasLogoLight: hasRuntimeCapability
+                ? Boolean(baseInfo?.showLogoLight)
+                : Array.isArray(lighting?.logolight) && lighting.logolight.length > 0,
+            hasSideLight: hasRuntimeCapability
+                ? Boolean(baseInfo?.showLightSideLight)
+                : Array.isArray(lighting?.sidelight) && lighting.sidelight.length > 0,
+            hasMatrixLight: hasRuntimeCapability
+                ? Boolean(baseInfo?.matrixScreen)
+                : Array.isArray(lighting?.matrixlight) && lighting.matrixlight.length > 0,
+        };
+    }, [keyboardLayout, keyboard?.deviceBaseInfo, connectedKeyboard?.deviceBaseInfo]);
 
-        return rawCustomList.filter((item) => {
-            const code = String(item.code || '').toUpperCase();
-            const isBacklightKey = code.startsWith('KEY_LIGHT_') || code.startsWith('BL_');
-            const isLogoKey = code.startsWith('LOGO_LIGHT_') || code.startsWith('LG_');
-            const isSideKey = code.startsWith('SIDE_LIGHT_') || code.startsWith('SD_');
-            const isMatrixKey = code.startsWith('MATRIX_LIGHT_') || code.startsWith('MATRIX_');
+    const filteredCustomList = useMemo(
+        () => rawCustomList.filter((item) => isCustomKeyVisibleForDevice(item, deviceLightCaps)),
+        [rawCustomList, deviceLightCaps],
+    );
 
-            if (isBacklightKey && !hasBacklight) return false;
-            if (isLogoKey && !hasLogoLight) return false;
-            if (isSideKey && !hasSideLight) return false;
-            if (isMatrixKey && !hasMatrixLight) return false;
-            return true;
-        });
-    }, [rawCustomList, keyboardLayout, keyboard?.deviceBaseInfo, connectedKeyboard?.deviceBaseInfo]);
+    const refPools = useMemo(
+        () => ({
+            Custom: rawCustomList,
+            Shortcut: shortcutList,
+            Media: mediaList,
+            Mouse: mouseList,
+        }),
+        [rawCustomList, shortcutList, mediaList, mouseList],
+    );
+
+    const customDisplayList = useMemo(
+        () =>
+            expandKeyedPool({
+                data: customKeys as unknown[],
+                layoutLabel: 'CustomUiLayout',
+                pools: refPools,
+                tailList: filteredCustomList,
+                itemFilter: (k) =>
+                    isCustomKeyVisibleForDevice(k, deviceLightCaps) &&
+                    !isHiddenFromCustomLightingKeyedPool(k),
+            }),
+        [filteredCustomList, refPools, deviceLightCaps],
+    );
+
+    const shortcutDisplayList = useMemo(
+        () =>
+            expandKeyedPool({
+                data: customKeys as unknown[],
+                layoutLabel: 'ShortcutUiLayout',
+                pools: refPools,
+                tailList: shortcutList,
+                itemFilter: (k) => isCustomKeyVisibleForDevice(k, deviceLightCaps),
+            }),
+        [shortcutList, refPools, deviceLightCaps],
+    );
+
+    const mediaDisplayList = useMemo(
+        () =>
+            expandKeyedPool({
+                data: customKeys as unknown[],
+                layoutLabel: 'MediaUiLayout',
+                pools: refPools,
+                tailList: mediaList,
+                itemFilter: () => true,
+            }),
+        [mediaList, refPools],
+    );
 
     const macroListItems = useMemo<KeyItem[]>(() => {
         if (Array.isArray(macroProfiles) && macroProfiles.length > 0) {
@@ -262,13 +382,11 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
             case 'basic':
                 return basicList;
             case 'media':
-                return mediaList;
-            case 'mouse':
-                return mouseList;
+                return mediaDisplayList;
             case 'shortcut':
-                return shortcutList;
+                return shortcutDisplayList;
             case 'custom':
-                return filteredCustomList;
+                return customDisplayList;
             case 'macro':
                 return macroListItems;
             case 'combination':
@@ -276,7 +394,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
             default:
                 return [];
         }
-    }, [category, basicList, mediaList, mouseList, shortcutList, filteredCustomList, macroListItems]);
+    }, [category, basicList, mediaDisplayList, shortcutDisplayList, customDisplayList, macroListItems]);
 
     const mappedLayoutKeys = useMemo(
         () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),
@@ -377,7 +495,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                 display: 'flex',
                 flexDirection: 'column',
                 gap: `${MAP.sectionGapVertical}px`,
-
+                justifyContent: 'space-between'
             }}
         >
             <Box
@@ -546,13 +664,31 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                                 </Box>
                             ) : (
                                 <Box sx={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '4px' }}>
-                                    {selectedPool.map((key, idx) => (
-                                        <KeyButton
-                                            key={`${key.code}-${idx}`}
-                                            keyItem={key}
-                                            onSelectKey={(item) => void applyKey(item)}
-                                        />
-                                    ))}
+                                    {(selectedPool as KeyPoolItem[]).map((item, idx) =>
+                                        isSectionPoolItem(item) ? (
+                                            <Typography
+                                                key={`${item.code}-${idx}`}
+                                                sx={{
+                                                    width: '100%',
+                                                    flexBasis: '100%',
+                                                    fontSize: '14px',
+                                                    fontWeight: 700,
+                                                    color: MAP.textTitle,
+                                                    py: '6px',
+                                                    pl: '4px',
+                                                    mt: idx > 0 ? '8px' : 0,
+                                                }}
+                                            >
+                                                {t(item.sectionTitleKey)}
+                                            </Typography>
+                                        ) : (
+                                            <KeyButton
+                                                key={`${(item as KeyItem).code}-${idx}`}
+                                                keyItem={item as KeyItem}
+                                                onSelectKey={(k) => void applyKey(k)}
+                                            />
+                                        ),
+                                    )}
                                 </Box>
                             )}
                         </Box>

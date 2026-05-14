@@ -92,9 +92,9 @@ export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
       disabled={phase !== "idle"}
       sx={{
         position: "relative",
-        width: "11rem",
-        height: "2.25rem",
-        minWidth: "11rem",
+        width: "176px",
+        height: "36px",
+        minWidth: "176px",
         p: 0,
         overflow: "hidden",
         flexShrink: 0,
@@ -137,7 +137,7 @@ export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
         sx={{
           position: "relative",
           zIndex: 1,
-          fontSize: "0.875rem",
+          fontSize: "14px",
           fontWeight: phase === "done" ? 600 : 500,
           color: phase === "busy" ? "transparent" : phase === "done" ? "#fff" : screenThemeColors.textDark,
         }}

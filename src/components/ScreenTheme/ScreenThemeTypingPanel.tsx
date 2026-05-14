@@ -15,6 +15,7 @@ import { useTranslation } from "@/app/i18n";
 import { screenThemeColors } from "./theme";
 import { screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
 import {
+  SCREEN_THEME_SELECT_CORNER,
   screenThemeSelectMenuItemSx,
   screenThemeSelectMenuProps,
   screenThemeSelectSx,
@@ -79,46 +80,75 @@ function TypingPreviewCard({
   frameWidth: number;
   frameHeight: number;
 }) {
+  /** 稿图：标题在蓝框上方、左对齐；蓝框为实线圆角饱和蓝边，内为渐变衬底 + 居中预览 */
+  const blueFrame = screenThemeColors.primary;
+  const innerPreviewSx = {
+    position: "relative" as const,
+    width: frameWidth,
+    height: frameHeight,
+    borderRadius: "10px",
+    overflow: "hidden",
+    background: "linear-gradient(165deg, #fff5fb 0%, #f3f7ff 42%, #faf3ff 100%)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55), inset 0 0 36px rgba(255, 182, 220, 0.1)",
+    margin: "34px 95px 34px 128px",
+
+  };
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 }}>
-      <Box
-        sx={{
-          position: "relative",
-          width: frameWidth,
-          height: frameHeight,
-          borderRadius: "0.75rem",
-          overflow: "hidden",
-          background: "rgba(241,243,247,0.95)",
-          boxShadow: "inset 0 0 0 0.0625rem rgba(0,0,0,0.07)",
-        }}
-      >
-        <Box
-          component="img"
-          src={imageSrc}
-          alt=""
-          sx={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            objectPosition: "center",
-            display: "block",
-            userSelect: "none",
-            pointerEvents: "none",
-          }}
-        />
-      </Box>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: "10px",
+        width: "fit-content",
+        maxWidth: "100%",
+        margin: "0px 43px",
+        height: "100%",
+        justifyContent: "space-around"
+      }}
+    >
       <Typography
         sx={{
-          fontSize: "0.875rem",
-          fontWeight: 500,
-          color: screenThemeColors.textDark,
-          textAlign: "center",
+          fontSize: "18px",
+          fontWeight: 400,
+          color: "#5c6470",
+          lineHeight: 1.35,
+          letterSpacing: "0.01em",
+          alignSelf: "stretch",
         }}
       >
         {caption}
       </Typography>
+      <Box
+        sx={{
+          p: "10px",
+          borderRadius: "12px",
+          border: `2px solid ${blueFrame}`,
+          bgcolor: "#fafbfd",
+          boxSizing: "border-box",
+          boxShadow: "0 2px 10px rgba(37, 99, 235, 0.08)",
+        }}
+      >
+        <Box sx={innerPreviewSx}>
+          <Box
+            component="img"
+            src={imageSrc}
+            alt=""
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              objectPosition: "center",
+              display: "block",
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          />
+        </Box>
+      </Box>
     </Box>
   );
 }
@@ -127,9 +157,9 @@ export default function ScreenThemeTypingPanel({
   screenWidth,
   screenHeight,
   char1,
-  char2,
+  char2: _char2,
   onChar1Change,
-  onChar2Change,
+  onChar2Change: _onChar2Change,
   onSaveToKeyboard,
   isSaving = false,
   isLocked = false,
@@ -141,7 +171,7 @@ export default function ScreenThemeTypingPanel({
     <Box
       sx={{
         flex: 1,
-        minHeight: "16.25rem",
+        minHeight: "260px",
         display: "flex",
         flexDirection: "row",
         alignItems: "stretch",
@@ -149,9 +179,9 @@ export default function ScreenThemeTypingPanel({
         p: 25,
         gap: 0,
         boxSizing: "border-box",
-        borderRadius: "1.25rem",
-        background: "linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)",
-        border: "0.0625rem solid rgba(181,187,196,0.32)",
+        borderRadius: "20px",
+        backgroundColor: screenThemeColors.cardBg,
+        border: "1px solid rgba(181,187,196,0.32)",
       }}
     >
       <Box
@@ -162,9 +192,9 @@ export default function ScreenThemeTypingPanel({
           alignItems: "center",
           justifyContent: "center",
           gap: 126,
-          pl: 95,
-          pr: 128,
-          py: 2,
+
+
+
         }}
       >
         <TypingPreviewCard
@@ -195,14 +225,14 @@ export default function ScreenThemeTypingPanel({
             gap: 2,
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 12rem)" }}>
+          <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 192px)" }}>
             <Typography
               variant="caption"
               component="p"
               sx={{
                 m: 0,
                 color: screenThemeColors.textMuted,
-                fontSize: "0.75rem",
+                fontSize: "18px",
                 lineHeight: 1.55,
               }}
             >
@@ -213,9 +243,9 @@ export default function ScreenThemeTypingPanel({
               component="p"
               sx={{
                 m: 0,
-                mt: "0.375rem",
+                mt: "6px",
                 color: screenThemeColors.textMuted,
-                fontSize: "0.75rem",
+                fontSize: "18px",
                 lineHeight: 1.55,
               }}
             >
@@ -232,8 +262,8 @@ export default function ScreenThemeTypingPanel({
               flexShrink: 0,
               px: 2.5,
               py: 0.75,
-              width: "10.75rem",
-              minWidth: "10.75rem",
+              width: "172px",
+              minWidth: "172px",
             }}
           >
             {isSaving ? t("1645") : t("1609")}
@@ -246,11 +276,11 @@ export default function ScreenThemeTypingPanel({
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
             <Typography
               variant="body2"
-              sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "0.875rem", minWidth: "4.5rem" }}
+              sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "18px", minWidth: "72px" }}
             >
               {t("2550")}：
             </Typography>
-            <FormControl size="small" sx={{ minWidth: "10.75rem" }}>
+            <FormControl size="small" sx={{ minWidth: "172px" }}>
               <Select
                 value={char1}
                 disabled={isLocked}
@@ -267,29 +297,36 @@ export default function ScreenThemeTypingPanel({
             </FormControl>
           </Box>
 
-          {/* <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
             <Typography
               variant="body2"
-              sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "0.875rem", minWidth: "4.5rem" }}
+              sx={{ color: screenThemeColors.textDark, fontWeight: 400, fontSize: "18px", minWidth: "72px" }}
             >
               {t("2551")}：
             </Typography>
-            <FormControl size="small" sx={{ minWidth: "10.75rem" }}>
-              <Select
-                value={char2}
-                disabled={isLocked}
-                onChange={(e: SelectChangeEvent) => onChar2Change(e.target.value as TypingCharacterValue)}
-                sx={screenThemeSelectSx}
-                MenuProps={screenThemeSelectMenuProps}
-              >
-                {CHAR_OPTIONS.map((o) => (
-                  <MenuItem key={o.value} value={o.value} sx={screenThemeSelectMenuItemSx}>
-                    {t(o.labelKey)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box> */}
+            <Box
+              sx={{
+                minWidth: "172px",
+                minHeight: "36px",
+                px: 1.5,
+                py: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
+                borderRadius: SCREEN_THEME_SELECT_CORNER,
+                fontSize: "14px",
+                fontWeight: 500,
+                color: screenThemeColors.textMuted,
+                bgcolor: "#ffffff",
+                border: `1px solid ${screenThemeColors.borderLight}`,
+                userSelect: "none",
+              }}
+              aria-disabled
+            >
+              {t("2894")}
+            </Box>
+          </Box>
         </Box>
       </Box>
     </Box>

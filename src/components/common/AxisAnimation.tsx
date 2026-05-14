@@ -16,15 +16,15 @@ export default function AxisAnimation({
           <img src="/svgs/axis.svg" alt="axis_animation" />
         </Box>
       </Box>
-      <Box display="flex" flexDirection="column" alignItems="flex-end" justifyContent="center" mt={'0.125rem'}>
+      <Box display="flex" flexDirection="column" alignItems="flex-end" justifyContent="center" mt={'2px'}>
         {new Array(40).fill(0).map((_, index) => (
           <Typography key={index} sx={{
             display: 'flex',
             alignItems: 'center',
-            height: '0.3125rem'
+            height: '5px'
           }}>
             {((index) % 5 === 0) && (
-              <Typography sx={{ fontSize: '0.75rem', marginRight: '0.25rem' }}>
+              <Typography sx={{ fontSize: '12px', marginRight: '4px' }}>
                 {((index) * 0.1).toFixed(2)}
               </Typography>
             )}
@@ -32,9 +32,9 @@ export default function AxisAnimation({
               key={"grid" + index}
               sx={{
                 width: `${index % 5 === 0 ? 8 : 5}px`,
-                height: '0.0625rem',
+                height: '1px',
                 backgroundColor: 'customed1.main',
-                marginBottom: '4.0.375rem'
+                marginBottom: '4.6px'
               }}
             ></Box>
           </Typography>
@@ -72,7 +72,7 @@ export default function AxisAnimation({
               transform: 'scaleY(-1)',
               right: -90,
               top: -12,
-              fontSize: '0.75rem',
+              fontSize: '12px',
               backgroundColor: 'transparent',
               color: 'customed1.main',
             },
@@ -85,23 +85,23 @@ export default function AxisAnimation({
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
           marginLeft: '13px',
           borderRadius: 1,
-          marginTop: '-0.375rem',
+          marginTop: '-6px',
         }}></Box>
       </Box>
-      <Box display="flex" flexDirection="column" alignItems="flex-start" justifyContent="center" ml={'-0.5rem'} mt={'0.125rem'}>
+      <Box display="flex" flexDirection="column" alignItems="flex-start" justifyContent="center" ml={'-8px'} mt={'2px'}>
         {new Array(40).fill(0).map((_, index) => (
           <Typography key={index} sx={{
             display: 'flex',
             alignItems: 'center',
-            height: '0.3125rem'
+            height: '5px'
           }}>
             <Box
               key={"grid" + index}
               sx={{
                 width: `${index % 5 === 0 ? 8 : 5}px`,
-                height: '0.0625rem',
+                height: '1px',
                 backgroundColor: 'customed1.main',
-                marginBottom: '4.0.375rem'
+                marginBottom: '4.6px'
               }}
             ></Box>
           </Typography>

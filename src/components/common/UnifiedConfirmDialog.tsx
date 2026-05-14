@@ -56,17 +56,17 @@ export default function UnifiedConfirmDialog({
       <DialogTitle
         sx={{
           pb: 10,
-          fontSize: "1rem",
+          fontSize: "16px",
           fontWeight: 600,
           color: "#0f172a",
         }}
       >
         {title}
       </DialogTitle>
-      <DialogContent sx={{ pt: "0.375rem !important" }}>
+      <DialogContent sx={{ pt: "6px !important" }}>
         <Typography
           sx={{
-            fontSize: "0.9375rem",
+            fontSize: "15px",
             color: "#334155",
             lineHeight: 1.6,
             whiteSpace: "pre-wrap",
@@ -89,9 +89,9 @@ export default function UnifiedConfirmDialog({
             onClick={onCancel}
             color="inherit"
             sx={{
-              minWidth: "5rem",
+              minWidth: "80px",
               textTransform: "none",
-              borderRadius: "0.625rem",
+              borderRadius: "10px",
             }}
           >
             {cancelText}
@@ -101,9 +101,9 @@ export default function UnifiedConfirmDialog({
           onClick={onConfirm}
           variant="contained"
           sx={{
-            minWidth: "5rem",
+            minWidth: "80px",
             textTransform: "none",
-            borderRadius: "0.625rem",
+            borderRadius: "10px",
           }}
         >
           {confirmText}

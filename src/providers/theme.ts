@@ -12,7 +12,7 @@ const TITLE_TYPOGRAPHY = {
 };
 
 const BODY_TYPOGRAPHY = {
-  fontSize: '1.25rem',
+  fontSize: '20px',
   fontWeight: 400,
   lineHeight: 1.5,
 };
@@ -40,9 +40,9 @@ declare module '@mui/material/styles' {
 
 // Light 主题
 export const lightTheme: Theme = createTheme({
-  spacing: (factor: number) => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
+  spacing: (factor: number) => `${factor}px`, // 1 unit = 1px（与原先 1px @16px 根字号等价）
   typography: {
-    htmlFontSize: 16, // base rem
+    htmlFontSize: 16,
     fontFamily: UNIFIED_FONT_FAMILY,
     fontWeightRegular: 400,
     h1: TITLE_TYPOGRAPHY,
@@ -102,9 +102,9 @@ export const lightTheme: Theme = createTheme({
           textOverflow: 'clip',
           lineHeight: 1.4,
           height: 'auto',
-          minHeight: '2.25rem',
-          paddingTop: '0.375rem',
-          paddingBottom: '0.375rem',
+          minHeight: '36px',
+          paddingTop: '6px',
+          paddingBottom: '6px',
         },
       },
     },
@@ -121,19 +121,19 @@ export const lightTheme: Theme = createTheme({
         },
         body: {
           fontFamily: UNIFIED_FONT_FAMILY,
-          fontSize: '1.125rem',
+          fontSize: '18px',
           fontWeight: 400,
           color: '#151515',
         },
         'h1, h2, h3, h4, h5, h6': {
           fontFamily: UNIFIED_FONT_FAMILY,
-          fontSize: '1.25rem',
+          fontSize: '20px',
           fontWeight: 400,
           color: '#151515',
         },
         'p': {
           fontFamily: UNIFIED_FONT_FAMILY,
-          fontSize: '1.25rem',
+          fontSize: '20px',
           fontWeight: 400,
           color: '#151515',
         },
@@ -144,9 +144,9 @@ export const lightTheme: Theme = createTheme({
 
 // Dark 主题
 export const darkTheme: Theme = createTheme({
-  spacing: (factor: number) => `${0.0625 * factor}rem`, // 1 unit = 0.0625rem / 16
+  spacing: (factor: number) => `${factor}px`, // 1 unit = 1px（与原先 1px @16px 根字号等价）
   typography: {
-    htmlFontSize: 16, // base rem
+    htmlFontSize: 16,
     fontFamily: UNIFIED_FONT_FAMILY,
     fontWeightRegular: 400,
     h1: TITLE_TYPOGRAPHY,
@@ -206,9 +206,9 @@ export const darkTheme: Theme = createTheme({
           textOverflow: 'clip',
           lineHeight: 1.4,
           height: 'auto',
-          minHeight: '2.25rem',
-          paddingTop: '0.375rem',
-          paddingBottom: '0.375rem',
+          minHeight: '36px',
+          paddingTop: '6px',
+          paddingBottom: '6px',
         },
       },
     },
@@ -225,7 +225,7 @@ export const darkTheme: Theme = createTheme({
         },
         body: {
           fontFamily: UNIFIED_FONT_FAMILY,
-          fontSize: '1.25rem',
+          fontSize: '20px',
           fontWeight: 400,
           color: '#ffffff',
         },
@@ -237,7 +237,7 @@ export const darkTheme: Theme = createTheme({
         },
         'p': {
           fontFamily: UNIFIED_FONT_FAMILY,
-          fontSize: '1.25rem',
+          fontSize: '20px',
           fontWeight: 400,
           color: '#151515',
         },

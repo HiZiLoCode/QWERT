@@ -1055,9 +1055,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         throw new Error('设备不在Bootloader模式，请先切换到Boot模式');
       }
 
-      updateStatus("========================================", 10, UpgradeStep.UPGRADING);
+      updateStatus("", 10, UpgradeStep.UPGRADING);
       updateStatus("🚀 开始固件升级", 10, UpgradeStep.UPGRADING);
-      updateStatus("========================================", 10, UpgradeStep.UPGRADING);
+      updateStatus("", 10, UpgradeStep.UPGRADING);
 
       // 步骤1: 发送启动命令
       await sendStartCommand(device, firmwareData);
@@ -1068,9 +1068,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       // 步骤3: 切换到APP
       await switchToApp(device);
 
-      updateStatus("========================================", 100, UpgradeStep.COMPLETED);
+      updateStatus("", 100, UpgradeStep.COMPLETED);
       updateStatus("✅ 升级完成！", 100, UpgradeStep.COMPLETED);
-      updateStatus("========================================", 100, UpgradeStep.COMPLETED);
+      updateStatus("", 100, UpgradeStep.COMPLETED);
       showSuccess("固件升级成功完成！");
       
       // 🗑️ 清空升级状态（升级成功）
@@ -1086,9 +1086,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       setIapDevice({ device: null, isConnected: false, isAuthorized: false });
 
     } catch (error: any) {
-      updateStatus("========================================", 0, UpgradeStep.ERROR);
+      updateStatus("", 0, UpgradeStep.ERROR);
       updateStatus(`❌ 升级失败: ${error.message}`, 0, UpgradeStep.ERROR);
-      updateStatus("========================================", 0, UpgradeStep.ERROR);
+      updateStatus("", 0, UpgradeStep.ERROR);
       
       // ⚠️ 升级失败时不清空状态，保留用于异常检测
       // localStorage 中的状态会在下次连接时检测到
@@ -1229,26 +1229,29 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
             : '0 20px 60px rgba(0, 0, 0, 0.4)',
         }}
       >
-        {/* 标题栏 */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px !important' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Box sx={{ fontSize: '28px', mr: 1.5 }}>
-              🔄
-            </Box>
-            <Box>
-              <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, mb: 0.3 }}>
-                {t("1200")}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '11px' }}>
-                {t("1201")}
-              </Typography>
-            </Box>
-          </Box>
+        {/* 标题栏：标题居中，关闭在右上角 */}
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '24px !important',
+            minHeight: '40px',
+          }}
+        >
+          <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, textAlign: 'center' }}>
+            {t("1200")}
+          </Typography>
           {!upgradeState.isUpgrading && (
             <IconButton
               onClick={handleClose}
               size="small"
               sx={{
+                position: 'absolute',
+                right: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
                 '&:hover': {
                   bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
                 },
@@ -1262,9 +1265,6 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '24px !important' } }}>
           {/* 设备状态 */}
           <Box>
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px !important', color: 'text.primary' }}>
-              📱 {t("1202")}
-            </Typography>
             <Paper
               sx={{
                 padding: '20px !important',
@@ -1439,6 +1439,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                   flex: 1,
                   paddingTop: '10px !important',
                   paddingBottom: '10px !important',
+                  justifyContent: 'center',
                   bgcolor: '#ff3333',
                   color: '#fff !important',
                   fontWeight: 600,
@@ -1451,7 +1452,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                   },
                 }}
               >
-                🔥 {t("1216")}
+                {t("1216")}
               </Button>
             )}
 
@@ -1468,8 +1469,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                 flex: upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION ? 1 : '100%',
                 paddingTop: '10px !important',
                 paddingBottom: '10px !important',
+                justifyContent: 'center',
                 bgcolor: upgradeState.currentStep === UpgradeStep.COMPLETED ? '#4caf50' : primaryColor,
-                color: '#000 !important',
+                color: '#fff !important',
                 fontWeight: 600,
                 fontSize: '14px',
                 borderRadius: '10px',
@@ -1488,7 +1490,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                 },
               }}
             >
-              {upgradeState.currentStep === UpgradeStep.COMPLETED ? `✅ ${t("1218")}` : `🚀 ${t("1217")}`}
+              {upgradeState.currentStep === UpgradeStep.COMPLETED ? t("1218") : t("1217")}
             </Button>
           </Stack>
         </Stack>

@@ -45,44 +45,44 @@ export default function WebDriverChangelogSection() {
             <Box
                 sx={{
                     bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                    borderRadius: '0.75rem',
+                    borderRadius: '12px',
                     boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                    border: '0.0625rem solid rgba(255, 255, 255, 1)',
-                    px: '1.25rem',
-                    py: '1.125rem',
+                    border: '1px solid rgba(255, 255, 255, 1)',
+                    px: '20px',
+                    py: '18px',
                 }}
             >
-                <Typography sx={{ fontSize: '0.95rem', color: '#334155', fontWeight: 600, mb: '0.35rem' }}>
+                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '5.6px' }}>
                     {t('2512')}
                 </Typography>
-                <Typography sx={{ fontSize: '0.8125rem', color: '#64748b', mb: '0.5rem' }}>
+                <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
                     {t('2521')}: V{appVersion}
                     {currentRelease?.date ? ` · ${currentRelease.date}` : null}
                 </Typography>
-                <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8', mb: '0.35rem' }}>
+                <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>
                     {t('2522')}
                 </Typography>
                 {currentItems.length > 0 ? (
-                    <Box component="ul" sx={{ m: 0, pl: '1.25rem', color: '#475569', fontSize: '0.8125rem', lineHeight: 1.6 }}>
+                    <Box component="ul" sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
                         {currentItems.map((line, idx) => (
                             <li key={idx}>{line}</li>
                         ))}
                     </Box>
                 ) : (
-                    <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8', lineHeight: 1.55 }}>
+                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>
                         {t('2526')}
                     </Typography>
                 )}
                 {WEB_DRIVER_RELEASES.length > 0 && (
-                    <Box sx={{ mt: '1rem' }}>
+                    <Box sx={{ mt: '16px' }}>
                         <ButtonRem
                             type="button"
                             onClick={() => setHistoryOpen(true)}
                             sx={{
                                 textTransform: 'none',
-                                height: '2rem',
-                                px: '1rem',
-                                fontSize: '0.8125rem',
+                                height: '32px',
+                                px: '16px',
+                                fontSize: '13px',
                                 fontWeight: 500,
                                 color: '#3b82f6',
                                 bgcolor: 'transparent',
@@ -101,9 +101,9 @@ export default function WebDriverChangelogSection() {
                 onClose={() => setHistoryOpen(false)}
                 maxWidth="sm"
                 fullWidth
-                PaperProps={{ sx: { borderRadius: '0.75rem' } }}
+                PaperProps={{ sx: { borderRadius: '12px' } }}
             >
-                <DialogTitle sx={{ fontSize: '1rem', fontWeight: 600, color: '#334155', pb: 10 }}>
+                <DialogTitle sx={{ fontSize: '16px', fontWeight: 600, color: '#334155', pb: 10 }}>
                     {t('2524')}
                 </DialogTitle>
                 <DialogContent dividers sx={{ maxHeight: '50vh' }}>
@@ -117,31 +117,31 @@ export default function WebDriverChangelogSection() {
                                 elevation={0}
                                 sx={{
                                     border: '1px solid rgba(148, 163, 184, 0.25)',
-                                    borderRadius: '0.5rem !important',
+                                    borderRadius: '8px !important',
                                     mb: 10,
                                     '&:before': { display: 'none' },
                                     overflow: 'hidden',
-                                    padding: '0.75rem',
+                                    padding: '12px',
                                 }}
                             >
                                 <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#64748b' }} />}>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
-                                        <Typography sx={{ fontSize: '0.875rem', fontWeight: 600, color: '#334155' }}>
+                                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
                                             V{release.version}
                                             {isCurrent ? ` · ${t('2521')}` : ''}
                                         </Typography>
-                                        <Typography sx={{ fontSize: '0.75rem', color: '#94a3b8' }}>{release.date}</Typography>
+                                        <Typography sx={{ fontSize: '12px', color: '#94a3b8' }}>{release.date}</Typography>
                                     </Box>
                                 </AccordionSummary>
                                 <AccordionDetails sx={{ pt: 0 }}>
                                     {items.length > 0 ? (
-                                        <Box component="ul" sx={{ m: 0, pl: '1.25rem', color: '#475569', fontSize: '0.8125rem', lineHeight: 1.6 }}>
+                                        <Box component="ul" sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
                                             {items.map((line, idx) => (
                                                 <li key={idx}>{line}</li>
                                             ))}
                                         </Box>
                                     ) : (
-                                        <Typography sx={{ fontSize: '0.8125rem', color: '#94a3b8' }}>{t('2526')}</Typography>
+                                        <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2526')}</Typography>
                                     )}
                                 </AccordionDetails>
                             </Accordion>

@@ -6,12 +6,12 @@ const HtmlTooltip = styled(({ className, ...props }: any) => (
   ))(({ theme }) => ({
     [`& .${tooltipClasses.tooltip}`]: {
       backgroundColor: '#fff',
-      borderRadius: '0.1875rem',
+      borderRadius: '3px',
       color: '#151515',
       maxWidth: 160,
       fontWeight: 'normal',
-      fontSize: theme.typography.pxToRem(12),
-      padding: '0.75rem',
+      fontSize: '12px',
+      padding: '12px',
       boxShadow: theme.shadows[5]
     },
     [`& .${tooltipClasses.arrow}`]: {

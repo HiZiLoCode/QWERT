@@ -1,49 +1,49 @@
 import { Button, Switch, Slider } from '@mui/material';
 import { styled } from '@mui/system';
 export const SwitchRem = styled(Switch)`
-    width:3.625rem;
-    height:2.375rem;
-    padding:0.75rem;
+    width:58px;
+    height:38px;
+    padding:12px;
     >.MuiButtonBase-root {
-        padding:0.5625rem;
+        padding:9px;
     }
     .Mui-checked{
-        transform: translateX(1.25rem) !important;
+        transform: translateX(20px) !important;
     }
     .MuiSwitch-thumb{
-        width:1.25rem;
-        height:1.25rem;
+        width:20px;
+        height:20px;
     }
     .MuiSwitch-track{
-        border-radius:0.4375rem;
+        border-radius:7px;
     }
 `;
 export const ButtonRem = styled(Button)`
-    padding:0.375rem 1.25rem;
-    min-width:4rem;
-    border-radius:.25rem;
+    padding:6px 20px;
+    min-width:64px;
+    border-radius:4px;
 `
 export const SliderRem = styled(Slider)`
-    height:0.25rem;
-    border-radius:0.75rem;
-    padding:0.8125rem 0;
-    margin-bottom:.25rem;
+    height:4px;
+    border-radius:12px;
+    padding:13px 0;
+    margin-bottom:4px;
     .MuiSlider-thumb{
-        width:1.25rem;
-        height:1.25rem;
+        width:20px;
+        height:20px;
     }
     .MuiSlider-thumb::after{
-        width: 2.625rem;
-        height:2.625rem;
+        width: 42px;
+        height:42px;
     }
     .MuiSlider-track{
-        border:0.0625rem solid currentColor;
+        border:1px solid currentColor;
     }
     .MuiSlider-mark{
-        width:0.125rem;
-        height:0.125rem;
+        width:2px;
+        height:2px;
     }
     .MuiSlider-markLabel{
-        top: 1.875rem;
+        top: 30px;
     }
 `   

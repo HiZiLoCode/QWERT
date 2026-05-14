@@ -45,8 +45,8 @@ export default function ScreenThemeImageSettingsPanel({
             onClick={onSaveToKeyboard}
             sx={{
               ...screenThemeOutlinedPillButtonSx,
-              width: "10.75rem",
-              height: "2.25rem",
+              width: "172px",
+              height: "36px",
             }}
           >
             {isSaving ? t("1645") : t("1609")}
@@ -57,7 +57,7 @@ export default function ScreenThemeImageSettingsPanel({
       <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-        <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 400, fontSize: "1rem" }}>
+        <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 400, fontSize: "16px" }}>
           {t("1610")} {fileName}
         </Typography>
         <Button
@@ -68,8 +68,8 @@ export default function ScreenThemeImageSettingsPanel({
           sx={{
             ...screenThemeOutlinedPillButtonSx,
             flexShrink: 0,
-            width: "10.75rem",
-            height: "2.25rem",
+            width: "172px",
+            height: "36px",
           }}
         >
           {t("1611")}

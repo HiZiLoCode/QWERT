@@ -2,7 +2,7 @@ import type { SxProps, Theme } from "@mui/material/styles";
 import { screenThemeColors } from "./theme";
 
 /** 药丸形圆角（足够大以保证常见高度下呈胶囊形） */
-export const screenThemePillRadius = ".75rem";
+export const screenThemePillRadius = "12px";
 
 const primary = screenThemeColors.primary;
 
@@ -10,15 +10,15 @@ const primary = screenThemeColors.primary;
 export const screenThemeOutlinedPillButtonSx: SxProps<Theme> = {
   textTransform: "none",
   borderRadius: screenThemePillRadius,
-  minHeight: "2.25rem",
-  px: "1.25rem",
-  fontSize: "0.875rem",
+  minHeight: "36px",
+  px: "20px",
+  fontSize: "14px",
   fontWeight: 500,
   lineHeight: 1.2,
   color: screenThemeColors.textDark,
   boxShadow: "none",
   "&:hover": {
-    border: `0.0625rem solid ${primary}`,
+    border: `1px solid ${primary}`,
     borderColor: primary,
   },
   "&.Mui-disabled": {
@@ -31,18 +31,18 @@ export const screenThemeOutlinedPillButtonSx: SxProps<Theme> = {
 export const screenThemeFilledPillButtonSx: SxProps<Theme> = {
   textTransform: "none",
   borderRadius: screenThemePillRadius,
-  minHeight: "2.25rem",
-  px: "1.25rem",
-  fontSize: "0.875rem",
+  minHeight: "36px",
+  px: "20px",
+  fontSize: "14px",
   fontWeight: 600,
   lineHeight: 1.2,
   color: "#fff",
   backgroundColor: primary,
-  border: `0.0625rem solid ${primary}`,
-  boxShadow: "0 0.25rem 0.75rem rgba(0, 102, 255, 0.38)",
+  border: `1px solid ${primary}`,
+  boxShadow: "0 4px 12px rgba(0, 102, 255, 0.38)",
   "&:hover": {
     backgroundColor: "rgba(0, 102, 255, 0.92)",
     borderColor: "rgba(0, 102, 255, 0.92)",
-    boxShadow: "0 0.3125rem 0.875rem rgba(0, 102, 255, 0.45)",
+    boxShadow: "0 5px 14px rgba(0, 102, 255, 0.45)",
   },
 };

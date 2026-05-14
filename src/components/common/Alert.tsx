@@ -20,9 +20,9 @@ export default function AlertComponent({open, onClose, message, severity}) {
         sx={{
           width: '100%',
           background: '#ECF5FE',
-          border: '0.0625rem solid rgba(0, 102, 255, 0.20)',
-          borderRadius: '0.25rem',
-          boxShadow: '0px 0.1875rem 0.375rem 0px rgba(12, 33, 63, 0.12)'
+          border: '1px solid rgba(0, 102, 255, 0.20)',
+          borderRadius: '4px',
+          boxShadow: '0px 3px 6px 0px rgba(12, 33, 63, 0.12)'
         }}>
         {message}
       </Alert>

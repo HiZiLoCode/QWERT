@@ -254,12 +254,12 @@ export default function SettingPanel() {
         (connectedKeyboard?.productId ?? productId ?? 0) === PID_EXTENDED_FUNC_LAYOUT;
 
     const selectSx = {
-        minWidth: '7.5rem',
-        height: '2.25rem',
-        fontSize: '0.875rem',
+        minWidth: '120px',
+        height: '36px',
+        fontSize: '14px',
         color: '#64748b',
         bgcolor: 'rgba(255, 255, 255, 1)',
-        borderRadius: '0.5rem',
+        borderRadius: '8px',
         transition: 'all 0.18s ease',
         '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 1)' },
         '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93a5be' },
@@ -268,23 +268,23 @@ export default function SettingPanel() {
             borderWidth: '1px',
         },
         '& .MuiSelect-select': {
-            py: '0.35rem',
+            py: '5.6px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pr: '1.75rem',
+            pr: '28px',
         },
         '& .MuiSelect-icon': {
             color: '#3b82f6',
-            right: '0.5rem',
+            right: '8px',
         },
     } as const;
 
     const selectMenuProps = {
         PaperProps: {
             sx: {
-                mt: '0.25rem',
-                borderRadius: '0.5rem',
+                mt: '4px',
+                borderRadius: '8px',
                 border: '1px solid rgba(22, 108, 230, 0.35)',
                 boxShadow: '0 6px 18px rgba(15, 23, 42, 0.12)',
                 overflow: 'hidden',
@@ -298,9 +298,9 @@ export default function SettingPanel() {
     } as const;
 
     const selectItemSx = {
-        fontSize: '0.875rem',
+        fontSize: '14px',
         color: '#64748b',
-        minHeight: '2.25rem',
+        minHeight: '36px',
         backgroundColor: '#ffffff',
         '&:hover': {
             border: '1px solid rgb(22, 109, 230)',
@@ -320,8 +320,8 @@ export default function SettingPanel() {
             width: '100%',
             height: '100%',
             display: 'flex',
-            gap: '1rem',
-            p: '1rem',
+            gap: '16px',
+            p: '16px',
             minHeight: 0,
         }),
         []
@@ -345,16 +345,15 @@ export default function SettingPanel() {
         <Box sx={panelBaseSx}>
             <Box
                 sx={{
-                    width: '14.25rem',
-                    minWidth: '14.25rem',
-                    border: '0.0625rem solid rgba(153,169,191,.25)',
-                    borderRadius: '0.75rem',
+                    width: '250px',
+                    border: '1px solid rgba(153,169,191,.25)',
+                    borderRadius: '12px',
                     background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
-                    boxShadow: 'rgba(176, 206, 255, 0.5) 0rem 0rem 1.3125rem',
-                    p: '1.5rem',
+                    boxShadow: 'rgba(176, 206, 255, 0.5) 0px 0px 21px',
+                    p: '24px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.55rem',
+                    gap: '8.8px',
                     height: '100%',
                 }}
             >
@@ -363,13 +362,13 @@ export default function SettingPanel() {
                     onClick={() => setTab('settings')}
                     sx={{
                         textTransform: 'none',
-                        borderRadius: '0.45rem',
-                        height: '3rem',
-                        fontSize: '1rem',
-                        fontWeight: 400,
+                        borderRadius: '7.2px',
+                        height: '48px',
+                        fontSize: '16px',
+                        fontWeight: 600,
                         color: tab === 'settings' ? '#fff' : '#596d88',
                         bgcolor: tab === 'settings' ? '#3B82F6' : 'transparent',
-                        border: '0.0625rem solid',
+                        border: '1px solid',
                         borderColor: tab === 'settings' ? '#3B82F6' : 'transparent',
                         '&:hover': {
                             bgcolor: tab === 'settings' ? '#2f70dc' : 'rgba(59,130,246,0.08)',
@@ -383,13 +382,13 @@ export default function SettingPanel() {
                     onClick={() => setTab('firmware')}
                     sx={{
                         textTransform: 'none',
-                        borderRadius: '0.45rem',
-                        height: '3rem',
-                        fontSize: '1rem',
-                        fontWeight: 400,
+                        borderRadius: '7.2px',
+                        height: '48px',
+                        fontSize: '16px',
+                        fontWeight: 600,
                         color: tab === 'firmware' ? '#fff' : '#596d88',
                         bgcolor: tab === 'firmware' ? '#3B82F6' : 'transparent',
-                        border: '0.0625rem solid',
+                        border: '1px solid',
                         borderColor: tab === 'firmware' ? '#3B82F6' : 'transparent',
                         '&:hover': {
                             bgcolor: tab === 'firmware' ? '#2f70dc' : 'rgba(59,130,246,0.08)',
@@ -402,8 +401,8 @@ export default function SettingPanel() {
 
             <Box
                 sx={{
-                    borderRadius: '0.75rem',
-                    p: '1.25rem',
+                    borderRadius: '12px',
+                    p: '20px',
                     minHeight: 0,
                     m: '0 auto',
                     width: '100%',
@@ -412,7 +411,7 @@ export default function SettingPanel() {
                 }}
             >
                 {tab === 'settings' ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <SettingCard>
                             <Row
                                 title={t('770')}
@@ -577,7 +576,7 @@ export default function SettingPanel() {
                         </SettingCard>
                     </Box>
                 ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <FirmwareCard
                             title={t('710')}
                             lines={[t('2507')]}
@@ -586,14 +585,14 @@ export default function SettingPanel() {
                                     onClick={() => setResetConfirmOpen(true)}
                                     sx={{
                                         textTransform: 'none',
-                                        height: '2.25rem',
-                                        px: '1.25rem',
-                                        fontSize: '0.875rem',
+                                        height: '36px',
+                                        px: '20px',
+                                        fontSize: '14px',
                                         fontWeight: 500,
                                         color: '#64748b',
                                         bgcolor: ' rgba(255, 255, 255, 1)',
-                                        border: '0.0625rem solid rgba(148, 163, 184, 0.55)',
-                                        borderRadius: '0.5rem',
+                                        border: '1px solid rgba(148, 163, 184, 0.55)',
+                                        borderRadius: '8px',
                                         boxShadow: 'none',
                                         '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
                                     }}
@@ -637,7 +636,7 @@ export default function SettingPanel() {
                 <IconButton
                     aria-label={t("742")}
                     onClick={() => setResetConfirmOpen(false)}
-                    sx={{ position: 'absolute', right: '0.0625rem', top: '0.0625rem', color: 'grey.500' }}
+                    sx={{ position: 'absolute', right: '1px', top: '1px', color: 'grey.500' }}
                 />
                 <DialogContent dividers>
                     <Typography gutterBottom>{t("713")}</Typography>
@@ -654,42 +653,42 @@ export default function SettingPanel() {
                 onClose={() => setUpdateDialogOpen(false)}
                 PaperProps={{
                     sx: {
-                        width: '40.125rem',
+                        width: '642px',
                         maxWidth: '95vw',
-                        borderRadius: '0.75rem',
+                        borderRadius: '12px',
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#5d6f8a' }}>
+                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '24px', fontSize: '20px', fontWeight: 700, color: '#5d6f8a' }}>
                     {t("712")}
                 </DialogTitle>
-                <DialogContent sx={{ px: '1.5rem', pt: '0.75rem', pb: '0.5rem' }}>
-                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center' }}>
+                <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
+                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center' }}>
                         {t('2730')}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
                         {t('2732')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
-                        {t('2733')}
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                        {t('2737')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                    {/* <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
                         {t('2734')}
-                    </Typography>
+                    </Typography> */}
                 </DialogContent>
-                <DialogActions sx={{ justifyContent: 'center', pb: '1.5rem', gap: '1rem', px: '1.5rem' }}>
+                <DialogActions sx={{ justifyContent: 'center', pb: '24px', gap: '16px', px: '24px' }}>
                     <ButtonRem
                         variant="contained"
                         onClick={handleDownloadUpdate}
                         sx={{
-                            minWidth: '6rem',
-                            height: '2.2rem',
+                            minWidth: '96px',
+                            height: '35.2px',
                             bgcolor: '#3B82F6',
                             color: '#fff',
-                            fontSize: '1.125rem',
+                            fontSize: '18px',
                             '&:hover': { bgcolor: '#2f70dc' }
                         }}
                     >
@@ -699,11 +698,11 @@ export default function SettingPanel() {
                         variant="outlined"
                         onClick={() => setUpdateDialogOpen(false)}
                         sx={{
-                            minWidth: '6rem',
-                            height: '2.2rem',
+                            minWidth: '96px',
+                            height: '35.2px',
                             borderColor: 'rgba(148, 163, 184, 0.65)',
                             color: '#64748b',
-                            fontSize: '1.125rem',
+                            fontSize: '18px',
                             '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
                         }}
                     >
@@ -717,42 +716,42 @@ export default function SettingPanel() {
                 onClose={() => setScreenUpdateDialogOpen(false)}
                 PaperProps={{
                     sx: {
-                        width: '40.125rem',
+                        width: '642px',
                         maxWidth: '95vw',
-                        borderRadius: '0.75rem',
+                        borderRadius: '12px',
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '1.5rem', fontSize: '1.25rem', fontWeight: 700, color: '#5d6f8a' }}>
+                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '24px', fontSize: '20px', fontWeight: 700, color: '#5d6f8a' }}>
                     {t('2800')}
                 </DialogTitle>
-                <DialogContent sx={{ px: '1.5rem', pt: '0.75rem', pb: '0.5rem' }}>
-                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center' }}>
+                <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
+                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center' }}>
                         {t('2730')}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
                         {t('2732')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
-                        {t('2733')}
+                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                        {t('2737')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '1rem', lineHeight: 1.75, textAlign: 'center', mt: '.25rem' }}>
+                    {/* <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
                         {t('2734')}
-                    </Typography>
+                    </Typography> */}
                 </DialogContent>
-                <DialogActions sx={{ justifyContent: 'center', pb: '1.5rem', gap: '1rem', px: '1.5rem' }}>
+                <DialogActions sx={{ justifyContent: 'center', pb: '24px', gap: '16px', px: '24px' }}>
                     <ButtonRem
                         variant="contained"
                         onClick={handleScreenDownloadUpdate}
                         sx={{
-                            minWidth: '6rem',
-                            height: '2.2rem',
+                            minWidth: '96px',
+                            height: '35.2px',
                             bgcolor: '#3B82F6',
                             color: '#fff',
-                            fontSize: '1.125rem',
+                            fontSize: '18px',
                             '&:hover': { bgcolor: '#2f70dc' }
                         }}
                     >
@@ -762,11 +761,11 @@ export default function SettingPanel() {
                         variant="outlined"
                         onClick={() => setScreenUpdateDialogOpen(false)}
                         sx={{
-                            minWidth: '6rem',
-                            height: '2.2rem',
+                            minWidth: '96px',
+                            height: '35.2px',
                             borderColor: 'rgba(148, 163, 184, 0.65)',
                             color: '#64748b',
-                            fontSize: '1.125rem',
+                            fontSize: '18px',
                             '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
                         }}
                     >
@@ -781,10 +780,10 @@ export default function SettingPanel() {
                 onClose={() => setUpgradeStepDialogOpen(false)}
                 PaperProps={{
                     sx: {
-                        width: '28.125rem',
+                        width: '450px',
                         maxWidth: '95vw',
-                        borderRadius: '0.75rem',
-                        p: '0.125rem'
+                        borderRadius: '12px',
+                        p: '2px'
                     }
                 }}
             >
@@ -792,11 +791,11 @@ export default function SettingPanel() {
                     {t("725")}
                 </DialogTitle>
                 <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: '0.75rem', textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: '12px', textAlign: 'center' }}>
                         {t("726")}
                     </Typography>
 
-                    <Box sx={{ width: '100%', my: '0.75rem' }}>
+                    <Box sx={{ width: '100%', my: '12px' }}>
                         <Stepper activeStep={-1} orientation="vertical">
                             {upgradeSteps.map((label, index) => (
                                 <Step key={label} completed={false}>
@@ -810,15 +809,15 @@ export default function SettingPanel() {
                         </Stepper>
                     </Box>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: '0.75rem' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: '12px' }}>
                         <ButtonRem
                             variant="contained"
                             color="primary"
                             size="large"
                             onClick={handleFirmwareDownload}
                             sx={{
-                                minWidth: '12.5rem',
-                                py: '0.0625rem',
+                                minWidth: '200px',
+                                py: '1px',
                                 fontWeight: 'bold'
                             }}
                         >
@@ -826,11 +825,11 @@ export default function SettingPanel() {
                         </ButtonRem>
                     </Box>
 
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: '0.75rem', textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: '12px', textAlign: 'center' }}>
                         {t("741")}
                     </Typography>
                 </DialogContent>
-                <DialogActions sx={{ justifyContent: 'center', pb: '0.125rem' }}>
+                <DialogActions sx={{ justifyContent: 'center', pb: '2px' }}>
                     <ButtonRem onClick={() => setUpgradeStepDialogOpen(false)} color="inherit">
                         {t("742")}
                     </ButtonRem>
@@ -893,11 +892,11 @@ function SettingCard({ children }: { children: ReactNode }) {
         <Box
             sx={{
                 background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                borderRadius: '1.25rem',
+                borderRadius: '20px',
                 boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '0.0625rem solid rgba(255, 255, 255, 1)',
-                px: '1.25rem',
-                py: '1rem',
+                border: '1px solid rgba(255, 255, 255, 1)',
+                px: '20px',
+                py: '16px',
             }}
         >
             {children}
@@ -918,28 +917,28 @@ function FirmwareCard({
         <Box
             sx={{
                 background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                borderRadius: '0.75rem',
+                borderRadius: '12px',
                 boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '0.0625rem solid rgba(255, 255, 255, 1)',
-                px: '1.25rem',
-                py: '1.125rem',
+                border: '1px solid rgba(255, 255, 255, 1)',
+                px: '20px',
+                py: '18px',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
-                gap: '1rem',
+                gap: '16px',
             }}
         >
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: '0.95rem', color: '#334155', mb: lines.length ? '0.35rem' : 0, fontWeight: 600 }}>
+                <Typography sx={{ fontSize: '15px', color: '#334155', mb: lines.length ? '5.6px' : 0, fontWeight: 600 }}>
                     {title}
                 </Typography>
                 {lines.map((line, idx) => (
-                    <Typography key={idx} sx={{ fontSize: '0.8125rem', color: '#64748b', lineHeight: 1.55 }}>
+                    <Typography key={idx} sx={{ fontSize: '13px', color: '#64748b', lineHeight: 1.55 }}>
                         {line}
                     </Typography>
                 ))}
             </Box>
-            {action ? <Box sx={{ flexShrink: 0, pt: '0.125rem' }}>{action}</Box> : null}
+            {action ? <Box sx={{ flexShrink: 0, pt: '2px' }}>{action}</Box> : null}
         </Box>
     );
 }
@@ -956,27 +955,27 @@ function Row({
     return (
         <Box
             sx={{
-                minHeight: '3.8rem',
+                minHeight: '60.8px',
                 display: 'flex',
                 alignItems: 'flex-start',
                 justifyContent: 'space-between',
-                gap: '1rem',
-                py: '0.65rem',
+                gap: '16px',
+                py: '10.4px',
                 background:"linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)"
             }}
         >
-            <Box sx={{ flex: 1, pr: '1rem' }}>
-                <Typography sx={{ fontSize: '0.95rem', color: '#5d6f8a', mb: '0.2rem', fontWeight: 600 }}>
+            <Box sx={{ flex: 1, pr: '16px' }}>
+                <Typography sx={{ fontSize: '18px', color: '#5d6f8a', mb: '3.2px', fontWeight: 600 }}>
                     {title}
                 </Typography>
                 {description.map((line, idx) => (
-                    <Typography key={idx} sx={{ fontSize: '0.73rem', color: '#8a98ad', lineHeight: 1.55 }}>
+                    <Typography key={idx} sx={{ fontSize: '14px', color: '#8a98ad', lineHeight: 1.55 }}>
                         {line}
                     </Typography>
                 ))}
             </Box>
             {right ? (
-                <Box sx={{ minWidth: '8rem', display: 'flex', justifyContent: 'flex-end', pt: '0.15rem' }}>{right}</Box>
+                <Box sx={{ minWidth: '128px', display: 'flex', justifyContent: 'flex-end', pt: '2.4px' }}>{right}</Box>
             ) : null}
         </Box>
     );

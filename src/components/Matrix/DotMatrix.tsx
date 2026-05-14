@@ -11,7 +11,7 @@ import { ButtonRem } from "@/styled/ReconstructionRem";
 const Flex = styled("div")({
   display: "flex",
   alignItems: "center",
-  height: "28.125rem",
+  height: "450px",
 });
 
 const Container = styled("div")({
@@ -20,14 +20,14 @@ const Container = styled("div")({
   justifyContent: "center",
   width: "100%",
   height: "100%",
-  gap: "5.3125rem",
+  gap: "85px",
 });
 
 const Matrix = styled("div")({
   display: "grid",
-  gridTemplateRows: "repeat(7, 2.75rem)", // 44px → 2.75rem
-  gridAutoRows: "3rem", // 48px → 3rem
-  gap: "0.25rem", // 4px → 0.25rem
+  gridTemplateRows: "repeat(7, 44px)", // 44px → 44px
+  gridAutoRows: "48px", // 48px → 48px
+  gap: "4px", // 4px → 4px
 });
 
 const Row = styled("div")({
@@ -35,37 +35,37 @@ const Row = styled("div")({
 });
 
 const Cell = styled("div")(({ color }) => ({
-  width: "3rem", // 48px → 3rem
-  height: "3rem", // 48px → 3rem
-  borderRadius: "0.25rem", // 4px → 0.25rem
+  width: "48px", // 48px → 48px
+  height: "48px", // 48px → 48px
+  borderRadius: "4px", // 4px → 4px
   transition: "background-color 0.2s",
   backgroundColor: color || "#000000",
   cursor: "pointer",
-  border: "0.0625rem solid #fff", // 1px → 0.0625rem
+  border: "1px solid #fff", // 1px → 1px
 }));
 
 const ControlPanel = styled("div")({
   display: "flex",
   flexDirection: "column",
-  gap: "1rem",
+  gap: "16px",
 });
 
 const DirectionControls = styled("div")({
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
-  gap: "0.5rem",
+  gap: "8px",
 });
 
 const HorizontalControls = styled("div")({
   display: "flex",
-  gap: "1rem",
+  gap: "16px",
 });
 
 const ActionControls = styled("div")({
   display: "flex",
   flexDirection: "column",
-  gap: "0.5rem",
+  gap: "8px",
 });
 const ColorButton = styled(Button)<ButtonProps>(({ theme }) => ({
   color: theme.palette.getContrastText(purple[500]),

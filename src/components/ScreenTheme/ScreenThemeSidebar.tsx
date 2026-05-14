@@ -32,25 +32,25 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
         boxSizing: "border-box",
         mr: embedded ? 2.5 : 0,
         fontWeight: 400,
-        fontSize: "0.875rem",
-        borderRadius: "0.75rem",
+        fontSize: "14px",
+        borderRadius: "12px",
         px: 1.75,
         pt: 1.5,
         pb: 2,
         display: "flex",
         flexDirection: "column",
         alignItems: "stretch",
-        width: "16.5rem",
+        width: "264px",
         background: "#F9F9F9",
-        marginRight: "2rem",
+        marginRight: "32px",
         height: "100%",
-        padding: "1.5rem 1.25rem",
+        padding: "24px 20px",
       }}
     >
       <Typography
         component="h2"
         sx={{
-          fontSize: "1rem",
+          fontSize: "16px",
           fontWeight: 400,
           color: "rgba(100, 116, 139, 1)",
           letterSpacing: "0.02em",
@@ -70,7 +70,7 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
           display: "flex",
           flexDirection: "column",
           alignItems: "stretch",
-          gap: "0.625rem",
+          gap: "10px",
           width: "100%",
 
 
@@ -88,7 +88,7 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
               onClick={() => onTabChange(item.id)}
               sx={{
                 justifyContent: "center",
-                height: "3rem",
+                height: "48px",
                 ...(active ? screenThemeFilledPillButtonSx : screenThemeOutlinedPillButtonSx),
                 ...(active
                   ? {}
@@ -97,7 +97,7 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
                       "&:hover": {
                         backgroundColor: "#fff",
                         borderColor: screenThemeColors.primary,
-                        boxShadow: "0 0 0 0.1875rem rgba(0, 102, 255, 0.2)",
+                        boxShadow: "0 0 0 3px rgba(0, 102, 255, 0.2)",
                         color: "#0066ff",
                       },
                     }),

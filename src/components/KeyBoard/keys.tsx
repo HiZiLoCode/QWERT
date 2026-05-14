@@ -1,9 +1,13 @@
+'use client';
+
 import { Box, Typography } from '@mui/material';
 import type { LayoutKey } from '@/types/types_v1';
 import type { CompositeLayoutKey, PatternKey } from './types';
 import { getActuationLabel, getCompositeKeyClipPath, getNameColor, renderPattern } from './render';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 import customKeys from '@/data/customkeys.json';
+import { useTranslation } from '@/app/i18n';
+import { keyTypeIconVisualScale } from '@/utils/keyTypeIconVisualScale';
 
 const iconPathToNameMap: Record<string, string> = (customKeys as any[])
     .flatMap((group) => group?.keycodes ?? [])
@@ -11,6 +15,23 @@ const iconPathToNameMap: Record<string, string> = (customKeys as any[])
         const icon = typeof item?.icon === 'string' ? item.icon.trim() : '';
         const name = typeof item?.name === 'string' ? item.name.trim() : '';
         if (icon && name) acc[icon] = name;
+        return acc;
+    }, {});
+
+/** icon / emoji → common.json 键：优先条目 `langid`，否则 type 80 自定义键用 `900` + 两位 code1 */
+const iconPathToI18nKey: Record<string, string> = (customKeys as any[])
+    .flatMap((group) => group?.keycodes ?? [])
+    .reduce((acc: Record<string, string>, item: any) => {
+        const icon = typeof item?.icon === 'string' ? item.icon.trim() : '';
+        if (!icon) return acc;
+        const langid = typeof item?.langid === 'string' ? item.langid.trim() : '';
+        if (langid) {
+            acc[icon] = langid;
+            return acc;
+        }
+        if (item?.type === 80 && typeof item?.code1 === 'number' && item.code1 >= 0) {
+            acc[icon] = `900${String(item.code1).padStart(2, '0')}`;
+        }
         return acc;
     }, {});
 
@@ -71,9 +92,31 @@ export default function KeyboardKeys({
     keyBadges,
     disableKeyHoverScale = false,
 }: KeyboardKeysProps) {
+    const { t } = useTranslation('common');
+
     const isImageIcon = (value: string) => {
         const normalized = String(value || '').trim();
         return normalized.includes('/KeyType/') || normalized.endsWith('.svg') || normalized.endsWith('.png');
+    };
+
+    /** 是否为「以图标为主展示」的键位（含 SVG/PNG 路径、emoji、且能在 customkeys 中解析到说明） */
+    const isIconPrimaryDisplay = (keyDisplay: string) => {
+        const d = String(keyDisplay || '').trim();
+        if (!d) return false;
+        if (isImageIcon(d)) return true;
+        return Boolean(iconPathToI18nKey[d] || iconPathToNameMap[d]);
+    };
+
+    const resolveIconTooltipTitle = (keyDisplay: string, keyName: string): string | undefined => {
+        if (!isIconPrimaryDisplay(keyDisplay)) return undefined;
+        const iconKey = keyDisplay.trim();
+        const i18nLookup = iconPathToI18nKey[iconKey];
+        if (i18nLookup) {
+            const translated = t(i18nLookup);
+            if (translated && translated !== i18nLookup) return translated;
+        }
+        if (!isAssetPath(keyName) && keyName) return keyName;
+        return iconPathToNameMap[iconKey] || pathToFallbackLabel(keyDisplay);
     };
 
     return (
@@ -102,12 +145,8 @@ export default function KeyboardKeys({
 
                 const keyName = String(key.name ?? '').trim();
                 const keyDisplay = String(key.icon || key.name || keyIndex + 1);
-                // 图标型按键：展示一个 hover 提示，避免只看到 icon 不知道含义
-                const iconTooltipTitle = isImageIcon(keyDisplay)
-                    ? (!isAssetPath(keyName) && keyName
-                        ? keyName
-                        : iconPathToNameMap[keyDisplay.trim()] || pathToFallbackLabel(keyDisplay))
-                    : undefined;
+                // 图标型按键：优先 common.json（langid / 900xx），再退回英文名或文件名
+                const iconTooltipTitle = resolveIconTooltipTitle(keyDisplay, keyName);
                 const keyEl = (
                     <Box
                         onClick={colorMode ? undefined : () => onToggleKey(keyIndex)}
@@ -181,12 +220,36 @@ export default function KeyboardKeys({
                             </Box>
                         )}
                         {isImageIcon(keyDisplay) ? (
-                            <Box
-                                component="img"
-                                src={keyDisplay.trim()}
-                                alt={keyName || keyDisplay}
-                                sx={{ width: '32px', height: '32px', objectFit: 'contain', mb: showActuation ? '4px' : 0 }}
-                            />
+                            (() => {
+                                const src = keyDisplay.trim();
+                                const iconScale = keyTypeIconVisualScale(src);
+                                return (
+                                    <Box
+                                        sx={{
+                                            width: '32px',
+                                            height: '32px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                            mb: showActuation ? '4px' : 0,
+                                        }}
+                                    >
+                                        <Box
+                                            component="img"
+                                            src={src}
+                                            alt={keyName || keyDisplay}
+                                            sx={{
+                                                width: '32px',
+                                                height: '32px',
+                                                objectFit: 'contain',
+                                                transform: iconScale !== 1 ? `scale(${iconScale})` : undefined,
+                                                transformOrigin: 'center center',
+                                            }}
+                                        />
+                                    </Box>
+                                );
+                            })()
                         ) : (
                             <Typography
                                 sx={{

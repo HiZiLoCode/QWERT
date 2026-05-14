@@ -57,7 +57,7 @@ export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTr
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '1rem',
+                    gap: '16px',
                     minHeight: 0,
                     margin: '0 auto',
                 }}
@@ -65,34 +65,34 @@ export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTr
 
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 0.5 }}>
-                    <Button onClick={selectAll} sx={{ minWidth: '5.25rem', height: '1.875rem', borderRadius: '0.5rem', background: 'rgba(225,234,247,.85)', color: '#6f7f96', textTransform: 'none' }}>
+                    <Button onClick={selectAll} sx={{ minWidth: '84px', height: '30px', borderRadius: '8px', background: 'rgba(225,234,247,.85)', color: '#6f7f96', textTransform: 'none' }}>
                         全选
                     </Button>
-                    <Button onClick={clearAll} sx={{ minWidth: '5.75rem', height: '1.875rem', borderRadius: '0.5rem', background: 'rgba(225,234,247,.85)', color: '#6f7f96', textTransform: 'none' }}>
+                    <Button onClick={clearAll} sx={{ minWidth: '92px', height: '30px', borderRadius: '8px', background: 'rgba(225,234,247,.85)', color: '#6f7f96', textTransform: 'none' }}>
                         取消选择
                     </Button>
-            <Typography sx={{ fontSize: '0.875rem', color: '#7c8ca5', mb: 0 }}>已选 {selectedKeys.length} 个键位</Typography>
+            <Typography sx={{ fontSize: '14px', color: '#7c8ca5', mb: 0 }}>已选 {selectedKeys.length} 个键位</Typography>
                 </Box>
 
                 <Box sx={{ flex: 1, minHeight: 220, display: 'flex', gap: 2 }}>
                     <Box
                         sx={{
-                            width: '11.875rem',
-                            borderRadius: '0rem',
-                            border: '0.0625rem solid rgba(153,169,191,.25)',
+                            width: '190px',
+                            borderRadius: '0px',
+                            border: '1px solid rgba(153,169,191,.25)',
                             background: 'rgba(255,255,255,.44)',
                             p: 2,
                         }}
                     >
                         <Typography sx={{ color: '#60718a', fontWeight: 700, mb: 1.5 }}>按键测试</Typography>
-                        <Box sx={{ height: '10rem', borderRadius: '0rem', border: '0.0625rem dashed rgba(140,158,181,.35)', background: 'rgba(255,255,255,.4)' }} />
+                        <Box sx={{ height: '160px', borderRadius: '0px', border: '1px dashed rgba(140,158,181,.35)', background: 'rgba(255,255,255,.4)' }} />
                     </Box>
 
                     <Box
                         sx={{
                             flex: 1,
-                            borderRadius: '0rem',
-                            border: '0.0625rem solid rgba(153,169,191,.25)',
+                            borderRadius: '0px',
+                            border: '1px solid rgba(153,169,191,.25)',
                             background: 'rgba(255,255,255,.44)',
                             p: 2.5,
                             display: 'flex',
@@ -102,7 +102,7 @@ export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTr
                     >
                         <Typography sx={{ color: '#60718a', fontWeight: 700 }}>触发演示</Typography>
                         <Typography sx={{ color: '#60718a', fontWeight: 700 }}>设置触发键程</Typography>
-                        <Typography sx={{ color: '#7e8da5', fontSize: '0.8125rem' }}>
+                        <Typography sx={{ color: '#7e8da5', fontSize: '13px' }}>
                             设置触发键程后，轴体按压到指定深度才会被触发。
                         </Typography>
 
@@ -115,10 +115,10 @@ export default function MacroTravelAdjustView({ onKeyboardScaleChange }: MacroTr
                                 onChange={(_, value) => setTravelValue(value as number)}
                                 sx={{
                                     color: '#3B82F6',
-                                    '& .MuiSlider-thumb': { width: 18, height: 18, border: '0.1875rem solid #fff' },
+                                    '& .MuiSlider-thumb': { width: 18, height: 18, border: '3px solid #fff' },
                                 }}
                             />
-                            <Typography sx={{ width: '5rem', textAlign: 'right', color: '#5f7089', fontWeight: 700 }}>
+                            <Typography sx={{ width: '80px', textAlign: 'right', color: '#5f7089', fontWeight: 700 }}>
                                 {travelValue.toFixed(2)} MM
                             </Typography>
                         </Box>

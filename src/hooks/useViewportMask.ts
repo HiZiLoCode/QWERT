@@ -1,10 +1,29 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 
+export type ViewportMaskKind = 'viewport-small';
+
+export type ViewportMaskState = {
+  show: boolean;
+  kind: ViewportMaskKind | null;
+};
+
 type UseViewportMaskOptions = {
   containerRef: RefObject<HTMLElement | null>;
+  /** 主界面为 false；仅在不使用 homeContentOverflowMode 时参与阈值 */
   isAuthView: boolean;
   enabled: boolean;
+  /**
+   * 首页（连接前）或「设置」页：用 visualViewport（无则 inner）与 HOME_MIN_* 比较；否则沿用主界面视口过小逻辑。
+   */
+  homeContentOverflowMode?: boolean;
 };
+
+/** 首页 / 设置页最小可视宽高（CSS px），与 `page.tsx` 首页 min-w 等设计对齐 */
+const HOME_MIN_VIEWPORT_W = 1380;
+const HOME_MIN_VIEWPORT_H = 740;
+/** 关闭遮罩时略大于 MIN，减少在临界尺寸来回抖动 */
+const HOME_VIEWPORT_EXIT_PAD_W = 40;
+const HOME_VIEWPORT_EXIT_PAD_H = 32;
 
 /** 授权页：视口宽度 ≤ 此值视为过窄，与高度、overflow 一起可触发「窗口过小」遮罩 */
 const ENTER_WIDTH_AUTH = 1080;
@@ -28,6 +47,18 @@ function getViewportSize() {
   return { width: Number.isFinite(width) ? width : 0, height: Number.isFinite(height) ? height : 0 };
 }
 
+/** 首页：优先 visualViewport；无有效值则用 innerWidth / innerHeight */
+function getHomeViewportLayoutSize(): { width: number; height: number } {
+  const vv = window.visualViewport;
+  if (vv && vv.width > 0 && vv.height > 0) {
+    return { width: vv.width, height: vv.height };
+  }
+  return {
+    width: window.innerWidth || 0,
+    height: window.innerHeight || 0,
+  };
+}
+
 function hasHorizontalOverflow(container: HTMLElement | null): boolean {
   const root = document.documentElement;
   const rootOverflowX = root.scrollWidth - root.clientWidth > OVERFLOW_EPS;
@@ -36,20 +67,47 @@ function hasHorizontalOverflow(container: HTMLElement | null): boolean {
   return rootOverflowX || containerOverflowX;
 }
 
-export function useViewportMask({ containerRef, isAuthView, enabled }: UseViewportMaskOptions) {
-  const [showMask, setShowMask] = useState(false);
+export function useViewportMask({
+  containerRef,
+  isAuthView,
+  enabled,
+  homeContentOverflowMode = false,
+}: UseViewportMaskOptions): ViewportMaskState {
+  const [mask, setMask] = useState<ViewportMaskState>({ show: false, kind: null });
   const showMaskRef = useRef(false);
 
   useEffect(() => {
     if (!enabled) {
       showMaskRef.current = false;
-      setShowMask(false);
+      setMask({ show: false, kind: null });
       return;
     }
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     let raf = 0;
 
     const recalc = () => {
+      if (homeContentOverflowMode) {
+        const { width, height } = getHomeViewportLayoutSize();
+        const enter = width < HOME_MIN_VIEWPORT_W || height < HOME_MIN_VIEWPORT_H;
+        const exitOk =
+          width >= HOME_MIN_VIEWPORT_W + HOME_VIEWPORT_EXIT_PAD_W &&
+          height >= HOME_MIN_VIEWPORT_H + HOME_VIEWPORT_EXIT_PAD_H;
+
+        let next = showMaskRef.current;
+        if (!showMaskRef.current) {
+          next = enter;
+        } else {
+          next = !exitOk;
+        }
+
+        const kind: ViewportMaskKind | null = next ? 'viewport-small' : null;
+        if (next !== showMaskRef.current) {
+          showMaskRef.current = next;
+          setMask({ show: next, kind });
+        }
+        return;
+      }
+
       const { width, height } = getViewportSize();
       const overflowX = hasHorizontalOverflow(containerRef.current);
       const enterW = isAuthView ? ENTER_WIDTH_AUTH : ENTER_WIDTH_MAIN;
@@ -66,9 +124,10 @@ export function useViewportMask({ containerRef, isAuthView, enabled }: UseViewpo
         next = overflowX && !clearBySize;
       }
 
+      const kind: ViewportMaskKind | null = next ? 'viewport-small' : null;
       if (next !== showMaskRef.current) {
         showMaskRef.current = next;
-        setShowMask(next);
+        setMask({ show: next, kind });
       }
     };
 
@@ -78,6 +137,7 @@ export function useViewportMask({ containerRef, isAuthView, enabled }: UseViewpo
     };
 
     schedule();
+
     window.addEventListener('resize', schedule);
     window.addEventListener('scroll', schedule, true);
     const vv = window.visualViewport;
@@ -85,7 +145,12 @@ export function useViewportMask({ containerRef, isAuthView, enabled }: UseViewpo
     vv?.addEventListener('scroll', schedule);
 
     const ro = new ResizeObserver(schedule);
-    if (containerRef.current) ro.observe(containerRef.current);
+    const el = containerRef.current;
+    if (el) {
+      ro.observe(el);
+      const first = el.firstElementChild;
+      if (first instanceof HTMLElement) ro.observe(first);
+    }
     ro.observe(document.documentElement);
 
     return () => {
@@ -96,7 +161,7 @@ export function useViewportMask({ containerRef, isAuthView, enabled }: UseViewpo
       vv?.removeEventListener('resize', schedule);
       vv?.removeEventListener('scroll', schedule);
     };
-  }, [containerRef, isAuthView, enabled]);
+  }, [containerRef, isAuthView, enabled, homeContentOverflowMode]);
 
-  return showMask;
+  return mask;
 }

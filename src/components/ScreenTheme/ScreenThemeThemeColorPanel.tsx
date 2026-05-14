@@ -125,14 +125,14 @@ export default function ScreenThemeThemeColorPanel({
           gap: 2,
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 12rem)" }}>
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 192px)" }}>
           <Typography
             variant="caption"
             component="p"
             sx={{
               m: 0,
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "12px",
               lineHeight: 1.55,
             }}
           >
@@ -143,9 +143,9 @@ export default function ScreenThemeThemeColorPanel({
             component="p"
             sx={{
               m: 0,
-              mt: "0.375rem",
+              mt: "6px",
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "12px",
               lineHeight: 1.55,
             }}
           >
@@ -163,9 +163,9 @@ export default function ScreenThemeThemeColorPanel({
             flexShrink: 0,
             px: 0,
             py: 0,
-            width: "13rem",
-            minWidth: "13rem",
-            height: "2.25rem",
+            width: "208px",
+            minWidth: "208px",
+            height: "36px",
             ...(savePhase === "done"
               ? screenThemeFilledPillButtonSx
               : {
@@ -205,7 +205,7 @@ export default function ScreenThemeThemeColorPanel({
             sx={{
               position: "relative",
               zIndex: 1,
-              fontSize: "0.875rem",
+              fontSize: "14px",
               fontWeight: savePhase === "done" ? 600 : 500,
               color: savePhase === "busy" ? "transparent" : savePhase === "done" ? "#fff" : screenThemeColors.textDark,
               whiteSpace: "nowrap",
@@ -219,22 +219,22 @@ export default function ScreenThemeThemeColorPanel({
       <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 28 }}>
-        <Typography sx={{ color: screenThemeColors.textDark, fontSize: "0.875rem", fontWeight: 500 }}>
+        <Typography sx={{ color: screenThemeColors.textDark, fontSize: "14px", fontWeight: 500 }}>
           {t("2541")}
         </Typography>
         {COLOR_ROWS.map((item) => (
           <Box key={item.field} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-              <Typography sx={{ color: screenThemeColors.textDark, fontSize: "0.875rem", minWidth: "4.5rem" }}>
+              <Typography sx={{ color: screenThemeColors.textDark, fontSize: "14px", minWidth: "72px" }}>
                 {t(item.labelKey)}
               </Typography>
               <Box
                 sx={{
-                  width: "0.875rem",
-                  height: "0.875rem",
+                  width: "14px",
+                  height: "14px",
                   borderRadius: "50%",
                   backgroundColor: colors[item.field],
-                  border: "0.0625rem solid rgba(0,0,0,0.12)",
+                  border: "1px solid rgba(0,0,0,0.12)",
                 }}
               />
             </Box>
@@ -246,9 +246,9 @@ export default function ScreenThemeThemeColorPanel({
               sx={{
                 ...screenThemeOutlinedPillButtonSx,
                 flexShrink: 0,
-                minHeight: "2.25rem",
-                width: "10.75rem",
-                minWidth: "10.75rem",
+                minHeight: "36px",
+                width: "172px",
+                minWidth: "172px",
               }}
             >
               {t("2542")}
@@ -265,12 +265,12 @@ export default function ScreenThemeThemeColorPanel({
         transformOrigin={{ vertical: "center", horizontal: "right" }}
         PaperProps={{
           sx: {
-            width: "16.5rem",
+            width: "264px",
             p: 1.5,
             mr: 1,
-            borderRadius: "0.875rem",
-            border: "0.0625rem solid rgba(181,187,196,0.45)",
-            boxShadow: "0 0.5rem 1.5rem rgba(15, 23, 42, 0.16)",
+            borderRadius: "14px",
+            border: "1px solid rgba(181,187,196,0.45)",
+            boxShadow: "0 8px 24px rgba(15, 23, 42, 0.16)",
           },
         }}
       >

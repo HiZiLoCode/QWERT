@@ -45,7 +45,7 @@ export default function ColorAdjustPanel({
   return (
     <VStack spacing={4} align="stretch" width={"94%"}>
       <Box mt={6}>
-        <Text fontSize="0.875rem" mb={3} fontWeight="600">
+        <Text fontSize="14px" mb={3} fontWeight="600">
           {t('269')}
         </Text>
         <Grid templateColumns="repeat(2, 1fr)" gap={2}>
@@ -56,7 +56,7 @@ export default function ColorAdjustPanel({
             <Button
               key={index}
 
-              fontSize="0.875rem"
+              fontSize="14px"
               size="sm"
               color={editState.isHue === index && "rgba(255, 255, 255, 0.9)"}
               variant={editState.isHue === index ? "solid" : "outline"}
@@ -84,7 +84,7 @@ export default function ColorAdjustPanel({
         { key: 'scale', label: '254', min: 10, max: 300, unit: '%' }
       ].map(({ key, label, min, max, unit }) => (
         <Box key={key}>
-          <Text fontSize="0.875rem" mb={2} fontWeight="600">
+          <Text fontSize="14px" mb={2} fontWeight="600">
             {t(label)}: {(editState[key as keyof GifEditState] as number)}{unit}
           </Text>
           <Slider
@@ -98,7 +98,7 @@ export default function ColorAdjustPanel({
 
       {/* 变换工具 */}
       <Box mt={6}>
-        <Text fontSize="0.875rem" mb={3} fontWeight="600">
+        <Text fontSize="14px" mb={3} fontWeight="600">
           {t('260')}
         </Text>
         <Grid templateColumns="repeat(2, 1fr)" gap={2}>
@@ -110,7 +110,7 @@ export default function ColorAdjustPanel({
           ].map((item, index) => (
             <Button
               key={index}
-              size="0.875rem"
+              size="14px"
               variant="outline"
               onClick={item.action}
               borderColor="rgba(100, 150, 255, 0.3)"

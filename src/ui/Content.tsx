@@ -9,7 +9,39 @@ import { useViewportMask } from '@/hooks/useViewportMask';
 import { useTranslation } from '@/app/i18n';
 import { startMonitoring, usbDetect } from "@/keyboard/usb-hid";
 import { MainContext } from '@/providers/MainProvider';
-import { useContext, useEffect, useRef } from 'react';
+import { VIEWPORT_HOME_COPY_REM } from '@/constants/viewportHomeCopyRem';
+import { useContext, useEffect, useRef, type ReactNode } from 'react';
+
+/** 视窗过小提示标题中的产品名（与首页品牌一致） */
+const VIEWPORT_MASK_APP_NAME = 'QWERTYKEYS';
+
+function ViewportKeycap({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        px: '0.5rem',
+        py: '0.125rem',
+        mx: '0.2rem',
+        borderRadius: '0.25rem',
+        border: '1px solid rgba(255, 255, 255, 0.42)',
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        color: '#fff',
+        fontSize: VIEWPORT_HOME_COPY_REM.keycap,
+        fontWeight: 600,
+        lineHeight: 1.25,
+        verticalAlign: 'middle',
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 export default function Content() {
   const { t } = useTranslation('common');
@@ -26,15 +58,20 @@ export default function Content() {
     isUpgradeWindowOpen,
   } = useContext(ConnectKbContext);
   const updateRef = useRef<boolean>(false);
-  const { onChangeTab } = useContext(EditorContext);
+  const { onChangeTab, currentTab } = useContext(EditorContext);
   // 升级窗口状态的 ref
   const upgradeWindowRef = useRef<boolean>(false);
   // 当前已连接键盘地址（仅此设备断开时回到首页）
   const connectedKeyboardAddressRef = useRef<string | null>(null);
   const demoKeyboardRef = useRef(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  /** 连接前（Hero）与主界面都参与检测；isAuthView 仅切换宽度阈值，不再在 loading 时关闭 hook */
-  const showViewportMask = useViewportMask({ containerRef: contentRef, isAuthView: loading, enabled: true });
+  /** 首页（未连接）与「设置」页：同一套 visualViewport / inner 最小宽高阈值（见 useViewportMask） */
+  const viewportMask = useViewportMask({
+    containerRef: contentRef,
+    isAuthView: false,
+    enabled: true,
+    homeContentOverflowMode: loading || currentTab === 'settings',
+  });
   // 避免不必要的触发
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -126,7 +163,7 @@ export default function Content() {
   return (
     <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
       {loading ? <HeroSection /> : <Main />}
-      {showViewportMask ? (
+      {viewportMask.show ? (
         <Box
           sx={{
             position: 'fixed',
@@ -137,29 +174,41 @@ export default function Content() {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: 'column',
-            background: "url(/assets/cfg-bg-LnUK4o-L.webp) center top / cover no-repeat",
-            backdropFilter: 'blur(3px)',
-            gap: '0.75rem',
-            px: '1.25rem',
+            bgcolor: '#000',
+            px: 'clamp(1rem, 4vw, 2rem)',
+            gap: VIEWPORT_HOME_COPY_REM.stackGap,
           }}
         >
-          <Box
-            component="img"
-            src="/window-too-small-cat.svg"
-            alt={t('2595')}
+          <Typography
             sx={{
-              width: 'min(60rem, 82vw)',
-              maxHeight: '76vh',
-              objectFit: 'contain',
-              opacity: 0.92,
-              userSelect: 'none',
+              color: '#fff',
+              fontSize: VIEWPORT_HOME_COPY_REM.titleClamp,
+              fontWeight: 700,
+              lineHeight: 1.3,
+              textAlign: 'center',
             }}
-          />
-          <Typography sx={{ color: '#64748b', fontSize: '2rem', fontWeight: 600, lineHeight: 1.2 }}>
-            {t('2593')}
+          >
+            {t('2593', { name: VIEWPORT_MASK_APP_NAME })}
           </Typography>
-          <Typography sx={{ color: '#64748b', fontSize: '1.5rem', lineHeight: 1.5 }}>
-            {t('2594')}
+          <Typography
+            component="div"
+            sx={{
+              color: '#fff',
+              fontSize: VIEWPORT_HOME_COPY_REM.body,
+              fontWeight: 400,
+              lineHeight: 1.65,
+              textAlign: 'center',
+              maxWidth: 'min(66rem, 92vw)',
+            }}
+          >
+            <Box component="span" sx={{ whiteSpace: 'normal' }}>
+              {t('2594a')}
+            </Box>
+            <ViewportKeycap>L Ctrl</ViewportKeycap>
+            <ViewportKeycap>-</ViewportKeycap>
+            <Box component="span" sx={{ whiteSpace: 'normal' }}>
+              {t('2594b')}
+            </Box>
           </Typography>
         </Box>
       ) : null}

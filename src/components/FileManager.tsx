@@ -233,7 +233,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                 onClose={onClose}
                 sx={{
                     '& .MuiDrawer-paper': {
-                        width: { xs: '100%', sm: '25rem' },
+                        width: { xs: '100%', sm: '400px' },
                         bgcolor: 'background.default',
                     },
                 }}
@@ -242,25 +242,25 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                     {/* Header */}
                     <Box
                         sx={{
-                            p: '1.25rem',
+                            p: '20px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            borderBottom: '0.0625rem solid',
+                            borderBottom: '1px solid',
                             borderColor: 'divider',
                         }}
                     >
-                        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.125rem', p: '0.3125rem' }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '18px', p: '5px' }}>
                             本地配置管理
                         </Typography>
-                        <IconButton onClick={onClose} size="small" sx={{ p: '0.3125rem' }}>
+                        <IconButton onClick={onClose} size="small" sx={{ p: '5px' }}>
                             <CloseIcon />
                         </IconButton>
                     </Box>
 
                     {/* Actions */}
-                    <Box sx={{ p: '1.25rem',  borderBottom: '0.0625rem solid', borderColor: 'divider' }}>
-                        <Stack direction="row" spacing="0.625rem">
+                    <Box sx={{ p: '20px',  borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Stack direction="row" spacing="10px">
                             <ButtonRem
                                 variant="contained"
                                 startIcon={<UploadIcon />}
@@ -268,9 +268,9 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                 size="small"
                                 fullWidth
                                 sx={{
-                                    fontSize: '0.875rem',
+                                    fontSize: '14px',
                                     "&.MuiButton-startIcon": {
-                                        mr:"0.5rem"
+                                        mr:"8px"
                                     }
                                 }}
                             >
@@ -282,7 +282,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                 onClick={handleExportAll}
                                 size="small"
                                 fullWidth
-                                sx={{ fontSize: '0.875rem' }}
+                                sx={{ fontSize: '14px' }}
                                 disabled={files.length === 0}
                             >
                                 导出全部
@@ -300,7 +300,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     height: '100%',
-                                    p: '2rem',
+                                    p: '32px',
                                     color: 'text.secondary',
                                 }}
                             >
@@ -314,11 +314,11 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     height: '100%',
-                                    p: '2rem',
+                                    p: '32px',
                                     color: 'text.secondary',
                                 }}
                             >
-                                <FileIcon sx={{ fontSize: '3rem', mb: '1rem', opacity: 0.3 }} />
+                                <FileIcon sx={{ fontSize: '48px', mb: '16px', opacity: 0.3 }} />
                                 <Typography variant="body2">暂无配置文件</Typography>
                                 <Typography variant="caption">点击上传按钮添加文件</Typography>
                             </Box>
@@ -331,15 +331,15 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                             '&:hover': {
                                                 bgcolor: 'action.hover',
                                             },
-                                            py: '0.75rem',
+                                            py: '12px',
                                         }}
                                         secondaryAction={
-                                            <Stack direction="row" spacing="0.3125rem">
+                                            <Stack direction="row" spacing="5px">
                                                 <IconButton
                                                     edge="end"
                                                     size="small"
                                                     onClick={() => handleDownload(file)}
-                                                    sx={{ p: '0.5rem' }}
+                                                    sx={{ p: '8px' }}
                                                 >
                                                     <DownloadIcon fontSize="small" />
                                                 </IconButton>
@@ -347,24 +347,24 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                                                     edge="end"
                                                     size="small"
                                                     onClick={() => handleDelete(file.id)}
-                                                    sx={{ p: '0.5rem' }}
+                                                    sx={{ p: '8px' }}
                                                 >
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
                                             </Stack>
                                         }
                                     >
-                                        <ListItemIcon sx={{ minWidth: '2.5rem' }}>
+                                        <ListItemIcon sx={{ minWidth: '40px' }}>
                                             <FileIcon />
                                         </ListItemIcon>
                                         <ListItemText
                                             primary={file.name}
                                             secondary={`${formatFileSize(file.size)} • ${formatDate(file.date)}`}
                                             primaryTypographyProps={{
-                                                sx: { fontSize: '0.875rem', fontWeight: 500 },
+                                                sx: { fontSize: '14px', fontWeight: 500 },
                                             }}
                                             secondaryTypographyProps={{
-                                                sx: { fontSize: '0.75rem' },
+                                                sx: { fontSize: '12px' },
                                             }}
                                         />
                                     </ListItem>
@@ -376,13 +376,13 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
                     {/* Footer */}
                     <Box
                         sx={{
-                            p: '1.25rem',
-                            borderTop: "0.0625rem solid",
+                            p: '20px',
+                            borderTop: "1px solid",
                             borderColor: 'divider',
                             bgcolor: 'background.paper',
                         }}
                     >
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '12px' }}>
                             共 {files.length} 个配置文件
                         </Typography>
                     </Box>

@@ -54,19 +54,19 @@ export default function ScreenThemeSettingsPanel({
         sx={{
           display: "flex",
           flexDirection: "row",
-          alignItems: "flex-start",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
         }}
       >
-        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 12rem)" }}>
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 192px)" }}>
           <Typography
             variant="caption"
             component="p"
             sx={{
               m: 0,
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "16px",
               lineHeight: 1.55,
             }}
           >
@@ -77,9 +77,9 @@ export default function ScreenThemeSettingsPanel({
             component="p"
             sx={{
               m: 0,
-              mt: "0.375rem",
+              mt: "6px",
               color: screenThemeColors.textMuted,
-              fontSize: "0.75rem",
+              fontSize: "16px",
               lineHeight: 1.55,
             }}
           >
@@ -96,8 +96,8 @@ export default function ScreenThemeSettingsPanel({
             flexShrink: 0,
             px: 2.5,
             py: 0.75,
-            width: "10.75rem",
-            minWidth: "10.75rem",
+            width: "172px",
+            minWidth: "172px",
           }}
         >
           {isSaving ? t("1645") : t("1609")}
@@ -107,7 +107,7 @@ export default function ScreenThemeSettingsPanel({
       <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
       <Box sx={{ display: "flex", flexDirection: "column", gap: 61 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "0.875rem" }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "18px" }}>
             {t("2540")}
             {fileIndex}/{fileTotal}
           </Typography>
@@ -119,9 +119,9 @@ export default function ScreenThemeSettingsPanel({
             sx={{
               ...screenThemeOutlinedPillButtonSx,
               flexShrink: 0,
-              minHeight: "2.25rem",
-              width: "10.75rem",
-              minWidth: "10.75rem",
+              minHeight: "36px",
+              width: "172px",
+              minWidth: "172px",
             }}
           >
             {t("1611")}
@@ -129,10 +129,10 @@ export default function ScreenThemeSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "5.5rem", fontSize: "0.875rem" }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "18px" }}>
             {t("1612")}
           </Typography>
-          <FormControl size="small" sx={{ minWidth: "10.75rem" }}>
+          <FormControl size="small" sx={{ minWidth: "172px" }}>
             <Select
               value={intervalSec}
               disabled={isLocked}
@@ -150,10 +150,10 @@ export default function ScreenThemeSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "5.5rem", fontSize: "0.875rem" }}>
+          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "18px" }}>
             {t("1613")}
           </Typography>
-          <FormControl size="small" sx={{ minWidth: "10.75rem" }}>
+          <FormControl size="small" sx={{ minWidth: "172px" }}>
             <Select
               value={transition}
               disabled={isLocked}

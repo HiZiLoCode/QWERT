@@ -24,15 +24,15 @@ const AUTO_HIDE_DELAY = 60000; // 1 分钟自动隐藏
 
 /* 浮动动画 */
 const floatAnimation = keyframes`
-  0% { transform: translateY(0rem); }
-  50% { transform: translateY(-0.3125rem); } /* -5px */
-  100% { transform: translateY(0rem); }
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); } /* -5px */
+  100% { transform: translateY(0px); }
 `;
 
 /* 渐变闪烁动画 */
 const shimmerAnimation = keyframes`
-  0% { background-position: -12.5rem 0; }   /* -200px */
-  100% { background-position: 12.5rem 0; }  /* 200px */
+  0% { background-position: -200px 0; }   /* -200px */
+  100% { background-position: 200px 0; }  /* 200px */
 `;
 
 const UpgradeNotification: React.FC = () => {
@@ -102,23 +102,23 @@ const UpgradeNotification: React.FC = () => {
         onMouseLeave={handleMouseLeave}
         sx={{
           position: 'fixed',
-          top: '3.75rem', // 60px
-          right: '1.25rem', // 20px
-          width: '18.75rem', // 300px
-          padding: '1rem',
+          top: '60px', // 60px
+          right: '20px', // 20px
+          width: '300px', // 300px
+          padding: '16px',
           zIndex: 1300,
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.5rem',
+          gap: '8px',
           backgroundColor: isLightMode
             ? 'rgba(245, 245, 250, 0.95)'
             : 'rgba(45, 45, 60, 0.92)',
-          border: `0.0625rem solid ${primaryColor}`, // 1px
-          borderRadius: '0.75rem', // 12px
+          border: `1px solid ${primaryColor}`, // 1px
+          borderRadius: '12px', // 12px
           boxShadow: isLightMode
-            ? '0 1.25rem 2.5rem rgba(0,0,0,0.1), 0 0 0 0.0625rem rgba(0,0,0,0.1)'
-            : '0 1.25rem 2.5rem rgba(0,0,0,0.3), 0 0 0 0.0625rem rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(1.25rem)', // 20px
+            ? '0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.1)'
+            : '0 20px 40px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(20px)', // 20px
           animation: `${floatAnimation} 3s ease-in-out infinite`,
           overflow: 'hidden',
           '&::before': {
@@ -132,7 +132,7 @@ const UpgradeNotification: React.FC = () => {
               ${primaryColor}20 50%,
               transparent 70%
             )`,
-            backgroundSize: '12.5rem 100%', // 200px
+            backgroundSize: '200px 100%', // 200px
             animation: `${shimmerAnimation} 3s ease-in-out infinite`,
             pointerEvents: 'none',
             zIndex: 0,
@@ -148,14 +148,14 @@ const UpgradeNotification: React.FC = () => {
             {t('1244')}
           </Typography>
 
-          <Typography variant="body2" sx={{ mb: '0.625rem', fontSize: '1rem' }}>
+          <Typography variant="body2" sx={{ mb: '10px', fontSize: '16px' }}>
             {t('1245')}: v{deviceUpgradeVersion}，{t('1246')}
           </Typography>
 
           <Typography
             variant="body2"
             color="text.secondary"
-            fontSize="0.8rem"
+            fontSize="13px"
           >
             {t('1247')}: v{deviceVersion}
           </Typography>
@@ -164,7 +164,7 @@ const UpgradeNotification: React.FC = () => {
             sx={{
               display: 'flex',
               justifyContent: 'flex-end',
-              mt: '0.625rem',
+              mt: '10px',
             }}
           >
             <ButtonRem
@@ -174,10 +174,10 @@ const UpgradeNotification: React.FC = () => {
               sx={{
                 fontWeight: 'bold',
                 textTransform: 'none',
-                boxShadow: `0 0.125rem 0.5rem ${primaryColor}30`,
+                boxShadow: `0 2px 8px ${primaryColor}30`,
                 '&:hover': {
-                  boxShadow: `0 0.25rem 0.75rem ${primaryColor}40`,
-                  transform: 'translateY(-0.0625rem)',
+                  boxShadow: `0 4px 12px ${primaryColor}40`,
+                  transform: 'translateY(-1px)',
                 },
                 '&:active': {
                   transform: 'translateY(0)',

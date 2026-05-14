@@ -25,7 +25,7 @@ function KeyBox({ keyCode, onDrop, size = 12 }) {
         position: "relative",
         width: `${size * 4}px`,
         height: `${size * 4}px`,
-        border: `0.0625rem solid ${theme.palette.divider}`,
+        border: `1px solid ${theme.palette.divider}`,
         borderRadius: 1,
         backgroundColor: theme.palette.background.paper,
         display: "flex",

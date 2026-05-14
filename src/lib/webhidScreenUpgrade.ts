@@ -39,11 +39,6 @@ export const WEBHID_UPGRADE_CONSTANTS = {
   OTA_UPGRADE_PRE_CMD: 0xf0,
   /** 单包 OUT 在 OUT 锁上排队过久仍不返回时，主动失败以免界面一直停在「升级中」 */
   OTA_OUT_PACKET_WATCHDOG_MS: 15000,
-  /**
-   * 图传 0x66 每包 OUT 之后的间隔（ms），降低突发流量；设为 0 可关闭（最猛连续发）。
-   * 主线程 setTimeout 实际粒度常见 ≥4ms，若需更贴 1ms 须在 Worker 发或自旋（一般不推荐）。
-   */
-  IMAGE_INTER_PACKET_MS: 1,
 } as const;
 
 function sleep(ms: number) {
@@ -751,7 +746,6 @@ export class WebHidUpgradeClient {
         IMAGE_DATA_BULK_WAIT_REPLY_MS,
         IMAGE_DATA_FINAL_WAIT_REPLY_MS,
         OTA_PROTO_IMAGE_DATA,
-        IMAGE_INTER_PACKET_MS,
       } = WEBHID_UPGRADE_CONSTANTS;
       const imageSize = img.length;
 
@@ -797,9 +791,6 @@ export class WebHidUpgradeClient {
           totalImagePacketsSent += 1;
           sentBytes = Math.min(imageSize, chunkBase + i + IMAGE_SEND_SIZE);
           onProgress?.(0.05 + (sentBytes / imageSize) * 0.45);
-          if (IMAGE_INTER_PACKET_MS > 0) {
-            await sleep(IMAGE_INTER_PACKET_MS);
-          }
 
           if (isLastPacket) {
             let st = await inFlightAck!;
@@ -876,7 +867,7 @@ export class WebHidUpgradeClient {
     if (hasImage && hasFw) {
       const im = image instanceof Uint8Array ? image : new Uint8Array(image as ArrayBuffer);
       await this.transferImage(im, imageStartAddr, (r) => onProgress?.(r * 0.5));
-      await sleep(400);
+      await sleep(120);
       const fw = firmware instanceof Uint8Array ? firmware : new Uint8Array(firmware as ArrayBuffer);
       await this.transferFirmware(fw, (r) => onProgress?.(0.5 + r * 0.5));
     } else if (hasImage) {

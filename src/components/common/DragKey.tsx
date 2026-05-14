@@ -232,7 +232,7 @@ function DragKey({dksKey, onChange}) {
             </Button>
             <div hidden={dks.upEnd == 0} _hidden={{display: 'none'}}>                     
                 <div className="drag-bar bg-blue-1"
-                style={{width: `1.375rem`}}
+                style={{width: `22px`}}
                 onClick={(event) => {event.stopPropagation(); showDKS('upEnd');}}>
                 </div>
             </div>

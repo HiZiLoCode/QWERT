@@ -92,11 +92,11 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
         zIndex={1}
         overflowY="auto"
         overflowX="hidden"
-        pb="3rem" // 为底部导航腾出空间
+        pb="48px" // 为底部导航腾出空间
         sx={{
           '@keyframes gridMove': {
             '0%': { transform: 'translateY(0) scale(1)' },
-            '50%': { transform: 'translateY(-1.25rem) scale(1.05)' },
+            '50%': { transform: 'translateY(-20px) scale(1.05)' },
             '100%': { transform: 'translateY(0) scale(1)' },
           },
           '@keyframes blink': {
@@ -111,12 +111,12 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
           },
           '@keyframes floatEffect': {
             '0%': { transform: 'translateY(0px)' },
-            '50%': { transform: 'translateY(-0.625rem)' },
+            '50%': { transform: 'translateY(-10px)' },
             '100%': { transform: 'translateY(0px)' },
           },
           '@keyframes particleFloat': {
             '0%': { transform: 'translateY(0px) translateX(0px)' },
-            '50%': { transform: 'translateY(-0.625rem) translateX(0.3125rem)' },
+            '50%': { transform: 'translateY(-10px) translateX(5px)' },
             '100%': { transform: 'translateY(0px) translateX(0px)' },
           },
           '@keyframes pulseGlow': {
@@ -126,7 +126,7 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
           },
           '@keyframes keyPress': {
             '0%': { transform: 'translateY(0px)' },
-            '50%': { transform: 'translateY(0.125rem)' },
+            '50%': { transform: 'translateY(2px)' },
             '100%': { transform: 'translateY(0px)' },
           },
           '@keyframes pixelate': {
@@ -155,7 +155,7 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
             '54%': { opacity: 1 },
             '100%': { opacity: 1 },
           },
-          '&::-webkit-scrollbar': { width: '0.1875rem' }, // 3px -> 0.1875rem
+          '&::-webkit-scrollbar': { width: '3px' }, // 3px -> 3px
         }}
       >
 
@@ -172,13 +172,13 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
         >
           {/* 标题 */}
           <Box
-            fontSize="2.25rem" // 36px -> 2.25rem
+            fontSize="36px"
             fontWeight="bold"
             whiteSpace={{ base: "normal", md: "nowrap" }}
             textAlign="center"
             display="inline-block"
             position="relative"
-            letterSpacing={{ base: "0.0625rem", md: "0.125rem" }}
+            letterSpacing={{ base: "1px", md: "2px" }}
             px={3}
             mb={4}
             className="gradient-text"
@@ -190,8 +190,8 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
               textFillColor: 'transparent',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              textShadow: '0 0 1.25rem rgba(0, 150, 255, 0.5)', // 20px -> 1.25rem
-              filter: 'drop-shadow(0 0.125rem 0.25rem rgba(0, 0, 0, 0.3))' // 修正单位，4px -> 0.25rem
+              textShadow: '0 0 20px rgba(0, 150, 255, 0.5)', // 20px -> 20px
+              filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))' // 修正单位，4px -> 4px
             }}
           >
             {t("10") || t("9005")}
@@ -201,26 +201,26 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
           {/* LCD屏幕模拟 */}
           <Box
             w={{ base: "90%", sm: "85%", md: "75%", lg: "65%" }}
-            maxW="43.75rem" // 700px -> 43.75rem
-            borderRadius="0.5rem"
+            maxW="700px" // 700px -> 700px
+            borderRadius="8px"
             overflow="hidden"
-            marginTop="3.125rem" // 50px -> 3.125rem
+            marginTop="50px" // 50px -> 50px
 
             position="relative"
-            boxShadow="0 0 2.5rem rgba(0, 150, 255, 0.4)" // 40px -> 2.5rem
-            mb={{ base: "3.125rem", md: "3.75rem" }} // 50px -> 3.125rem, 60px -> 3.75rem
+            boxShadow="0 0 40px rgba(0, 150, 255, 0.4)" // 40px -> 40px
+            mb={{ base: "50px", md: "60px" }} // 50px -> 50px, 60px -> 60px
           >
             {/* 屏幕边框 */}
             <Box
               position="absolute"
-              top="-0.125rem"
-              left="-0.125rem"
-              right="-0.125rem"
-              bottom="-0.125rem"
+              top="-2px"
+              left="-2px"
+              right="-2px"
+              bottom="-2px"
               bg="rgba(30, 30, 50, 0.95)"
-              borderRadius="0.625rem"
+              borderRadius="10px"
               zIndex={0}
-              boxShadow="inset 0 0 0.625rem rgba(0, 0, 0, 0.5)" // 10px -> 0.625rem
+              boxShadow="inset 0 0 10px rgba(0, 0, 0, 0.5)" // 10px -> 10px
             />
 
             {/* 屏幕主体 */}
@@ -229,9 +229,9 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
               zIndex={1}
               pt="56.25%" // 16:9 宽高比
               overflow="hidden"
-              border="0.25rem solid "
-              borderRadius="0.375rem"
-              width="43.75rem" // 700px -> 43.75rem
+              border="4px solid "
+              borderRadius="6px"
+              width="700px" // 700px -> 700px
               sx={{
                 animation: 'screenFlicker 8s infinite',
               }}
@@ -276,7 +276,7 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
                   top="0"
                   left="0"
                   right="0"
-                  height="0.125rem" // 2px -> 0.125rem
+                  height="2px" // 2px -> 2px
                   bg="rgba(255, 255, 255, 0.1)"
                   sx={{ animation: 'scanline 3s linear infinite' }}
                 />
@@ -309,21 +309,21 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
             borderRadius="md"
             px={10}
             py={6}
-            fontSize="2rem" // 32px -> 2rem
+            fontSize="32px"
             fontWeight="bold"
-            boxShadow="0 0 1.25rem rgba(0, 150, 255, 0.5)" // 20px -> 1.25rem
+            boxShadow="0 0 20px rgba(0, 150, 255, 0.5)" // 20px -> 20px
             transition="all 0.2s ease"
             position="relative"
-            marginTop="3.125rem" // 50px -> 3.125rem
+            marginTop="50px" // 50px -> 50px
             _before={{
               content: '""',
               position: 'absolute',
-              top: '-0.1875rem', // 3px -> 0.1875rem
-              left: '-0.1875rem', // 3px -> 0.1875rem
-              right: '-0.1875rem', // 3px -> 0.1875rem
-              bottom: '-0.1875rem', // 3px -> 0.1875rem
+              top: '-3px', // 3px -> 3px
+              left: '-3px', // 3px -> 3px
+              right: '-3px', // 3px -> 3px
+              bottom: '-3px', // 3px -> 3px
               borderRadius: 'md',
-              padding: '0.1875rem', // 3px -> 0.1875rem
+              padding: '3px', // 3px -> 3px
               background: 'linear-gradient(90deg, #00BFFF, #0080FF, #1E90FF, #0080FF, #00BFFF)',
               mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
               maskComposite: 'xor',

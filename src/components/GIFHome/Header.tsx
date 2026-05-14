@@ -44,14 +44,14 @@ function Header() {
         @keyframes titlePulse {
           0%, 100% {
             text-shadow: 
-              0 0 0.3125rem rgba(100, 150, 255, 0.5),
-              0 0 0.625rem rgba(100, 150, 255, 0.3),
+              0 0 5px rgba(100, 150, 255, 0.5),
+              0 0 10px rgba(100, 150, 255, 0.3),
               0 0 15px rgba(100, 150, 255, 0.2);
           }
           50% {
             text-shadow: 
-              0 0 0.625rem rgba(100, 150, 255, 0.8),
-              0 0 1.25rem rgba(100, 150, 255, 0.6),
+              0 0 10px rgba(100, 150, 255, 0.8),
+              0 0 20px rgba(100, 150, 255, 0.6),
               0 0 30px rgba(100, 150, 255, 0.4);
           }
         }
@@ -67,11 +67,11 @@ function Header() {
           );
           background-size: 400% 400%;
           animation: techGradient 8s ease infinite;
-          backdrop-filter: blur(0.75rem);
+          backdrop-filter: blur(12px);
           border-bottom: 0.125remsolid rgba(100, 150, 255, 0.3);
           box-shadow: 
-            0 0.25rem 1.25rem rgba(0, 0, 0, 0.3),
-            inset 0 0.0625rem 0 rgba(255, 255, 255, 0.1);
+            0 4px 20px rgba(0, 0, 0, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
           position: relative;
         }
         
@@ -81,7 +81,7 @@ function Header() {
           top: 0;
           left: 0;
           right: 0;
-          height: 0.0625rem;
+          height: 1px;
           background: linear-gradient(
             90deg,
             transparent 0%,
@@ -106,8 +106,8 @@ function Header() {
           -webkit-text-fill-color: transparent;
           color: transparent;
           font-weight: 700;
-          font-size: 1.25rem;
-          letter-spacing: 0.0625rem;
+          font-size: 20px;
+          letter-spacing: 1px;
           animation: titlePulse 3s ease-in-out infinite;
           display: inline-block;
           position: relative;
@@ -115,16 +115,16 @@ function Header() {
         
         .lang-button {
           background: rgba(100, 150, 255, 0.1);
-          border: 0.0625rem solid rgba(100, 150, 255, 0.3);
-          backdrop-filter: blur(0.5rem);
+          border: 1px solid rgba(100, 150, 255, 0.3);
+          backdrop-filter: blur(8px);
           transition: all 0.3s ease;
         }
         
         .lang-button:hover {
           background: rgba(100, 150, 255, 0.2);
           border-color: rgba(100, 150, 255, 0.5);
-          transform: translateY(-0.0625rem);
-          box-shadow: 0 0.25rem 15px rgba(100, 150, 255, 0.2);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 15px rgba(100, 150, 255, 0.2);
         }
       `}</style>
       
