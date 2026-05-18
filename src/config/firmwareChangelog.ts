@@ -24,11 +24,14 @@ export type FirmwareRelease = {
 export const SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [
         {
-            version: '68',
-            date: '2026-05-01',
+            version: '115',
+            date: '2026-05-15',
             changes: {
-                zh: ['1、示例：屏幕固件说明条目（请在 firmwareChangelog 中按机型维护）'],
-                en: ['1、Example: screen firmware release note (maintain per device in firmwareChangelog)'],
+                zh: ['1、修改简约灵动岛背景', '2、优化屏幕资源与预览一致性'],
+                en: [
+                    '1、Updated the minimalist Dynamic Island background',
+                    '2、Improved consistency between screen resources and preview',
+                ],
             },
         },
     ],
@@ -50,29 +53,17 @@ export function getScreenFirmwareReleasesForDevice(
 export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [
         {
-            version: '106',
-            date: '2026-04-17',
+            version: '118',
+            date: '2026-05-15',
             changes: {
-                zh: ['1、背光最低亮度时背光会熄灭问题', '2、优化蓝牙模式睡眠后屏幕模式指示错误问题', '3、优化触摸条卡顿问题'],
-                en: ['1、The backlight will turn off when the backlight is at the lowest brightness', '2、Optimize the screen mode indicator error problem after sleep in Bluetooth mode', '3、Optimize the touch bar stuttering problem'],
+                zh: ['1、优化部分灯光效果亮度', '2、修改简约灵动岛背景'],
+                en: [
+                    '1、Improved brightness for selected lighting effects',
+                    '2、Updated the minimalist Dynamic Island background',
+                ],
             },
         },
-        {
-            version: '107',
-            date: '2026-04-18',
-            changes: {
-                zh: ['1、解决拾音灯卡死问题', '2、解决蓝牙模式屏幕会卡死无法切换问题', '3、优化屏幕上电闪烁问题', '4、适配免驱升级包'],
-                en: ['1、Solve the pickup light freezing problem', '2、Solve the screen freezing problem in Bluetooth mode', '3、Optimize the screen power-on flicker problem', '4、Adapt the no-driver upgrade package'],
-            },
-        },
-        {
-            version: '108',
-            date: '2026-04-21',
-            changes: {
-                zh: ['1、修改默认自定义灯效显示', '2、按规格书修改mac模式组合键', '3、Fn按下时灯效组合键显示白光', '4、点阵屏终端模式添加当前输入点闪烁指示', '5、拾音灯添加色阶模式支持'],
-                en: ['1、Modify the default custom light effect display', '2、Modify the mac mode combination key according to the specification', '3、The white light is displayed when the Fn key is pressed', '4、The current input point flicker indicator is added in the terminal mode of the dot matrix screen', '5、The pickup light adds support for color gradient mode'],
-            },
-        },
+
     ],
     default: [],
 };

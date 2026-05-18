@@ -1,5 +1,5 @@
 
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import Sidebar from "./Sidebar";
 import { useContext, useEffect, useMemo } from "react";
 import KeyboardPanel from "./Panel/KeyboardPanel";
@@ -7,7 +7,10 @@ import { EditorContext } from "@/providers/EditorProvider";
 import SettingPanel from "./Panel/SettingPanel";
 import { MainContext } from "@/providers/MainProvider";
 import UpgradeNotification from "@/components/UpgradeNotification";
+import { FirmwareUpdatePromptLayer } from "@/providers/useSnackbarProvider";
 export default function Main() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const { setQgifModule } = useContext(MainContext);
     const { currentTab } = useContext(EditorContext);
     const tabs = useMemo(() => {
@@ -66,18 +69,24 @@ export default function Main() {
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
-            backgroundColor: '#f3f3f3',
+            backgroundColor: theme.palette.background.default,
         }}>
-            <Box sx={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                overflow: 'hidden',
-                display: 'flex',
-                alignItems: 'center',
-                opacity: 0.3,
-                background: "url(/assets/cfg-bg-LnUK4o-L.webp) center center / cover no-repeat"
-            }}></Box>
+            {!isDark ? (
+                <Box
+                    aria-hidden
+                    sx={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        pointerEvents: 'none',
+                        opacity: 0.3,
+                        background: "url(/assets/cfg-bg-LnUK4o-L.webp) center center / cover no-repeat",
+                    }}
+                />
+            ) : null}
             <Sidebar />
             <Box sx={{
                 width: "calc(100% - 80px)",
@@ -88,7 +97,23 @@ export default function Main() {
                 boxSizing: "border-box",
             }}>
                 {tabs.find(tab => tab.key === currentTab)?.component}
+            </Box>
+            <Box
+                sx={{
+                    position: 'fixed',
+                    top: '60px',
+                    right: '20px',
+                    zIndex: 1300,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: '12px',
+                    pointerEvents: 'none',
+                    '& > *': { pointerEvents: 'auto' },
+                }}
+            >
                 <UpgradeNotification />
+                <FirmwareUpdatePromptLayer />
             </Box>
         </Box>
     )

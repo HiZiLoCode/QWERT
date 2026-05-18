@@ -14,6 +14,7 @@ import {
     KEYBOARD_CARD_PADDING_PX,
 } from './render';
 import { useTranslation } from '@/app/i18n';
+import { alpha, useTheme } from '@mui/material/styles';
 
 const OUTER_GUTTER_PX = 19;
 
@@ -168,6 +169,8 @@ export default function TravelVirtualKeyboard({
 }: TravelVirtualKeyboardProps) {
     void _scaleMin;
     void _alignTop;
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const { t } = useTranslation('common');
 
     const ku = keyUnitPx;
@@ -322,12 +325,21 @@ export default function TravelVirtualKeyboard({
                         justifyContent: 'center',
                     }}
                 >
-                    <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#94a3b8', mb: '10px', width: '100%', letterSpacing: '0.06em' }}>
+                    <Typography
+                        sx={{
+                            fontSize: '16px',
+                            fontWeight: 700,
+                            color: isDark ? theme.palette.text.secondary : '#94a3b8',
+                            mb: '10px',
+                            width: '100%',
+                            letterSpacing: '0.06em',
+                        }}
+                    >
                         LAYER
                     </Typography>
                     {Array.from({ length: layerCount }).map((_, i) => {
                         const active = currentLayer === i;
-                        return ( 
+                        return (
                             <Button
                                 key={i}
                                 onClick={() => onSelectLayer?.(i)}
@@ -336,22 +348,40 @@ export default function TravelVirtualKeyboard({
                                     minWidth: '100%',
                                     height: '36px',
                                     mb: '5px',
-                                    borderRadius: '12px',
+                                    borderRadius: active && isDark ? '999px' : '12px',
                                     fontSize: '12px',
                                     fontWeight: 600,
                                     textTransform: 'none',
-                                    color: active ? '#fff' : '#64748b',
-                                    background: active ? '#4a86f7' : '#ffffff',
-                                    border: active ? '1px solid transparent' : '1px solid rgba(203,213,225,0.65)',
-                                    boxShadow: active ? '0 1px 3px rgba(74, 134, 247, 0.25)' : '0 1px 2px rgba(0,0,0,0.06)',
-                                    '&:hover': { background: active ? '#3b78f0' : '#f8fafc' },
+                                    color: active ? theme.palette.primary.contrastText : theme.palette.text.secondary,
+                                    background: active
+                                        ? theme.palette.primary.main
+                                        : isDark
+                                          ? theme.palette.customed1.main
+                                          : '#ffffff',
+                                    border: active
+                                        ? '1px solid transparent'
+                                        : `1px solid ${
+                                              isDark ? alpha(theme.palette.common.white, 0.12) : 'rgba(203,213,225,0.65)'
+                                          }`,
+                                    boxShadow: active
+                                        ? `0 1px 3px ${alpha(theme.palette.primary.main, 0.35)}`
+                                        : isDark
+                                          ? 'none'
+                                          : '0 1px 2px rgba(0,0,0,0.06)',
+                                    '&:hover': {
+                                        background: active
+                                            ? theme.palette.primary.dark
+                                            : isDark
+                                              ? alpha(theme.palette.common.white, 0.06)
+                                              : '#f8fafc',
+                                    },
                                 }}
                             >
                                 {i === 0 ? t('2721') : t('2722', { index: i })}
                             </Button>
                         );
                     })}
-                    <Divider sx={{ borderColor: 'rgba(203, 213, 225, 0.85)', my: '13px' }} />
+                    <Divider sx={{ borderColor: isDark ? theme.palette.divider : 'rgba(203, 213, 225, 0.85)', my: '13px' }} />
                     <Button
                         variant="contained"
                         disableElevation
@@ -364,12 +394,17 @@ export default function TravelVirtualKeyboard({
                             fontSize: '12px',
                             fontWeight: 600,
                             textTransform: 'none',
-                            color: '#64748b',
-                            background: '#ffffff',
-                            border: '1px solid rgba(203,213,225,0.65)',
+                            color: isDark ? theme.palette.text.secondary : '#64748b',
+                            background: isDark ? theme.palette.customed1.main : '#ffffff',
+                            border: `1px solid ${
+                                isDark ? alpha(theme.palette.common.white, 0.12) : 'rgba(203,213,225,0.65)'
+                            }`,
+                            boxShadow: 'none',
                             '&:hover': {
-                                background: '#f1f5f9',
-                                border: '1px solid rgba(203,213,225,0.85)',
+                                background: isDark ? alpha(theme.palette.common.white, 0.08) : '#f1f5f9',
+                                border: `1px solid ${
+                                    isDark ? alpha(theme.palette.common.white, 0.18) : 'rgba(203,213,225,0.85)'
+                                }`,
                             },
                         }}
                     >
@@ -410,9 +445,16 @@ export default function TravelVirtualKeyboard({
                         sx={{
                             position: 'relative',
                             borderRadius: '12px',
-                            background: '#ffffff',
-                            border: '1px solid #e5e7eb',
-                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                            ...(isDark
+                                ? {
+                                      background: theme.palette.background.paper,
+                                      boxShadow: 'none',
+                                  }
+                                : {
+                                      background: '#ffffff',
+                                      border: '1px solid #e5e7eb',
+                                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+                                  }),
                             p: `${KEYBOARD_CARD_PADDING_PX}px`,
                             boxSizing: 'border-box',
                             transition: 'none',
@@ -451,7 +493,7 @@ export default function TravelVirtualKeyboard({
                                     justifyContent: 'center',
                                 }}
                             >
-                                <Typography sx={{ color: '#7c8ca5' }}>{t('2724')}</Typography>
+                                <Typography sx={{ color: isDark ? theme.palette.text.secondary : '#7c8ca5' }}>{t('2724')}</Typography>
                             </Box>
                         )}
                     </Box>

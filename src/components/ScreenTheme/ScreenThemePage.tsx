@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Dialog, DialogContent, DialogTitle, Divider, LinearProgress, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import { MainContext } from "@/providers/MainProvider";
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
@@ -18,7 +19,9 @@ import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
 import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
 import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
 import ScreenThemeConfirmDialog from "./ScreenThemeConfirmDialog";
-import { screenThemeColors } from "./theme";
+import { getComfortableScrollbarSx } from "@/utils/comfortableScrollbarSx";
+import { getScreenThemeColors } from "./theme";
+import { ScreenThemeVisualSet } from "./ScreenThemeVisualContext";
 import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
@@ -230,18 +233,32 @@ async function rgbaToRgb565SwappedChunked(rgba: Uint8ClampedArray, pixelCount: n
 }
 
 /**
- * 从 `public/` 拉取静态资源并转为 data URL。静态导出且 `assetPrefix` 为相对路径时，
- * 仅用 `fetch("/x")` 可能失败，故优先使用 `origin + path`。
+ * 解析 `public/` 下资源的 fetch 候选 URL。`assetPrefix: "./"` 静态导出时，仅用根路径 `/x` 可能 404，
+ * 需补充相对当前页面的 `./x`。
  */
-async function fetchPublicFileAsMediaAsset(absolutePath: string, displayName: string): Promise<MediaAsset> {
+function resolvePublicFetchUrls(absolutePath: string): string[] {
   const attempts: string[] = [];
   if (typeof window !== "undefined" && absolutePath.startsWith("/")) {
     attempts.push(`${window.location.origin}${absolutePath}`);
+    try {
+      attempts.push(new URL(`.${absolutePath}`, window.location.href).href);
+    } catch {
+      /* ignore */
+    }
   }
   attempts.push(absolutePath);
+  return [...new Set(attempts)];
+}
+
+/**
+ * 从 `public/` 拉取静态资源并转为 data URL。静态导出且 `assetPrefix` 为相对路径时，
+ * 仅用 `fetch("/x")` 可能失败，故优先使用 `origin + path` 与相对当前页路径。
+ */
+async function fetchPublicFileAsMediaAsset(absolutePath: string, displayName: string): Promise<MediaAsset> {
+  const attempts = resolvePublicFetchUrls(absolutePath);
 
   let lastError: unknown;
-  for (const url of [...new Set(attempts)]) {
+  for (const url of attempts) {
     try {
       const resp = await fetch(url, { cache: "no-store" });
       if (!resp.ok) continue;
@@ -374,6 +391,8 @@ async function loadIslandDraftFromIds(
 }
 
 export default function ScreenThemePage() {
+  const theme = useTheme();
+  const sv = useMemo(() => getScreenThemeColors(theme.palette.mode), [theme.palette.mode]);
   const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
   const { deviceComm, screenWidth, screenHeight, screenInfo, setDownLoad, disconnectDevice } = useContext(MainContext);
   const { showMessage } = useSnackbarDialog();
@@ -1951,8 +1970,9 @@ export default function ScreenThemePage() {
         gap: 0,
         boxSizing: "border-box",
         borderRadius: "20px",
-        backgroundColor: screenThemeColors.cardBg,
-        border: "1px solid rgba(181,187,196,0.32)",
+        backgroundColor: sv.cardBg,
+        border: `1px solid ${sv.panelBorder}`,
+        ...getComfortableScrollbarSx(theme.palette.mode === "dark"),
       }}
     >
       <ScreenThemeImportPanel
@@ -1983,6 +2003,7 @@ export default function ScreenThemePage() {
           albumCarousel={albumCarousel}
           gifPlaybackSpeed={activeSource === "video" ? videoSpeed : undefined}
           gifFrameLimit={activeSource === "video" ? videoAsset?.frameLimit : undefined}
+          videoEmptyFallbackPublicPath={activeSource === "video" ? DEFAULT_VIDEO_BG_STATIC_PATH : undefined}
         />
       )}
       {isPersonalIsland && activeSource === "theme" ? (
@@ -2099,6 +2120,7 @@ export default function ScreenThemePage() {
         : `${t("2568")} ${transferDialog.progress}%`;
 
   return (
+    <ScreenThemeVisualSet value={sv}>
     <Box
       sx={{
         flex: 1,
@@ -2229,5 +2251,6 @@ export default function ScreenThemePage() {
         </Box>
       </Box>
     </Box>
+    </ScreenThemeVisualSet>
   );
 }

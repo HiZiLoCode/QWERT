@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
 import { screenThemePillRadius } from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 export type ScreenThemeKeyboardLegendVariant = "media" | "typing";
 
@@ -16,6 +16,7 @@ type Props = {
 
 export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
   const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
 
   useEffect(() => {
@@ -42,8 +43,8 @@ export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) 
           py: 0.5,
           borderRadius: screenThemePillRadius,
           "&:hover": {
-            backgroundColor: "rgba(0, 102, 255, 0.06)",
-            boxShadow: "0 0 0 2px rgba(0, 102, 255, 0.18)",
+            backgroundColor: sv.selectFocusBg,
+            boxShadow: `0 0 0 2px ${sv.primaryGlow}`,
           },
         }}
       >
@@ -62,7 +63,7 @@ export default function ScreenThemeKeyboardLegend({ variant = "media" }: Props) 
           variant="body2"
           sx={{
             fontSize: "13px",
-            color: screenThemeColors.textDark,
+            color: sv.textDark,
             fontWeight: on ? 600 : 500,
             textAlign: "left",
           }}

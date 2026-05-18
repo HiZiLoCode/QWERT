@@ -1,6 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import ColorizeOutlinedIcon from '@mui/icons-material/ColorizeOutlined';
 import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type SyntheticEvent } from 'react';
 import { useTranslation } from '@/app/i18n';
@@ -13,6 +14,16 @@ import Matrix from '@/components/Matrix';
 import ToggleSlider from '@/components/common/ToggleSlider';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
 import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
+import {
+  lightingBrightnessInputSx,
+  lightingEffectButtonSx,
+  lightingGroupTitleSx,
+  lightingPanelCardSx,
+  lightingPercentMutedSx,
+  lightingSectionLabelSx,
+  lightingSliderSx,
+  lightingToggleGridButtonSx,
+} from '@/constants/lightingPanelChrome';
 
 type EffectItem = {
   value: number;
@@ -69,9 +80,16 @@ function getGroupTypeByContentId(contentId: string): 'backlight' | 'logo' | null
 }
 
 /** 自定义灯色点涂提示：左/右键高亮的小鼠标图标 */
-function CustomPaintMouseHintIcon({ activeButton }: { activeButton: 'left' | 'right' }) {
-  const accent = '#14b8a6';
-  const line = '#94a3b8';
+function CustomPaintMouseHintIcon({
+  activeButton,
+  accent = '#14b8a6',
+  outline = '#94a3b8',
+}: {
+  activeButton: 'left' | 'right';
+  accent?: string;
+  outline?: string;
+}) {
+  const line = outline;
   const isLeft = activeButton === 'left';
   return (
     <Box
@@ -149,6 +167,7 @@ type LightSettingPanelProps = {
 
 export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChange }: LightSettingPanelProps = {}) {
   const { t } = useTranslation('common');
+  const theme = useTheme();
   const { showDialog, showMessage } = useSnackbarDialog();
   const isMatrixOnly = forcedLightType === 'matrixlight';
 
@@ -950,10 +969,13 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                   width: 36,
                   height: 36,
                   borderRadius: '50%',
-                  backgroundColor: 'rgba(255,255,255,0.97)',
-                  border: '1px solid rgba(59,130,246,0.35)',
-                  boxShadow: '0 2px 8px rgba(37,99,235,0.18)',
-                  color: '#2563eb',
+                  backgroundColor:
+                    theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.paper, 0.96)
+                      : 'rgba(255,255,255,0.97)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.22)}`,
+                  color: theme.palette.primary.main,
                 }}
               >
                 <ColorizeOutlinedIcon sx={{ fontSize: 20 }} />
@@ -988,13 +1010,17 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           }}
         >
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', maxWidth: '100%' }}>
-            <CustomPaintMouseHintIcon activeButton="left" />
+            <CustomPaintMouseHintIcon
+              activeButton="left"
+              accent={theme.palette.primary.main}
+              outline={theme.palette.mode === 'dark' ? 'rgba(248, 250, 252, 0.5)' : '#94a3b8'}
+            />
             <Typography
               component="span"
               sx={{
                 fontSize: '13px',
                 lineHeight: 1.65,
-                color: 'rgba(40, 44, 52, 1)',
+                color: theme.palette.mode === 'dark' ? 'rgba(248, 250, 252, 0.88)' : 'rgba(40, 44, 52, 1)',
                 fontWeight: 600
               }}
             >
@@ -1002,13 +1028,17 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
             </Typography>
           </Box>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '8px', maxWidth: '100%' }}>
-            <CustomPaintMouseHintIcon activeButton="right" />
+            <CustomPaintMouseHintIcon
+              activeButton="right"
+              accent={theme.palette.primary.main}
+              outline={theme.palette.mode === 'dark' ? 'rgba(248, 250, 252, 0.5)' : '#94a3b8'}
+            />
             <Typography
               component="span"
               sx={{
                 fontSize: '13px',
                 lineHeight: 1.65,
-                color: '#64748b',
+                color: theme.palette.mode === 'dark' ? 'rgba(226, 232, 240, 0.78)' : '#64748b',
                 fontWeight: 600
               }}
             >
@@ -1030,18 +1060,14 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           sx={{
             width: "550px",
             minWidth: "450px",
-            borderRadius: '14px',
-            border: '1px solid rgba(153,169,191,0.22)',
-            background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(6px)',
+            ...lightingPanelCardSx(theme),
             p: 20,
-            boxSizing: "border-box",
             overflow: "auto"
           }}
         >
           {effectGroups.map((group) => (
             <Box key={group.title} sx={{ mb: 10 }}>
-              <Typography sx={{ fontSize: '18px', fontWeight: "500", color: "rgba(100, 116, 139, 1)", mb: 11, letterSpacing: '0.4px' }}>
+              <Typography sx={{ ...lightingGroupTitleSx(theme), mb: 11 }}>
                 {group.title}
               </Typography>
               <Box
@@ -1062,17 +1088,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                       variant="text"
 
                       sx={{
-                        height: '34px',
-                        borderRadius: '8px',
-                        fontSize: '15px',
-                        textTransform: 'none',
-                        fontWeight: "500",
-                        color: active ? '#fff' : '#5f7089',
-                        backgroundColor: active ? '#3B82F6' : '',
-                        '&:hover': {
-                          border: '1px solid #3B82F6',
-                          boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                        },
+                        ...lightingEffectButtonSx(theme, active),
                       }}
                     >
                       {item.label}
@@ -1087,19 +1103,15 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
         <Box
           sx={{
             width: "400px", minWidth: "350px",
-            borderRadius: '14px',
-            border: '1px solid rgba(153,169,191,0.22)',
-            background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(6px)',
+            ...lightingPanelCardSx(theme),
             p: 20,
-            boxSizing: "border-box",
             overflow: "auto",
           }}
         >
 
           {isPickupLightingModule ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 12 }}>
-              <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700 }}>
+              <Typography sx={lightingSectionLabelSx(theme)}>
                 {t('1305')}
               </Typography>
               <ToggleSlider
@@ -1112,7 +1124,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               />
             </Box>
           ) : null}
-          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1676')}</Typography>
+          <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1676')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
             <SliderRem
               value={brightness}
@@ -1121,20 +1133,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               disabled={!canAdjustBrightness}
               onChange={(_, v) => setBrightness(Array.isArray(v) ? v[0] : v)}
               onChangeCommitted={handleBrightnessCommit}
-              sx={{
-                color: '#3B82F6',
-                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
-                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
-                '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
-                  border: '1px solid currentColor',
-                },
-                '& .MuiSlider-thumb': {
-                  width: '32px',
-                  height: '32px',
-                  border: '4px solid #fff',
-                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                },
-              }}
+              sx={lightingSliderSx(theme)}
             />
             <Box
               component="input"
@@ -1150,25 +1149,13 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                   e.currentTarget.blur();
                 }
               }}
-              sx={{
-                ml: 10,
-                width: '50px',
-                height: '32px',
-                borderRadius: '8px',
-                border: '1px solid #E2E8F0',
-                textAlign: 'center',
-                color: '#64748b',
-                fontSize: '15px',
-                fontWeight: 600,
-                outline: 'none',
-                backgroundColor: '#fff',
-              }}
+              sx={lightingBrightnessInputSx(theme)}
             />
-            <Typography sx={{ color: '#94A3B8', fontSize: '20px', fontWeight: 600 }}>%</Typography>
+            <Typography sx={lightingPercentMutedSx(theme)}>%</Typography>
           </Box>
 
 
-          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1677')}</Typography>
+          <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1677')}</Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 9, mb: 3.5 }}>
             <SliderRem
               value={speed}
@@ -1177,20 +1164,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               disabled={!canAdjustSpeed}
               onChange={(_, v) => setSpeed(Array.isArray(v) ? v[0] : v)}
               onChangeCommitted={handleSpeedCommit}
-              sx={{
-                color: '#3B82F6',
-                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
-                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
-                '&:hover .MuiSlider-track, &.Mui-focusVisible .MuiSlider-track, & .MuiSlider-thumb.Mui-active + .MuiSlider-track': {
-                  border: '1px solid currentColor',
-                },
-                '& .MuiSlider-thumb': {
-                  width: '32px',
-                  height: '32px',
-                  border: '4px solid #fff',
-                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                },
-              }}
+              sx={lightingSliderSx(theme)}
             />
             <Box sx={{ width: '50px', height: '32px' }} />
             <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
@@ -1198,35 +1172,19 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
           {canAdjustDirection ? (
             <>
-              <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t('1678')}</Typography>
+              <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1678')}</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <ButtonRem
                   variant="text"
                   onClick={() => void handleDirectionChange(0)}
-                  sx={{
-                    height: '36px',
-                    borderRadius: '8.8px',
-                    fontSize: '15px',
-                    textTransform: 'none',
-                    color: playDirection === 0 ? '#fff' : '#5f7089',
-                    backgroundColor: playDirection === 0 ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                    '&:hover': { border: '1px solid #3B82F6', boxShadow: '0 2px 8px rgba(59,130,246,0.35)', },
-                  }}
+                  sx={lightingToggleGridButtonSx(theme, playDirection === 0)}
                 >
                   {t(directionLabels[0])}
                 </ButtonRem>
                 <ButtonRem
                   variant="text"
                   onClick={() => void handleDirectionChange(1)}
-                  sx={{
-                    height: '36px',
-                    borderRadius: '8.8px',
-                    fontSize: '15px',
-                    textTransform: 'none',
-                    color: playDirection === 1 ? '#fff' : '#5f7089',
-                    backgroundColor: playDirection === 1 ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                    '&:hover': { border: '1px solid #3B82F6', boxShadow: '0 2px 8px rgba(59,130,246,0.35)', },
-                  }}
+                  sx={lightingToggleGridButtonSx(theme, playDirection === 1)}
                 >
                   {t(directionLabels[1])}
                 </ButtonRem>
@@ -1234,24 +1192,13 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
             </>
           ) : null}
 
-          <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mt: 14, mb: 8 }}>{t('206')}</Typography>
+          <Typography sx={{ ...lightingSectionLabelSx(theme), mt: 14, mb: 8 }}>{t('206')}</Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             <ButtonRem
               disabled={pickupStaticDisableSwatch || !canEnableSingleColor}
               onClick={() => void handleColorfulSwitch(false)}
               variant="text"
-              sx={{
-                height: '36px',
-                borderRadius: '8.8px',
-                fontSize: '15px',
-                textTransform: 'none',
-                color: singleColorMode ? '#fff' : '#5f7089',
-                backgroundColor: singleColorMode ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                '&:hover': {
-                  border: '1px solid #3B82F6',
-                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                },
-              }}
+              sx={lightingToggleGridButtonSx(theme, singleColorMode)}
             >
               {t('1690')}
             </ButtonRem>
@@ -1259,18 +1206,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               disabled={!canEnableColorful || pickupStaticDisableSwatch}
               onClick={() => void handleColorfulSwitch(true)}
               variant="text"
-              sx={{
-                height: '36px',
-                borderRadius: '8.8px',
-                fontSize: '15px',
-                textTransform: 'none',
-                color: !singleColorMode ? '#fff' : '#5f7089',
-                backgroundColor: !singleColorMode ? '#3B82F6' : 'rgba(255,255,255,.35)',
-                '&:hover': {
-                  border: '1px solid #3B82F6',
-                  boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                },
-              }}
+              sx={lightingToggleGridButtonSx(theme, !singleColorMode)}
             >
               {t('1691')}
             </ButtonRem>
@@ -1296,14 +1232,27 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
                 borderRadius: '8.8px',
                 fontSize: '15px',
                 textTransform: 'none',
-                color: '#5f7089',
-                border: '1px solid rgba(148,163,184,0.55)',
-                backgroundColor: 'rgba(255,255,255,.45)',
-                '&:hover': {
-                  borderColor: '#3B82F6',
-                  color: '#3B82F6',
-                  backgroundColor: 'rgba(59,130,246,.08)',
-                },
+                ...(theme.palette.mode === 'dark'
+                  ? {
+                      color: 'rgba(248, 250, 252, 0.75)',
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.42)}`,
+                      backgroundColor: 'rgba(255,255,255,0.06)',
+                      '&:hover': {
+                        borderColor: theme.palette.primary.main,
+                        color: theme.palette.primary.main,
+                        backgroundColor: 'rgba(249, 115, 22, 0.12)',
+                      },
+                    }
+                  : {
+                      color: '#5f7089',
+                      border: '1px solid rgba(148,163,184,0.55)',
+                      backgroundColor: 'rgba(255,255,255,.45)',
+                      '&:hover': {
+                        borderColor: '#3B82F6',
+                        color: '#3B82F6',
+                        backgroundColor: 'rgba(59,130,246,.08)',
+                      },
+                    }),
               }}
             >
               {t('610')}
@@ -1315,11 +1264,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           sx={{
             width: "350px",
             minWidth: "350px",
-            borderRadius: '14px',
-            border: '1px solid rgba(153,169,191,0.22)',
-            background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(6px)',
-            boxSizing: "border-box",
+            ...lightingPanelCardSx(theme),
             overflow: "auto",
             p: 20,
           }}

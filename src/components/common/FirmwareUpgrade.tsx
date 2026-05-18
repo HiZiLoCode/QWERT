@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Box,
   Button,
@@ -14,8 +14,11 @@ import {
   AlertTitle,
   Stack,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from "@/app/i18n";
+import { lightingPanelCardSx } from "@/constants/lightingPanelChrome";
+import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
 
 // WebHID API 类型声明
 declare global {
@@ -167,7 +170,9 @@ interface FirmwareUpgradeProps {
 function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) {
   const theme = useTheme();
   const isLightMode = theme.palette.mode === 'light';
+  const isDark = theme.palette.mode === 'dark';
   const { t } = useTranslation("common");
+  const { showDialog } = useSnackbarDialog();
 
   // 状态管理
   const [upgradeState, setUpgradeState] = useState<UpgradeState>({
@@ -422,17 +427,35 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       ...prev,
       error: message,
       isUpgrading: false,
-      currentStep: UpgradeStep.ERROR
+      currentStep: UpgradeStep.ERROR,
+      statusType: 'error',
+      status: t('1219'),
+      progress: prev.progress,
     }));
-  }, []);
+  }, [t]);
 
   // 显示成功
-  const showSuccess = useCallback((message: string) => {
+  const showSuccess = useCallback(() => {
     setUpgradeState(prev => ({
       ...prev,
-      currentStep: UpgradeStep.COMPLETED
+      currentStep: UpgradeStep.COMPLETED,
+      isUpgrading: false,
+      status: t('2884'),
+      progress: 100,
+      statusType: 'normal',
+      error: undefined,
     }));
-  }, []);
+    showDialog({
+      title: t('2905'),
+      content: t('2906'),
+      confirmText: t('1111'),
+      onConfirm: () => {
+        window.location.reload();
+      },
+      onCancel: () => {},
+      confirmOnly: true,
+    });
+  }, [showDialog, t]);
 
   // 检测APP模式设备
   const detectAppModeDevice = useCallback(async (): Promise<HIDDevice | null> => {
@@ -684,17 +707,17 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       const response = await receiveReport(device, 5000);
       // 解析应答: [0]=0xAA 协议头, [6]=0xB0 ACK命令, [7]=0x00 ACK代码
       if (response[0] === 0xAA && response[6] === 0xB0 && response[7] === 0x00) {
-        updateStatus(`✅ ${t("1222")}`, 8, UpgradeStep.ENTERING_IAP_MODE); // '切换Boot模式成功！设备将在100ms后重启'
+        updateStatus(t("1222"), 8, UpgradeStep.ENTERING_IAP_MODE);
         // 等待设备重启
         await delay(5000);
-        updateStatus(`⚠️ ${t("1223")}`, 10, UpgradeStep.WAITING_IAP_DEVICE); // '设备已重启，请重新连接设备以继续升级'
+        updateStatus(t("1223"), 10, UpgradeStep.WAITING_IAP_DEVICE);
       } else {
         const ackCode = response[7];
         throw new Error(`切换失败，ACK代码: 0x${ackCode.toString(16).padStart(2, '0')}`);
       }
     } catch (error: any) {
       if (error.message.includes('超时')) {
-        updateStatus('⏱️ 等待应答超时，设备可能已重启', 10, UpgradeStep.WAITING_IAP_DEVICE);
+        updateStatus(t('2912'), 10, UpgradeStep.WAITING_IAP_DEVICE);
       } else {
         throw error;
       }
@@ -703,7 +726,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
 
   // 发送启动命令
   const sendStartCommand = async (device: HIDDevice, firmwareData: Uint8Array): Promise<void> => {
-    updateStatus(`📤 ${t("步骤1")}: ${t("1228")}`, 15, UpgradeStep.UPGRADING); // '发送启动命令 (START 0xA0)...'
+    updateStatus(t("1228"), 15, UpgradeStep.UPGRADING);
 
     // 先清空输入缓冲区
     await clearInputBuffer(device);
@@ -729,15 +752,15 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     await sendBusinessPacket(device, businessData.slice(0, idx));
 
     // 等待设备验证Header（重要！设备需要时间验证，约1-2秒）
-    updateStatus(`⏱️ ${t("1229")}`, 18, UpgradeStep.UPGRADING); // '等待设备验证Header（1-2秒）...'
+    updateStatus(t("1229"), 18, UpgradeStep.UPGRADING);
     await delay(2000);
 
-    updateStatus(`✅ ${t("1230")}`, 20, UpgradeStep.UPGRADING); // '启动命令已发送'
+    updateStatus(t("1230"), 20, UpgradeStep.UPGRADING);
   };
 
   // 写入Flash
   const writeFlash = async (device: HIDDevice, firmwareData: Uint8Array): Promise<void> => {
-    updateStatus('📤 步骤2: 写入Flash数据...', 25, UpgradeStep.UPGRADING);
+    updateStatus(t('1231'), 25, UpgradeStep.UPGRADING);
 
     const binData = firmwareData.slice(128);
     const blockSize = firmwareData[66] | (firmwareData[67] << 8);
@@ -807,7 +830,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     console.log('✅ Flash写入数据全部发送完成');
 
     // 尝试读取最终ACK
-    updateStatus('📥 尝试读取写入确认...', 90, UpgradeStep.UPGRADING);
+    updateStatus(t('1233'), 90, UpgradeStep.UPGRADING);
     try {
       await clearInputBufferQuick(device);
       const finalAck = await receiveReport(device, 5000);
@@ -816,12 +839,12 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       console.warn('⚠️ 未收到确认响应（可能设备已完成写入）');
     }
 
-    updateStatus('✅ Flash写入完成', 90, UpgradeStep.UPGRADING);
+    updateStatus(t('1234'), 90, UpgradeStep.UPGRADING);
   };
 
   // 切换到APP
   const switchToApp = async (device: HIDDevice): Promise<void> => {
-    updateStatus('📤 步骤3: 发送切换APP命令 (SWITCH_APP 0xA4)...', 92, UpgradeStep.UPGRADING);
+    updateStatus(t('1235'), 92, UpgradeStep.UPGRADING);
 
     const businessData = new Uint8Array(7);
     let idx = 0;
@@ -840,10 +863,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
 
     await sendBusinessPacket(device, businessData.slice(0, idx));
 
-    updateStatus('✅ 切换APP命令已发送', 95, UpgradeStep.UPGRADING);
-    updateStatus('设备重启中...', 95, UpgradeStep.UPGRADING);
+    updateStatus(t('1236'), 95, UpgradeStep.UPGRADING);
+    updateStatus(t('1237'), 95, UpgradeStep.UPGRADING);
     await delay(2000);
-    updateStatus('升级完成！', 100, UpgradeStep.UPGRADING);
+    updateStatus(t('2884'), 100, UpgradeStep.UPGRADING);
   };
 
   // 设备监控循环
@@ -920,7 +943,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         iapWaitTimeoutRef.current = null;
       }
 
-      updateStatus("连接Boot设备...", 15, UpgradeStep.UPGRADING);
+      updateStatus(t('1226'), 15, UpgradeStep.UPGRADING);
 
       // 连接Boot设备
       const connected = await connectDevice(device);
@@ -935,7 +958,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       let currentFirmwareData = fileData ? await loadFirmwareAsUint8Array(fileData) : null;
       console.log("Boot设备检测：当前固件文件状态:", currentFirmwareData ? "已加载" : "未加载", "大小:", currentFirmwareData?.length);
       if (!currentFirmwareData) {
-        updateStatus("加载固件文件...", 10, UpgradeStep.UPGRADING);
+        updateStatus(t('1227'), 10, UpgradeStep.UPGRADING);
 
         try {
           const loadedFileData = await loadLocalFirmware();
@@ -951,16 +974,16 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       await performFirmwareUpgradeWithDeviceAndData(device, currentFirmwareData);
 
     } catch (error: any) {
-      showError('Boot设备连接失败: ' + error.message);
+      showError(`${t('2914')}: ${error.message}`);
     } finally {
       isProcessingIAPRef.current = false;
     }
-  }, [updateStatus, connectDevice, showError, originalKeyboardPID, keyboardDevice, fileData, detectAppModeDevice]);
+  }, [updateStatus, connectDevice, showError, originalKeyboardPID, keyboardDevice, fileData, detectAppModeDevice, t]);
 
   // 主升级流程
   const startFirmwareUpgrade = async () => {
     if (!fileData) {
-      showError('固件文件未加载');
+      showError(t('2916'));
       return;
     }
 
@@ -988,19 +1011,19 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       }
 
       // 步骤1: 检测设备
-      updateStatus("检测设备...", 5, UpgradeStep.DETECTING_KEYBOARD);
+      updateStatus(t('1220'), 5, UpgradeStep.DETECTING_KEYBOARD);
 
       const appDevice = await detectAppModeDevice();
       const bootDevice = await detectBootModeDevice();
 
       if (bootDevice) {
         // 如果已经在Boot模式，直接开始升级
-        updateStatus("设备已在Boot模式，开始升级...", 10, UpgradeStep.UPGRADING);
+        updateStatus(t('1226'), 10, UpgradeStep.UPGRADING);
         setIapDevice({ device: bootDevice, isConnected: true, isAuthorized: true });
         await handleBootDeviceDetected(bootDevice);
       } else if (appDevice) {
         // 如果在APP模式，需要切换到Boot模式
-        updateStatus("设备在APP模式，切换到Boot模式...", 8, UpgradeStep.ENTERING_IAP_MODE);
+        updateStatus(t('1221'), 8, UpgradeStep.ENTERING_IAP_MODE);
 
         if (!originalKeyboardPID) {
           setOriginalKeyboardPID(appDevice.productId);
@@ -1023,18 +1046,18 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         // 🔑 关键：发送完切换Boot命令后，立即显示"立即授权"按钮
         // 用户点击授权后，将筛选IAP模式设备（VID: 0x36B0, PID: 0x33FF）
         console.log('[开始升级] 切换Boot命令已发送，显示授权按钮');
-        updateStatus("请点击立即授权按钮，选择IAP模式设备继续升级", 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
+        updateStatus(t('2898'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
         // 不再等待自动检测，而是让用户手动授权IAP设备
       } else {
         // 未检测到设备，显示授权按钮
         console.log('[开始升级] 未检测到已授权设备，显示授权按钮');
-        updateStatus("请点击立即授权按钮，授权设备后继续升级", 5, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
+        updateStatus(t('2899'), 5, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
         // 保持 isUpgrading=true，显示授权按钮
       }
 
     } catch (error: any) {
       console.error('升级启动失败:', error);
-      showError('升级启动失败: ' + error.message);
+      showError(`${t('2917')}: ${error.message}`);
       setUpgradeState(prev => ({ ...prev, isUpgrading: false }));
     }
   };
@@ -1055,9 +1078,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         throw new Error('设备不在Bootloader模式，请先切换到Boot模式');
       }
 
-      updateStatus("", 10, UpgradeStep.UPGRADING);
-      updateStatus("🚀 开始固件升级", 10, UpgradeStep.UPGRADING);
-      updateStatus("", 10, UpgradeStep.UPGRADING);
+      updateStatus(t('1238'), 10, UpgradeStep.UPGRADING);
 
       // 步骤1: 发送启动命令
       await sendStartCommand(device, firmwareData);
@@ -1068,10 +1089,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       // 步骤3: 切换到APP
       await switchToApp(device);
 
-      updateStatus("", 100, UpgradeStep.COMPLETED);
-      updateStatus("✅ 升级完成！", 100, UpgradeStep.COMPLETED);
-      updateStatus("", 100, UpgradeStep.COMPLETED);
-      showSuccess("固件升级成功完成！");
+      showSuccess();
       
       // 🗑️ 清空升级状态（升级成功）
       try {
@@ -1086,9 +1104,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       setIapDevice({ device: null, isConnected: false, isAuthorized: false });
 
     } catch (error: any) {
-      updateStatus("", 0, UpgradeStep.ERROR);
-      updateStatus(`❌ 升级失败: ${error.message}`, 0, UpgradeStep.ERROR);
-      updateStatus("", 0, UpgradeStep.ERROR);
+      updateStatus(t('1219'), 0, UpgradeStep.ERROR, error.message, 'error');
       
       // ⚠️ 升级失败时不清空状态，保留用于异常检测
       // localStorage 中的状态会在下次连接时检测到
@@ -1105,7 +1121,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     try {
       // 如果不是自动调用，更新状态为正常的请求授权状态
       if (!isAutomatic) {
-        updateStatus("请求设备授权...", 12, UpgradeStep.REQUESTING_AUTHORIZATION);
+        updateStatus(t('2900'), 12, UpgradeStep.REQUESTING_AUTHORIZATION);
       }
 
       // 请求设备授权
@@ -1122,22 +1138,21 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
           // APP模式，需要切换到Boot模式
           await switchToBoot(device);
           await disconnectDevice(device);
-          updateStatus("等待设备重启到Boot模式...", 12, UpgradeStep.WAITING_IAP_DEVICE);
+          updateStatus(t('2903'), 12, UpgradeStep.WAITING_IAP_DEVICE);
         }
       } else {
         // 如果是自动调用且用户取消，保持错误提示状态
         if (isAutomatic) {
-          updateStatus("请点击立即授权按钮，授权设备后继续升级", 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'error');
+          updateStatus(t('2899'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'error');
         } else {
-          showError('用户取消了设备授权');
+          updateStatus(t('2900'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'error');
         }
       }
     } catch (error: any) {
-      // 如果是自动调用，保持错误提示状态，否则显示错误
       if (isAutomatic) {
-        updateStatus("请点击立即授权按钮，授权设备后继续升级", 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'error');
+        updateStatus(t('2899'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'error');
       } else {
-        showError('设备授权失败: ' + error.message);
+        showError(`${t('2918')}: ${error.message}`);
       }
     }
   };
@@ -1151,7 +1166,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     disconnectDevice(keyboardDevice.device);
     disconnectDevice(iapDevice.device);
 
-    updateStatus("升级已取消", 0, UpgradeStep.IDLE);
+    updateStatus(t('2904'), 0, UpgradeStep.IDLE);
     onClose();
   };
 
@@ -1162,7 +1177,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     setUpgradeState({
       isUpgrading: false,
       progress: 0,
-      status: "准备就绪",
+      status: t("1208"),
       currentStep: UpgradeStep.IDLE,
       statusType: 'normal',
     });
@@ -1170,11 +1185,6 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     setIapDevice({ device: null, isConnected: false, isAuthorized: false });
     // 注意：不清除原始PID记录，保持设备信息以便下次使用
 
-    // 升级完成后，强制刷新页面
-    if (upgradeState.currentStep === UpgradeStep.COMPLETED) {
-      window.location.reload()
-
-    }
   };
 
   // 弹窗关闭时重置状态
@@ -1203,6 +1213,38 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   }, [isOpen, startDeviceMonitoring, stopDeviceMonitoring]);
 
   const primaryColor = theme.palette.primary.main;
+  const trackBg = isLightMode ? 'rgba(0, 0, 0, 0.06)' : alpha(theme.palette.common.white, 0.1);
+
+  const progressHeadlineLeft = useMemo(() => {
+    if (upgradeState.statusType === 'error' || upgradeState.statusType === 'warning') {
+      return upgradeState.status;
+    }
+    if (upgradeState.currentStep === UpgradeStep.COMPLETED || upgradeState.progress >= 100) {
+      return t('2884');
+    }
+    if (
+      upgradeState.currentStep === UpgradeStep.UPGRADING &&
+      upgradeState.progress >= 25 &&
+      upgradeState.progress < 92
+    ) {
+      return t('2848');
+    }
+    if (upgradeState.currentStep === UpgradeStep.IDLE && fileData) {
+      return t('1209');
+    }
+    return upgradeState.status;
+  }, [
+    upgradeState.currentStep,
+    upgradeState.progress,
+    upgradeState.status,
+    upgradeState.statusType,
+    fileData,
+    t,
+  ]);
+
+  const authFailureBanner =
+    upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION &&
+    upgradeState.statusType === 'error';
 
   return (
     <Modal
@@ -1219,17 +1261,16 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
           position: 'relative',
           width: '90%',
           maxWidth: '600px',
-          bgcolor: isLightMode ? 'rgba(250, 250, 252, 0.98)' : 'rgba(40, 40, 52, 0.98)',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'}`,
-          borderRadius: '16px',
-          padding: '36px !important',
+          bgcolor: theme.palette.background.paper,
+          backdropFilter: isLightMode ? 'blur(20px)' : 'none',
+          border: `1px solid ${isDark ? alpha(primaryColor, 0.48) : 'rgba(15, 23, 42, 0.08)'}`,
+          borderRadius: '18px',
+          padding: '32px !important',
           boxShadow: isLightMode
             ? '0 20px 60px rgba(0, 0, 0, 0.12)'
-            : '0 20px 60px rgba(0, 0, 0, 0.4)',
+            : '0 20px 60px rgba(0, 0, 0, 0.55)',
         }}
       >
-        {/* 标题栏：标题居中，关闭在右上角 */}
         <Box
           sx={{
             position: 'relative',
@@ -1237,10 +1278,19 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
             alignItems: 'center',
             justifyContent: 'center',
             marginBottom: '24px !important',
-            minHeight: '40px',
+            minHeight: '44px',
           }}
         >
-          <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, textAlign: 'center' }}>
+          <Typography
+            sx={{
+              fontSize: '20px',
+              fontWeight: 700,
+              lineHeight: 1.35,
+              letterSpacing: '0.02em',
+              textAlign: 'center',
+              color: 'text.primary',
+            }}
+          >
             {t("1200")}
           </Typography>
           {!upgradeState.isUpgrading && (
@@ -1252,8 +1302,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                 right: 0,
                 top: '50%',
                 transform: 'translateY(-50%)',
+                color: 'text.secondary',
+                '& .MuiSvgIcon-root': { fontSize: 22 },
                 '&:hover': {
-                  bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)',
+                  bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : alpha(theme.palette.common.white, 0.08),
                 },
               }}
             >
@@ -1263,236 +1315,355 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         </Box>
 
         <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '24px !important' } }}>
-          {/* 设备状态 */}
           <Box>
+            <Typography
+              sx={{
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'text.secondary',
+                mb: '8px',
+                letterSpacing: '0.03em',
+              }}
+            >
+              {t('1202')}
+            </Typography>
             <Paper
               sx={{
-                padding: '20px !important',
-                bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.3)',
-                border: `1px solid ${iapDevice.isConnected ? '#4caf50' :
-                  keyboardDevice.isConnected ? primaryColor :
-                    isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'
-                  }`,
-                borderRadius: '12px',
+                p: '20px !important',
                 textAlign: 'center',
+                ...lightingPanelCardSx(theme),
+                ...(iapDevice.isConnected || keyboardDevice.isConnected
+                  ? {}
+                  : {
+                      border: `1px solid ${alpha(theme.palette.warning.main, isDark ? 0.55 : 0.45)}`,
+                    }),
               }}
             >
               <Typography
                 sx={{
-                  color: iapDevice.isConnected ? '#4caf50' :
-                    keyboardDevice.isConnected ? primaryColor :
-                      'text.disabled',
-                  fontSize: '14px',
+                  color: iapDevice.isConnected
+                    ? 'success.main'
+                    : keyboardDevice.isConnected
+                      ? 'primary.main'
+                      : 'text.disabled',
+                  fontSize: '15px',
                   fontWeight: 600,
-                  marginBottom: '12px !important',
+                  lineHeight: 1.45,
+                  mb: '16px !important',
                 }}
               >
-                {iapDevice.isConnected ? `✅ ${t("1203")}` :
-                  keyboardDevice.isConnected ? `🔗 ${t("1204")}` :
-                    `❌ ${t("1205")}`}
+                {iapDevice.isConnected
+                  ? t('1203')
+                  : keyboardDevice.isConnected
+                    ? t('1204')
+                    : `✕ ${t('1205')}`}
               </Typography>
 
-              {/* 显示设备详细信息 */}
-              {(keyboardDevice.isConnected || iapDevice.isConnected || deviceInfo) && (
-                <Box sx={{
-                  marginTop: '16px !important',
-                  paddingTop: '16px !important',
-                  borderTop: `1px solid ${isLightMode ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)'}`
-                }}>
-                  {(keyboardDevice.device || deviceInfo) && (
-                    <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '10px !important' } }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
-                          VID
-                        </Typography>
-                        <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace' }}>
-                          0x{(deviceInfo?.vendorId || keyboardDevice.device?.vendorId || 0).toString(16).toUpperCase().padStart(4, '0')}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
-                          PID
-                        </Typography>
-                        <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace' }}>
-                          0x{(deviceInfo?.productId || keyboardDevice.device?.productId || 0).toString(16).toUpperCase().padStart(4, '0')}
-                        </Typography>
-                      </Box>
-                      {deviceInfo?.currentVersion && (
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
-                            {t("1206")}
-                          </Typography>
-                          <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600 }}>
-                            v{deviceInfo.currentVersion}
-                          </Typography>
-                        </Box>
-                      )}
-                      {deviceInfo?.upgradeVersion && (
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
-                            {t("1207")}
-                          </Typography>
-                          <Typography sx={{ color: primaryColor, fontSize: '13px', fontWeight: 700 }}>
-                            v{deviceInfo.upgradeVersion}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Stack>
+              <Box
+                sx={{
+                  pt: '16px',
+                  borderTop: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.1) : 'rgba(0,0,0,0.08)'}`,
+                }}
+              >
+                <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '10px !important' } }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                    <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>VID</Typography>
+                    <Typography
+                      sx={{
+                        color: 'text.primary',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      }}
+                    >
+                      0x{(deviceInfo?.vendorId || keyboardDevice.device?.vendorId || 0).toString(16).toUpperCase().padStart(4, '0')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                    <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>PID</Typography>
+                    <Typography
+                      sx={{
+                        color: 'text.primary',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                      }}
+                    >
+                      0x{(deviceInfo?.productId || keyboardDevice.device?.productId || 0).toString(16).toUpperCase().padStart(4, '0')}
+                    </Typography>
+                  </Box>
+                  {deviceInfo?.currentVersion && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>
+                        {t('1206')}
+                      </Typography>
+                      <Typography sx={{ color: 'text.primary', fontSize: '14px', fontWeight: 600 }}>
+                        v{deviceInfo.currentVersion}
+                      </Typography>
+                    </Box>
                   )}
-                </Box>
-              )}
+                  {deviceInfo?.upgradeVersion && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>
+                        {t('1207')}
+                      </Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'primary.main' }}>
+                        v{deviceInfo.upgradeVersion}
+                      </Typography>
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
             </Paper>
           </Box>
 
-          {/* 进度条 */}
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px !important' }}>
-              <Typography
-                sx={{
-                  color: upgradeState.statusType === 'error' ? 'error.main' :
-                    upgradeState.statusType === 'warning' ? 'warning.main' :
-                      'text.primary',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-              >
-                {upgradeState.status}
-              </Typography>
-              <Typography
-                sx={{
-                  color: primaryColor,
-                  fontSize: '14px',
-                  fontWeight: 600,
-                }}
-              >
-                {Math.round(upgradeState.progress)}%
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={upgradeState.progress}
-              sx={{
-                height: 8,
-                borderRadius: '6px',
-                bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
-                '& .MuiLinearProgress-bar': {
-                  bgcolor: upgradeState.statusType === 'error' ? 'error.main' :
-                    upgradeState.statusType === 'warning' ? 'warning.main' :
-                      primaryColor,
-                  borderRadius: '6px',
-                }
-              }}
-            />
-          </Box>
-
-          {/* 错误信息 */}
-          {upgradeState.error && (
-            <Alert severity="error">
-              <AlertTitle sx={{ fontSize: '14px' }}>{t("1219")}</AlertTitle>
-              <Typography sx={{ fontSize: '12px' }}>
-                {upgradeState.error}
-              </Typography>
-            </Alert>
-          )}
-
-          {/* 升级注意事项 */}
-          <Paper
+          <Box
             sx={{
-              padding: '20px !important',
-              bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.3)',
-              border: `1px solid ${isLightMode ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)'}`,
-              borderRadius: '12px',
+              borderRadius: '10px',
+              border: isLightMode ? '1px solid rgba(0, 0, 0, 0.06)' : `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+              bgcolor: isLightMode ? '#ffffff' : alpha(theme.palette.common.white, 0.04),
+              pt: '12px',
+              pb: '14px',
+              overflow: 'hidden',
             }}
           >
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px !important', color: 'text.primary' }}>
-              ⚠️ {t("1210")}
+            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', minHeight: 44 }}>
+             
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  pl: '14px',
+                  pr: '14px',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color:
+                      upgradeState.statusType === 'error'
+                        ? 'error.main'
+                        : upgradeState.statusType === 'warning'
+                          ? 'warning.main'
+                          : 'text.secondary',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    lineHeight: 1.45,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {progressHeadlineLeft}
+                </Typography>
+                <Typography
+                  sx={{
+                    color:
+                      upgradeState.statusType === 'error'
+                        ? 'error.main'
+                        : upgradeState.statusType === 'warning'
+                          ? 'primary.main'
+                          : 'text.secondary',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    lineHeight: 1.45,
+                    flexShrink: 0,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {Math.round(upgradeState.progress)}%
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ px: '14px', mt: '12px' }}>
+              <LinearProgress
+                variant="determinate"
+                value={upgradeState.progress}
+                sx={{
+                  height: 10,
+                  borderRadius: '999px',
+                  bgcolor: trackBg,
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor:
+                      upgradeState.statusType === 'error'
+                        ? theme.palette.error.main
+                        : upgradeState.statusType === 'warning'
+                          ? theme.palette.warning.main
+                          : primaryColor,
+                    borderRadius: '999px',
+                  },
+                }}
+              />
+            </Box>
+          </Box>
+
+          {authFailureBanner ? (
+            <Paper
+              sx={{
+                ...lightingPanelCardSx(theme),
+                p: '18px !important',
+                borderRadius: '12px',
+                border: `1px solid ${alpha(theme.palette.error.main, 0.45)}`,
+              }}
+            >
+              <Typography sx={{ fontSize: '16px', fontWeight: 700, color: 'error.main', mb: '10px', lineHeight: 1.4 }}>
+                {t('2896')}
+              </Typography>
+              <Typography sx={{ fontSize: '14px', lineHeight: 1.7, color: 'error.main', fontWeight: 500 }}>
+                {t('2897')}
+              </Typography>
+            </Paper>
+          ) : null}
+
+          {upgradeState.error && !authFailureBanner ? (
+            <Alert
+              severity="error"
+              sx={{
+                borderRadius: '12px',
+                ...(isDark
+                  ? {
+                      bgcolor: alpha(theme.palette.error.main, 0.12),
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.35)}`,
+                      color: alpha(theme.palette.common.white, 0.88),
+                      '& .MuiAlert-icon': { color: theme.palette.error.main },
+                    }
+                  : {}),
+              }}
+            >
+              <AlertTitle sx={{ fontSize: '16px', fontWeight: 700 }}>{t('1219')}</AlertTitle>
+              <Typography sx={{ fontSize: '14px', lineHeight: 1.65, color: 'error.light' }}>{upgradeState.error}</Typography>
+            </Alert>
+          ) : null}
+
+          <Paper
+            sx={{
+              p: '20px !important',
+              ...lightingPanelCardSx(theme),
+            }}
+          >
+            <Typography
+              sx={{
+                fontSize: '16px',
+                fontWeight: 700,
+                lineHeight: 1.4,
+                mb: '14px !important',
+                color: 'error.main',
+              }}
+            >
+              {t('1210')}
             </Typography>
-            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '12px !important' } }}>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.6 }}>
-                {t("1211")}
+            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '10px !important' } }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('1211')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.6 }}>
-                {t("1212")}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('1212')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.6 }}>
-                {t("1213")}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('1213')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.6 }}>
-                {t("1214")}
+              <Typography sx={{ color: 'error.main', fontSize: '14px', lineHeight: 1.7, fontWeight: 600 }}>
+                {t('1214')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.6 }}>
-                {t("1215")}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('1215')}
               </Typography>
             </Stack>
           </Paper>
 
-          {/* 按钮组 */}
-          <Stack direction="row" sx={{ gap: '16px !important' }}>
-            {/* 只在需要授权时显示授权按钮 */}
-            {upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION && (
+          {authFailureBanner ? (
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={() => void handleOpenAuthorization(false)}
+              sx={{
+                py: '13px',
+                minHeight: 48,
+                textTransform: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: 700,
+                bgcolor: theme.palette.error.main,
+                color: '#fff !important',
+                boxShadow: `0 8px 24px ${alpha(theme.palette.error.main, 0.35)}`,
+                '&:hover': { bgcolor: theme.palette.error.dark },
+              }}
+            >
+              {t('2902')}
+            </Button>
+          ) : (
+            <Stack direction="row" sx={{ gap: '16px !important' }}>
+              {upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION &&
+              upgradeState.statusType !== 'error' ? (
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={() => void handleOpenAuthorization(false)}
+                  sx={{
+                    flex: 1,
+                    py: '13px',
+                    minHeight: 48,
+                    textTransform: 'none',
+                    borderRadius: '12px',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    bgcolor: theme.palette.error.main,
+                    color: '#fff !important',
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.error.main, 0.35)}`,
+                    '&:hover': { bgcolor: theme.palette.error.dark },
+                  }}
+                >
+                  {t('1216')}
+                </Button>
+              ) : null}
+
               <Button
                 variant="contained"
-                size="medium"
-                onClick={() => handleOpenAuthorization(false)}
-                disabled={false}
+                color="primary"
+                size="large"
+                onClick={upgradeState.currentStep === UpgradeStep.COMPLETED ? handleClose : startFirmwareUpgrade}
+                disabled={
+                  upgradeState.currentStep === UpgradeStep.COMPLETED
+                    ? false
+                    : !fileData || upgradeState.isUpgrading
+                }
                 sx={{
-                  flex: 1,
-                  paddingTop: '10px !important',
-                  paddingBottom: '10px !important',
-                  justifyContent: 'center',
-                  bgcolor: '#ff3333',
-                  color: '#fff !important',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  borderRadius: '10px',
-                  boxShadow: '0 4px 12px rgba(255, 51, 51, 0.3)',
+                  flex:
+                    upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION &&
+                    upgradeState.statusType !== 'error'
+                      ? 1
+                      : '100%',
+                  py: '13px',
+                  minHeight: 48,
+                  textTransform: 'none',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: 700,
+                  lineHeight: 1.35,
+                  boxShadow: `0 8px 24px ${alpha(primaryColor, 0.35)}`,
                   '&:hover': {
-                    bgcolor: '#ff1a1a',
-                    boxShadow: '0 6px 16px rgba(255, 51, 51, 0.4)',
+                    bgcolor: theme.palette.primary.dark,
+                    filter: 'brightness(1.02)',
+                  },
+                  '&:disabled': {
+                    bgcolor: isDark ? alpha(theme.palette.common.white, 0.08) : 'rgba(0, 0, 0, 0.08)',
+                    color: `${isDark ? alpha(theme.palette.common.white, 0.35) : 'rgba(0,0,0,0.38)'} !important`,
+                    boxShadow: 'none',
                   },
                 }}
               >
-                {t("1216")}
+                {upgradeState.currentStep === UpgradeStep.COMPLETED
+                  ? t('1218')
+                  : upgradeState.isUpgrading
+                    ? t('2901')
+                    : t('1217')}
               </Button>
-            )}
-
-            {/* 主升级按钮 - 始终显示 */}
-            <Button
-              variant="contained"
-              size="medium"
-              onClick={upgradeState.currentStep === UpgradeStep.COMPLETED ? handleClose : startFirmwareUpgrade}
-              disabled={
-                upgradeState.currentStep === UpgradeStep.COMPLETED ? false :
-                  (!fileData || upgradeState.isUpgrading)
-              }
-              sx={{
-                flex: upgradeState.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION ? 1 : '100%',
-                paddingTop: '10px !important',
-                paddingBottom: '10px !important',
-                justifyContent: 'center',
-                bgcolor: upgradeState.currentStep === UpgradeStep.COMPLETED ? '#4caf50' : primaryColor,
-                color: '#fff !important',
-                fontWeight: 600,
-                fontSize: '14px',
-                borderRadius: '10px',
-                boxShadow: upgradeState.currentStep === UpgradeStep.COMPLETED
-                  ? '0 4px 12px rgba(76, 175, 80, 0.3)'
-                  : `0 4px 12px ${primaryColor}30`,
-                '&:hover': {
-                  bgcolor: upgradeState.currentStep === UpgradeStep.COMPLETED ? '#45a049' : primaryColor,
-                  filter: 'brightness(1.05)',
-                  boxShadow: upgradeState.currentStep === UpgradeStep.COMPLETED
-                    ? '0 6px 16px rgba(76, 175, 80, 0.4)'
-                    : `0 6px 16px ${primaryColor}40`,
-                },
-                '&:disabled': {
-                  bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
-                },
-              }}
-            >
-              {upgradeState.currentStep === UpgradeStep.COMPLETED ? t("1218") : t("1217")}
-            </Button>
-          </Stack>
+            </Stack>
+          )}
         </Stack>
       </Paper>
     </Modal>

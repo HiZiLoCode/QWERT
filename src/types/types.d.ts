@@ -349,3 +349,8 @@ export type screenInfo = {
     /** 来自 getScreenSize()，与 LCD 通讯协议一致 */
     firmware_version?: number;
 }
+
+/** MainContext.connectDevice：成功时附带本轮 getScreenSize 结果，便于连接后立即判断升级 */
+export type ConnectScreenHidResult =
+    | { success: false }
+    | { success: true; screenInfo: screenInfo };

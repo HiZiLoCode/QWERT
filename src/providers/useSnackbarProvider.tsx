@@ -11,6 +11,7 @@ import {
   Portal,
 } from "@mui/material";
 import UnifiedConfirmDialog from "@/components/common/UnifiedConfirmDialog";
+import FirmwareUpdatePromptCard from "@/components/common/FirmwareUpdatePromptCard";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import { SnackbarOrigin } from "@mui/material/Snackbar";
@@ -57,6 +58,15 @@ interface SnackbarState extends SnackbarOrigin {
   presentation?: "default" | "deviceCard" | "deviceCardDark";
 }
 
+/** 供 Main 纵向堆叠展示（不含内部 id） */
+export type FirmwareUpdatePromptState = {
+  variant: "screen" | "keyboard";
+  targetVersionLabel: string;
+  currentVersionLabel: string;
+  extraHint?: string;
+  onGoNow: () => void;
+};
+
 /* ---------------------------------------------
  *  Context 类型
  * --------------------------------------------- */
@@ -68,6 +78,19 @@ interface SnackbarDialogContextType {
     duration?: number;
     presentation?: "default" | "deviceCard" | "deviceCardDark";
   }) => void;
+
+  showFirmwareUpdateCard: (options: {
+    variant: "screen" | "keyboard";
+    targetVersionLabel: string;
+    currentVersionLabel: string;
+    extraHint?: string;
+    duration?: number;
+    onGoNow: () => void;
+  }) => void;
+
+  /** 由 Main 内 `FirmwareUpdatePromptLayer` 渲染，与键盘固件提示纵向堆叠 */
+  firmwareUpdatePrompt: FirmwareUpdatePromptState | null;
+  dismissFirmwareUpdatePrompt: () => void;
 
   showDialog: (dialogProps: {
     title: string;
@@ -246,6 +269,72 @@ export const SnackbarDialogProvider: React.FC<{
   const [snackbars, setSnackbars] = React.useState<SnackbarState[]>([]);
   const [snackbarId, setSnackbarId] = React.useState<number>(0);
 
+  type FirmwareCardModel = {
+    id: number;
+    variant: "screen" | "keyboard";
+    targetVersionLabel: string;
+    currentVersionLabel: string;
+    extraHint?: string;
+    onGoNow: () => void;
+  };
+
+  const [firmwareCard, setFirmwareCard] = React.useState<FirmwareCardModel | null>(null);
+  const firmwareCardSeqRef = React.useRef(0);
+  const firmwareCardTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearFirmwareCardTimer = () => {
+    if (firmwareCardTimerRef.current != null) {
+      clearTimeout(firmwareCardTimerRef.current);
+      firmwareCardTimerRef.current = null;
+    }
+  };
+
+  const closeFirmwareCard = React.useCallback(() => {
+    clearFirmwareCardTimer();
+    setFirmwareCard(null);
+  }, []);
+
+  const showFirmwareUpdateCard: SnackbarDialogContextType["showFirmwareUpdateCard"] =
+    React.useCallback(
+      ({
+        variant,
+        targetVersionLabel,
+        currentVersionLabel,
+        extraHint,
+        duration = 26000,
+        onGoNow,
+      }) => {
+        clearFirmwareCardTimer();
+        const id = ++firmwareCardSeqRef.current;
+        setFirmwareCard({
+          id,
+          variant,
+          targetVersionLabel,
+          currentVersionLabel,
+          extraHint,
+          onGoNow,
+        });
+        firmwareCardTimerRef.current = setTimeout(() => {
+          setFirmwareCard((c) => (c?.id === id ? null : c));
+          firmwareCardTimerRef.current = null;
+        }, duration);
+      },
+      []
+    );
+
+  const firmwareUpdatePrompt = React.useMemo((): FirmwareUpdatePromptState | null => {
+    if (!firmwareCard) return null;
+    return {
+      variant: firmwareCard.variant,
+      targetVersionLabel: firmwareCard.targetVersionLabel,
+      currentVersionLabel: firmwareCard.currentVersionLabel,
+      extraHint: firmwareCard.extraHint,
+      onGoNow: firmwareCard.onGoNow,
+    };
+  }, [firmwareCard]);
+
+  React.useEffect(() => () => clearFirmwareCardTimer(), []);
+
   /* ---------------------------------------------
    *  showMessage (对象参数版本)
    * --------------------------------------------- */
@@ -354,7 +443,15 @@ export const SnackbarDialogProvider: React.FC<{
    *  Provider 渲染
    * --------------------------------------------- */
   return (
-    <SnackbarDialogContext.Provider value={{ showMessage, showDialog }}>
+    <SnackbarDialogContext.Provider
+      value={{
+        showMessage,
+        showFirmwareUpdateCard,
+        showDialog,
+        firmwareUpdatePrompt,
+        dismissFirmwareUpdatePrompt: closeFirmwareCard,
+      }}
+    >
       {children}
 
       {/* 渲染多个 Snackbar 排列 */}
@@ -448,6 +545,23 @@ export const SnackbarDialogProvider: React.FC<{
     </SnackbarDialogContext.Provider>
   );
 };
+
+/** 放在 Main 中与 `UpgradeNotification` 同一纵向容器底部，避免与键盘固件提示重叠 */
+export function FirmwareUpdatePromptLayer() {
+  const ctx = React.useContext(SnackbarDialogContext);
+  if (!ctx?.firmwareUpdatePrompt) return null;
+  const p = ctx.firmwareUpdatePrompt;
+  return (
+    <FirmwareUpdatePromptCard
+      variant={p.variant}
+      targetVersionLabel={p.targetVersionLabel}
+      currentVersionLabel={p.currentVersionLabel}
+      extraHint={p.extraHint}
+      onGoNow={p.onGoNow}
+      onClose={ctx.dismissFirmwareUpdatePrompt}
+    />
+  );
+}
 
 /* ---------------------------------------------
  *  Hook 导出

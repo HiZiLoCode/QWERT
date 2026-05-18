@@ -16,9 +16,13 @@ import {
     IconButton,
 
 } from '@mui/material';
-import { useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import LightMode from '@mui/icons-material/LightMode';
+import DarkMode from '@mui/icons-material/DarkMode';
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { MainContext } from '@/providers/MainProvider';
+import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import ResetProgress from '../ResetProgress';
 import WebDriverChangelogSection from './WebDriverChangelogSection';
@@ -32,11 +36,15 @@ import KeyboardFirmwareUpgrade from '@/components/common/KeyboardFirmwareUpgrade
 import ToggleSlider from '@/components/common/ToggleSlider';
 import { useTranslation } from '@/app/i18n';
 import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
+import { useThemeMode } from '@/providers/ThemeContextProvider';
+import { getSettingsRowDescriptionSx, getSettingsRowTitleSx } from '@/constants/settingsPanelTypography';
+import { lightingPanelCardSx } from '@/constants/lightingPanelChrome';
+import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
 
 /** 与 KeyboardDevice 中扩展功能区 PID 一致，用于设置项显隐 */
 const PID_EXTENDED_FUNC_LAYOUT = 0x3059;
 
-type SettingTab = 'settings' | 'firmware';
+type SettingTab = 'settings' | 'interface' | 'firmware';
 
 export default function SettingPanel() {
     const { t } = useTranslation("common");
@@ -49,8 +57,20 @@ export default function SettingPanel() {
         setIsUpgradeWindowOpen
     } = useContext(ConnectKbContext);
     const { deviceComm, deviceStatus, screenInfo } = useContext(MainContext);
+    const { settingsFirmwareTabRequestSeq } = useContext(EditorContext);
     const { showMessage } = useSnackbarDialog();
+    const { mode, setThemeMode } = useThemeMode();
+    const theme = useTheme();
     const [tab, setTab] = useState<SettingTab>('settings');
+    const lastSettingsFwSeqRef = useRef(0);
+
+    useEffect(() => {
+        if (settingsFirmwareTabRequestSeq > lastSettingsFwSeqRef.current) {
+            lastSettingsFwSeqRef.current = settingsFirmwareTabRequestSeq;
+            setTab('firmware');
+        }
+    }, [settingsFirmwareTabRequestSeq]);
+
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
     const [nkroEnabled, setNkroEnabled] = useState(false);
@@ -105,8 +125,8 @@ export default function SettingPanel() {
     const lcdReady = Boolean(deviceComm && deviceStatus && screenDeviceVersion);
     const screenNeedsUpgrade = Boolean(
         screenUpgradeVersionCfg &&
-            screenDeviceVersion &&
-            parseInt(screenDeviceVersion, 10) < parseInt(screenUpgradeVersionCfg, 10)
+        screenDeviceVersion &&
+        parseInt(screenDeviceVersion, 10) < parseInt(screenUpgradeVersionCfg, 10)
     );
 
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -215,7 +235,7 @@ export default function SettingPanel() {
             try {
                 const s = await deviceComm.getScreenSize();
                 console.log(s, 's');
-                
+
                 if (!cancelled && s?.firmware_version != null) {
                     setLcdVersionHex(Number(s.firmware_version).toString(16).toUpperCase());
                 }
@@ -253,67 +273,219 @@ export default function SettingPanel() {
     const supportsNumLockMode =
         (connectedKeyboard?.productId ?? productId ?? 0) === PID_EXTENDED_FUNC_LAYOUT;
 
-    const selectSx = {
-        minWidth: '120px',
-        height: '36px',
-        fontSize: '14px',
-        color: '#64748b',
-        bgcolor: 'rgba(255, 255, 255, 1)',
-        borderRadius: '8px',
-        transition: 'all 0.18s ease',
-        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 1)' },
-        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93a5be' },
-        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#3b82f6',
-            borderWidth: '1px',
-        },
-        '& .MuiSelect-select': {
-            py: '5.6px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pr: '28px',
-        },
-        '& .MuiSelect-icon': {
-            color: '#3b82f6',
-            right: '8px',
-        },
-    } as const;
+    const isDarkMode = theme.palette.mode === 'dark';
 
-    const selectMenuProps = {
-        PaperProps: {
-            sx: {
-                mt: '4px',
+    const selectSx = useMemo(() => {
+        const P = theme.palette.primary.main;
+        if (isDarkMode) {
+            return {
+                minWidth: '120px',
+                height: '36px',
+                fontSize: '14px',
+                color: alpha(theme.palette.common.white, 0.82),
+                bgcolor: theme.palette.background.paper,
                 borderRadius: '8px',
-                border: '1px solid rgba(22, 108, 230, 0.35)',
-                boxShadow: '0 6px 18px rgba(15, 23, 42, 0.12)',
-                overflow: 'hidden',
+                transition: 'all 0.18s ease',
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: alpha(P, 0.35) },
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: alpha(P, 0.55) },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: P,
+                    borderWidth: '1px',
+                },
+                '& .MuiSelect-select': {
+                    py: '5.6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pr: '28px',
+                },
+                '& .MuiSelect-icon': { color: P, right: '8px' },
+            };
+        }
+        return {
+            minWidth: '120px',
+            height: '36px',
+            fontSize: '14px',
+            color: '#64748b',
+            bgcolor: 'rgba(255, 255, 255, 1)',
+            borderRadius: '8px',
+            transition: 'all 0.18s ease',
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255, 255, 255, 1)' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#93a5be' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                borderColor: '#3b82f6',
+                borderWidth: '1px',
             },
-        },
-        MenuListProps: {
-            sx: {
-                py: 0,
+            '& .MuiSelect-select': {
+                py: '5.6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pr: '28px',
             },
-        },
-    } as const;
+            '& .MuiSelect-icon': { color: '#3b82f6', right: '8px' },
+        };
+    }, [theme, isDarkMode]);
 
-    const selectItemSx = {
-        fontSize: '14px',
-        color: '#64748b',
-        minHeight: '36px',
-        backgroundColor: '#ffffff',
-        '&:hover': {
-            border: '1px solid rgb(22, 109, 230)',
-        },
-        '&.Mui-selected': {
-            bgcolor: '#3b82f6',
-            color: '#fff',
-        },
-        '&.Mui-selected:hover': {
-            border: '1px solid rgb(22, 109, 230)',
-            color: '#fff',
-        },
-    } as const;
+    const selectMenuProps = useMemo(
+        () => ({
+            PaperProps: {
+                sx: {
+                    mt: '4px',
+                    borderRadius: '8px',
+                    border: isDarkMode
+                        ? `1px solid ${alpha(theme.palette.primary.main, 0.35)}`
+                        : '1px solid rgba(22, 108, 230, 0.35)',
+                    boxShadow: isDarkMode
+                        ? '0 8px 24px rgba(0,0,0,0.45)'
+                        : '0 6px 18px rgba(15, 23, 42, 0.12)',
+                    overflow: 'hidden',
+                    ...(isDarkMode ? { bgcolor: theme.palette.background.paper } : {}),
+                },
+            },
+            MenuListProps: { sx: { py: 0 } },
+        }),
+        [theme, isDarkMode]
+    );
+
+    const selectItemSx = useMemo(() => {
+        const P = theme.palette.primary.main;
+        const Pd = theme.palette.primary.dark;
+        if (isDarkMode) {
+            return {
+                fontSize: '14px',
+                color: alpha(theme.palette.common.white, 0.85),
+                minHeight: '36px',
+                backgroundColor: theme.palette.background.paper,
+                '&:hover': { backgroundColor: alpha(P, 0.08) },
+                '&.Mui-selected': { bgcolor: P, color: '#fff' },
+                '&.Mui-selected:hover': { bgcolor: Pd, color: '#fff' },
+            };
+        }
+        return {
+            fontSize: '14px',
+            color: '#64748b',
+            minHeight: '36px',
+            backgroundColor: '#ffffff',
+            '&:hover': { border: '1px solid rgb(22, 109, 230)' },
+            '&.Mui-selected': { bgcolor: '#3b82f6', color: '#fff' },
+            '&.Mui-selected:hover': { border: '1px solid rgb(22, 109, 230)', color: '#fff' },
+        };
+    }, [theme, isDarkMode]);
+
+    const settingsSidebarSx = useMemo(
+        () => ({
+            width: '250px',
+            ...lightingPanelCardSx(theme),
+            borderRadius: '12px',
+            p: '24px',
+            display: 'flex',
+            flexDirection: 'column' as const,
+            gap: '8.8px',
+            height: '100%',
+            ...(isDarkMode
+                ? { boxShadow: '0 0 24px rgba(0,0,0,0.35)' }
+                : { boxShadow: 'rgba(176, 206, 255, 0.5) 0px 0px 21px' }),
+        }),
+        [theme, isDarkMode]
+    );
+
+    const settingTabBtnSx = (active: boolean) => {
+        const P = theme.palette.primary.main;
+        const Pd = theme.palette.primary.dark;
+        return {
+            textTransform: 'none' as const,
+            borderRadius: '7.2px',
+            height: '48px',
+            fontSize: '16px',
+            fontWeight: 600,
+            color: active ? '#fff' : isDarkMode ? alpha(theme.palette.common.white, 0.65) : '#596d88',
+            bgcolor: active ? P : 'transparent',
+            border: '1px solid',
+            borderColor: active ? P : 'transparent',
+            '&:hover': {
+                bgcolor: active ? Pd : alpha(P, 0.12),
+            },
+        };
+    };
+
+    const updateDialogTitleSx = useMemo(
+        () => ({
+            textAlign: 'center' as const,
+            pb: 0,
+            pt: '24px',
+            fontSize: '20px',
+            fontWeight: 700,
+            color: isDarkMode ? alpha(theme.palette.common.white, 0.88) : '#5d6f8a',
+        }),
+        [theme, isDarkMode]
+    );
+
+    const updateDialogBodySx = useMemo(
+        () => ({
+            color: isDarkMode ? alpha(theme.palette.common.white, 0.72) : '#334155',
+            fontSize: '16px',
+            lineHeight: 1.75,
+            textAlign: 'center' as const,
+        }),
+        [theme, isDarkMode]
+    );
+
+    const updateDialogPrimaryBtnSx = useMemo(
+        () => ({
+            minWidth: '96px',
+            height: '35.2px',
+            bgcolor: theme.palette.primary.main,
+            color: theme.palette.primary.contrastText,
+            fontSize: '18px',
+            '&:hover': { bgcolor: theme.palette.primary.dark },
+        }),
+        [theme]
+    );
+
+    const updateDialogOutlinedBtnSx = useMemo(
+        () => ({
+            minWidth: '96px',
+            height: '35.2px',
+            borderColor: isDarkMode ? alpha(theme.palette.common.white, 0.22) : 'rgba(148, 163, 184, 0.65)',
+            color: isDarkMode ? alpha(theme.palette.common.white, 0.72) : '#64748b',
+            fontSize: '18px',
+            '&:hover': {
+                borderColor: isDarkMode ? alpha(theme.palette.primary.main, 0.45) : '#94a3b8',
+                bgcolor: isDarkMode ? alpha(theme.palette.common.white, 0.06) : 'rgba(148, 163, 184, 0.06)',
+            },
+        }),
+        [theme, isDarkMode]
+    );
+
+    const firmwareResetOutlineBtnSx = useMemo(
+        () => ({
+            textTransform: 'none' as const,
+            height: '36px',
+            px: '20px',
+            fontSize: '14px',
+            fontWeight: 500,
+            borderRadius: '8px',
+            boxShadow: 'none',
+            ...(isDarkMode
+                ? {
+                    color: alpha(theme.palette.common.white, 0.78),
+                    bgcolor: theme.palette.background.paper,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                    '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        borderColor: alpha(theme.palette.primary.main, 0.5),
+                    },
+                }
+                : {
+                    color: '#64748b',
+                    bgcolor: 'rgba(255, 255, 255, 1)',
+                    border: '1px solid rgba(148, 163, 184, 0.55)',
+                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
+                }),
+        }),
+        [theme, isDarkMode]
+    );
 
     const panelBaseSx = useMemo(
         () => ({
@@ -343,57 +515,25 @@ export default function SettingPanel() {
 
     return (
         <Box sx={panelBaseSx}>
-            <Box
-                sx={{
-                    width: '250px',
-                    border: '1px solid rgba(153,169,191,.25)',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
-                    boxShadow: 'rgba(176, 206, 255, 0.5) 0px 0px 21px',
-                    p: '24px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8.8px',
-                    height: '100%',
-                }}
-            >
+            <Box sx={settingsSidebarSx}>
                 <ButtonRem
                     data-setting-tab="settings"
                     onClick={() => setTab('settings')}
-                    sx={{
-                        textTransform: 'none',
-                        borderRadius: '7.2px',
-                        height: '48px',
-                        fontSize: '16px',
-                        fontWeight: 600,
-                        color: tab === 'settings' ? '#fff' : '#596d88',
-                        bgcolor: tab === 'settings' ? '#3B82F6' : 'transparent',
-                        border: '1px solid',
-                        borderColor: tab === 'settings' ? '#3B82F6' : 'transparent',
-                        '&:hover': {
-                            bgcolor: tab === 'settings' ? '#2f70dc' : 'rgba(59,130,246,0.08)',
-                        },
-                    }}
+                    sx={settingTabBtnSx(tab === 'settings')}
                 >
                     {t('2500')}
                 </ButtonRem>
                 <ButtonRem
+                    data-setting-tab="interface"
+                    onClick={() => setTab('interface')}
+                    sx={settingTabBtnSx(tab === 'interface')}
+                >
+                    {t('1491')}
+                </ButtonRem>
+                <ButtonRem
                     data-setting-tab="firmware"
                     onClick={() => setTab('firmware')}
-                    sx={{
-                        textTransform: 'none',
-                        borderRadius: '7.2px',
-                        height: '48px',
-                        fontSize: '16px',
-                        fontWeight: 600,
-                        color: tab === 'firmware' ? '#fff' : '#596d88',
-                        bgcolor: tab === 'firmware' ? '#3B82F6' : 'transparent',
-                        border: '1px solid',
-                        borderColor: tab === 'firmware' ? '#3B82F6' : 'transparent',
-                        '&:hover': {
-                            bgcolor: tab === 'firmware' ? '#2f70dc' : 'rgba(59,130,246,0.08)',
-                        },
-                    }}
+                    sx={settingTabBtnSx(tab === 'firmware')}
                 >
                     {t('2501')}
                 </ButtonRem>
@@ -408,6 +548,7 @@ export default function SettingPanel() {
                     width: '100%',
                     maxWidth: '75%',
                     overflowY: 'auto',
+                    ...getComfortableScrollbarSx(isDarkMode),
                 }}
             >
                 {tab === 'settings' ? (
@@ -575,6 +716,104 @@ export default function SettingPanel() {
                             />
                         </SettingCard>
                     </Box>
+                ) : tab === 'interface' ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <SettingCard>
+                            <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '16px' }}>{t('2597')}</Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                                <ButtonRem
+                                    type="button"
+                                    onClick={() => setThemeMode('light')}
+                                    sx={{
+                                        width: '218px',
+                                        minHeight: '46px',
+                                        borderRadius: '999px',
+                                        textTransform: 'none',
+                                        fontSize: '16px',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        boxShadow: 'none',
+                                        '& .MuiSvgIcon-root': {
+                                            color: 'currentColor',
+                                        },
+                                        ...(mode === 'light'
+                                            ? {
+                                                color: theme.palette.primary.contrastText,
+                                                bgcolor: theme.palette.primary.main,
+                                                border: `1px solid ${theme.palette.primary.main}`,
+                                                '&:hover': {
+                                                    bgcolor: theme.palette.primary.dark,
+                                                    borderColor: theme.palette.primary.dark,
+                                                },
+                                            }
+                                            : {
+                                                color: theme.palette.text.secondary,
+                                                bgcolor:
+                                                    theme.palette.mode === 'light'
+                                                        ? theme.palette.customed2.main
+                                                        : theme.palette.background.paper,
+                                                border: `1px solid ${theme.palette.divider}`,
+                                                '&:hover': {
+                                                    bgcolor: theme.palette.action.hover,
+                                                    borderColor: theme.palette.divider,
+                                                },
+                                            }),
+                                    }}
+                                >
+                                    <LightMode sx={{ fontSize: 22 }} />
+                                    {t('2598')}
+                                </ButtonRem>
+                                <ButtonRem
+                                    type="button"
+                                    onClick={() => setThemeMode('dark')}
+                                    sx={{
+                                        width: '218px',
+                                        minHeight: '46px',
+                                        borderRadius: '999px',
+                                        textTransform: 'none',
+                                        fontSize: '16px',
+                                        fontWeight: 600,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        boxShadow: 'none',
+                                        '& .MuiSvgIcon-root': {
+                                            color: 'currentColor',
+                                        },
+                                        ...(mode === 'dark'
+                                            ? {
+                                                color: theme.palette.primary.contrastText,
+                                                bgcolor: theme.palette.primary.main,
+                                                border: `1px solid ${theme.palette.primary.main}`,
+                                                '&:hover': {
+                                                    bgcolor: theme.palette.primary.dark,
+                                                    borderColor: theme.palette.primary.dark,
+                                                },
+                                            }
+                                            : {
+                                                color: theme.palette.text.secondary,
+                                                bgcolor:
+                                                    theme.palette.mode === 'light'
+                                                        ? theme.palette.customed2.main
+                                                        : theme.palette.background.paper,
+                                                border: `1px solid ${theme.palette.divider}`,
+                                                '&:hover': {
+                                                    bgcolor: theme.palette.action.hover,
+                                                    borderColor: theme.palette.divider,
+                                                },
+                                            }),
+                                    }}
+                                >
+                                    <DarkMode sx={{ fontSize: 22 }} />
+                                    {t('2599')}
+                                </ButtonRem>
+                            </Box>
+                        </SettingCard>
+                    </Box>
                 ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <FirmwareCard
@@ -583,19 +822,7 @@ export default function SettingPanel() {
                             action={
                                 <ButtonRem
                                     onClick={() => setResetConfirmOpen(true)}
-                                    sx={{
-                                        textTransform: 'none',
-                                        height: '36px',
-                                        px: '20px',
-                                        fontSize: '14px',
-                                        fontWeight: 500,
-                                        color: '#64748b',
-                                        bgcolor: ' rgba(255, 255, 255, 1)',
-                                        border: '1px solid rgba(148, 163, 184, 0.55)',
-                                        borderRadius: '8px',
-                                        boxShadow: 'none',
-                                        '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
-                                    }}
+                                    sx={firmwareResetOutlineBtnSx}
                                 >
                                     {t('710')}
                                 </ButtonRem>
@@ -659,20 +886,20 @@ export default function SettingPanel() {
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '24px', fontSize: '20px', fontWeight: 700, color: '#5d6f8a' }}>
+                <DialogTitle sx={updateDialogTitleSx}>
                     {t("712")}
                 </DialogTitle>
                 <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
-                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center' }}>
+                    <Typography variant="body2" component="div" sx={updateDialogBodySx}>
                         {t('2730')}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                    <Typography variant="body2" sx={{ ...updateDialogBodySx, mt: '4px' }}>
                         {t('2732')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                    <Typography variant="body2" sx={{ ...updateDialogBodySx, mt: '4px' }}>
                         {t('2737')}
                     </Typography>
                     {/* <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
@@ -683,28 +910,14 @@ export default function SettingPanel() {
                     <ButtonRem
                         variant="contained"
                         onClick={handleDownloadUpdate}
-                        sx={{
-                            minWidth: '96px',
-                            height: '35.2px',
-                            bgcolor: '#3B82F6',
-                            color: '#fff',
-                            fontSize: '18px',
-                            '&:hover': { bgcolor: '#2f70dc' }
-                        }}
+                        sx={updateDialogPrimaryBtnSx}
                     >
                         {t('2735')}
                     </ButtonRem>
                     <ButtonRem
                         variant="outlined"
                         onClick={() => setUpdateDialogOpen(false)}
-                        sx={{
-                            minWidth: '96px',
-                            height: '35.2px',
-                            borderColor: 'rgba(148, 163, 184, 0.65)',
-                            color: '#64748b',
-                            fontSize: '18px',
-                            '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
-                        }}
+                        sx={updateDialogOutlinedBtnSx}
                     >
                         {t("714")}
                     </ButtonRem>
@@ -722,20 +935,20 @@ export default function SettingPanel() {
                     }
                 }}
             >
-                <DialogTitle sx={{ textAlign: 'center', pb: 0, pt: '24px', fontSize: '20px', fontWeight: 700, color: '#5d6f8a' }}>
+                <DialogTitle sx={updateDialogTitleSx}>
                     {t('2800')}
                 </DialogTitle>
                 <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
-                    <Typography variant="body2" component="div" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center' }}>
+                    <Typography variant="body2" component="div" sx={updateDialogBodySx}>
                         {t('2730')}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                    <Typography variant="body2" sx={{ ...updateDialogBodySx, mt: '4px' }}>
                         {t('2732')}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
+                    <Typography variant="body2" sx={{ ...updateDialogBodySx, mt: '4px' }}>
                         {t('2737')}
                     </Typography>
                     {/* <Typography variant="body2" sx={{ color: '#334155', fontSize: '16px', lineHeight: 1.75, textAlign: 'center', mt: '4px' }}>
@@ -746,28 +959,14 @@ export default function SettingPanel() {
                     <ButtonRem
                         variant="contained"
                         onClick={handleScreenDownloadUpdate}
-                        sx={{
-                            minWidth: '96px',
-                            height: '35.2px',
-                            bgcolor: '#3B82F6',
-                            color: '#fff',
-                            fontSize: '18px',
-                            '&:hover': { bgcolor: '#2f70dc' }
-                        }}
+                        sx={updateDialogPrimaryBtnSx}
                     >
                         {t('2735')}
                     </ButtonRem>
                     <ButtonRem
                         variant="outlined"
                         onClick={() => setScreenUpdateDialogOpen(false)}
-                        sx={{
-                            minWidth: '96px',
-                            height: '35.2px',
-                            borderColor: 'rgba(148, 163, 184, 0.65)',
-                            color: '#64748b',
-                            fontSize: '18px',
-                            '&:hover': { borderColor: '#94a3b8', bgcolor: 'rgba(148, 163, 184, 0.06)' }
-                        }}
+                        sx={updateDialogOutlinedBtnSx}
                     >
                         {t("714")}
                     </ButtonRem>
@@ -888,16 +1087,31 @@ export default function SettingPanel() {
 }
 
 function SettingCard({ children }: { children: ReactNode }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     return (
         <Box
-            sx={{
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                borderRadius: '20px',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 1)',
-                px: '20px',
-                py: '16px',
-            }}
+            sx={
+                isDark
+                    ? {
+                        background: theme.palette.background.paper,
+                        borderRadius: '20px',
+                        boxShadow: '0 1px 12px rgba(0, 0, 0, 0.35)',
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                        px: '20px',
+                        py: '16px',
+                    }
+                    : {
+                        background:
+                            'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+                        borderRadius: '20px',
+                        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+                        border: '1px solid rgba(153,169,191,0.22)',
+                        px: '20px',
+                        py: '16px',
+                        backdropFilter: "blur(6px)"
+                    }
+            }
         >
             {children}
         </Box>
@@ -913,27 +1127,45 @@ function FirmwareCard({
     lines: string[];
     action?: ReactNode;
 }) {
+    const theme = useTheme();
     return (
         <Box
-            sx={{
-                background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                borderRadius: '12px',
-                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                border: '1px solid rgba(255, 255, 255, 1)',
-                px: '20px',
-                py: '18px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'space-between',
-                gap: '16px',
-            }}
+            sx={
+                theme.palette.mode === 'dark'
+                    ? {
+                        background: theme.palette.background.paper,
+                        borderRadius: '12px',
+                        boxShadow: '0 1px 12px rgba(0, 0, 0, 0.35)',
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                        px: '20px',
+                        py: '18px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                    }
+                    : {
+                        background:
+                            'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
+                        borderRadius: '12px',
+                        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+                        border: '1px solid rgba(153,169,191,0.22)',
+                        px: '20px',
+                        py: '18px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                        gap: '16px',
+                        backdropFilter:"blur(6px)"
+                    }
+            }
         >
             <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography sx={{ fontSize: '15px', color: '#334155', mb: lines.length ? '5.6px' : 0, fontWeight: 600 }}>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: lines.length ? '3.2px' : 0 }}>
                     {title}
                 </Typography>
                 {lines.map((line, idx) => (
-                    <Typography key={idx} sx={{ fontSize: '13px', color: '#64748b', lineHeight: 1.55 }}>
+                    <Typography key={idx} sx={{ ...getSettingsRowDescriptionSx(theme) }}>
                         {line}
                     </Typography>
                 ))}
@@ -952,6 +1184,8 @@ function Row({
     description: string[];
     right?: React.ReactNode;
 }) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     return (
         <Box
             sx={{
@@ -961,15 +1195,15 @@ function Row({
                 justifyContent: 'space-between',
                 gap: '16px',
                 py: '10.4px',
-                background:"linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)"
+                background: isDark
+                    ? 'transparent'
+                    : 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
             }}
         >
             <Box sx={{ flex: 1, pr: '16px' }}>
-                <Typography sx={{ fontSize: '18px', color: '#5d6f8a', mb: '3.2px', fontWeight: 600 }}>
-                    {title}
-                </Typography>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '3.2px' }}>{title}</Typography>
                 {description.map((line, idx) => (
-                    <Typography key={idx} sx={{ fontSize: '14px', color: '#8a98ad', lineHeight: 1.55 }}>
+                    <Typography key={idx} sx={{ ...getSettingsRowDescriptionSx(theme) }}>
                         {line}
                     </Typography>
                 ))}

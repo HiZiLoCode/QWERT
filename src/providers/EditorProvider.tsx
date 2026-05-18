@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState } from "react";
+import { createContext, useCallback, useState } from "react";
 
 type Editor = {
   editMode: string,
@@ -16,7 +16,10 @@ type Editor = {
   triggerMode: 'all' | 'single',
   setTriggerMode: Function,
   setSelectedSetting:Function,
-  selectedSetting:string
+  selectedSetting:string,
+  /** 递增后设置页应切到「固件」子页（如动效页「立即前往」） */
+  settingsFirmwareTabRequestSeq: number,
+  requestSettingsFirmwareTab: () => void,
 }
 
 export const EditorContext = createContext({} as Editor);
@@ -26,6 +29,10 @@ function EditorProvider({ children }: {children: React.ReactNode}) {
   const [currentTab, setCurrentTab] = useState("keyCode");
   const [lastTab, setLastTab] = useState("left");
   const [selectedSetting, setSelectedSetting] = useState('keypress');
+  const [settingsFirmwareTabRequestSeq, setSettingsFirmwareTabRequestSeq] = useState(0);
+  const requestSettingsFirmwareTab = useCallback(() => {
+    setSettingsFirmwareTabRequestSeq((n) => n + 1);
+  }, []);
   // 高级键类型设置
   const [keycodeTab, setKeycodeTab] = useState("normal");
    // 触发设置 0键程 1rt 2死区
@@ -48,7 +55,9 @@ function EditorProvider({ children }: {children: React.ReactNode}) {
     triggerMode,
     setTriggerMode,
     setSelectedSetting,
-    selectedSetting
+    selectedSetting,
+    settingsFirmwareTabRequestSeq,
+    requestSettingsFirmwareTab,
   };
   return (
     <EditorContext.Provider value={EditorProps}>

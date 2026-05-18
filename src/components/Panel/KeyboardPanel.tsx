@@ -42,6 +42,8 @@ import { EditorContext } from '@/providers/EditorProvider';
 import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
 import { MainContext } from '@/providers/MainProvider';
 import { useTranslation } from '@/app/i18n';
+import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
+import { alpha, useTheme } from '@mui/material/styles';
 
 /** 来自 `图标.zip` →「机械轴驱动示例 (4)」，见 `public/sidebar/setting-*.svg` */
 const KP_SETTING_ICON_SRC: Record<string, string> = {
@@ -54,7 +56,17 @@ const KP_SETTING_ICON_SRC: Record<string, string> = {
     test: '/sidebar/setting-test.svg',
 };
 
-function KeyboardPanelSettingIcon({ id, active, collapsed }: { id: string; active: boolean; collapsed: boolean }) {
+function KeyboardPanelSettingIcon({
+    id,
+    active,
+    collapsed,
+    isDark,
+}: {
+    id: string;
+    active: boolean;
+    collapsed: boolean;
+    isDark: boolean;
+}) {
     const src = KP_SETTING_ICON_SRC[id];
     if (!src) return null;
     const size = collapsed ? 20 : 18;
@@ -70,7 +82,8 @@ function KeyboardPanelSettingIcon({ id, active, collapsed }: { id: string; activ
                 objectFit: 'contain',
                 display: 'block',
                 flexShrink: 0,
-                filter: active ? 'brightness(0) invert(1)' : 'none',
+                filter:
+                    active || isDark ? 'brightness(0) invert(1)' : 'none',
                 transition: 'filter 0.2s ease-out',
             }}
         />
@@ -180,14 +193,6 @@ function resolveKeyboardPreviewBySkin(src: string, skin: string, options: Keyboa
     if (dotIndex <= 0) return src;
     return `${src.slice(0, dotIndex)}${option.suffix}${src.slice(dotIndex)}`;
 }
-
-const sidePanelSx = {
-    position: 'relative' as const,
-    borderRadius: `${KP.radiusDefault}px`,
-    background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3);',
-    border: '1px solid #e5edf7',
-    boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
-};
 
 interface KeyboardPanelProps {
     onSelectKeyboard?: (keyboard: string) => void;
@@ -300,6 +305,27 @@ function syncBindTestKeyboardLock(isBindTestView: boolean) {
 
 export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, onlyTestMode = false }: KeyboardPanelProps) {
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const panelCardSx = useMemo(
+        () => ({
+            position: 'relative' as const,
+            borderRadius: `${KP.radiusDefault}px`,
+            ...(isDark
+                ? {
+                      bgcolor: theme.palette.background.paper,
+                      border: `1px solid ${theme.palette.primary.main}`,
+                      boxShadow: '0 2px 14px rgba(0,0,0,0.45)',
+                  }
+                : {
+                      background:
+                          'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3);',
+                      border: '1px solid #e5edf7',
+                      boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
+                  }),
+        }),
+        [isDark, theme],
+    );
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [keyboardSkin, setKeyboardSkin] = useState<string>(DEFAULT_KEYBOARD_SKIN_OPTIONS[0].value);
     const [keyboardSkinHydrated, setKeyboardSkinHydrated] = useState(false);
@@ -680,7 +706,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             zIndex: 10,
                             pointerEvents: 'all',
                             inset: 0,
-                            background: KP.overlayBg,
+                            background: isDark ? 'rgba(0,0,0,0.55)' : KP.overlayBg,
                             backdropFilter: KP.overlayBlur,
                         }}
                     />
@@ -688,7 +714,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
 
                 <Box
                     sx={{
-                        ...sidePanelSx,
+                        ...panelCardSx,
                         p: `${KP.cardPadding}px`,
                         cursor: settingsMenuCollapsed ? 'default' : 'pointer',
                         zIndex: 11,
@@ -714,16 +740,26 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                     width: 30,
                                     height: 30,
                                     borderRadius: '8px',
-                                    color: '#7d93b0',
-                                    border: '1px solid rgba(125,147,176,0.35)',
-                                    '&:hover': { color: '#4a86f7', borderColor: '#9fc2ff', backgroundColor: 'rgba(74,134,247,0.08)' },
+                                    color: isDark ? theme.palette.text.primary : '#7d93b0',
+                                    border: isDark
+                                        ? `1px solid ${alpha(theme.palette.primary.main, 0.45)}`
+                                        : '1px solid rgba(125,147,176,0.35)',
+                                    '&:hover': {
+                                        color: isDark ? theme.palette.primary.main : '#4a86f7',
+                                        borderColor: isDark ? theme.palette.primary.main : '#9fc2ff',
+                                        backgroundColor: isDark
+                                            ? alpha(theme.palette.primary.main, 0.12)
+                                            : 'rgba(74,134,247,0.08)',
+                                    },
                                 }}
                             >
                                 <ChevronRightOutlinedIcon sx={{ fontSize: 18 }} />
                             </IconButton>
                         ) : (
                             <>
-                                <Typography sx={{ ...KP.titleFont, color: KP.titleColor }}>{t('2708')}</Typography>
+                                <Typography sx={{ ...KP.titleFont, color: isDark ? theme.palette.text.primary : KP.titleColor }}>
+                                    {t('2708')}
+                                </Typography>
                                 <IconButton
                                     size="small"
                                     disabled={settingsMenuScaleLocked}
@@ -735,9 +771,17 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                         width: 30,
                                         height: 30,
                                         borderRadius: '8px',
-                                        color: '#7d93b0',
-                                        border: '1px solid rgba(125,147,176,0.35)',
-                                        '&:hover': { color: '#4a86f7', borderColor: '#9fc2ff', backgroundColor: 'rgba(74,134,247,0.08)' },
+                                        color: isDark ? theme.palette.text.primary : '#7d93b0',
+                                        border: isDark
+                                            ? `1px solid ${alpha(theme.palette.primary.main, 0.45)}`
+                                            : '1px solid rgba(125,147,176,0.35)',
+                                        '&:hover': {
+                                            color: isDark ? theme.palette.primary.main : '#4a86f7',
+                                            borderColor: isDark ? theme.palette.primary.main : '#9fc2ff',
+                                            backgroundColor: isDark
+                                                ? alpha(theme.palette.primary.main, 0.12)
+                                                : 'rgba(74,134,247,0.08)',
+                                        },
                                     }}
                                 >
                                     <ChevronLeftOutlinedIcon sx={{ fontSize: 18 }} />
@@ -751,8 +795,15 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             width: '100%',
                             height: settingsMenuCollapsed ? '54px' : '84px',
                             borderRadius: '8px',
-                            background: 'linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)',
-                            border: '1px solid #dbe7f6',
+                            ...(isDark
+                                ? {
+                                      background: `linear-gradient(180deg, ${theme.palette.customed1.main} 0%, ${theme.palette.background.paper} 100%)`,
+                                      border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                                  }
+                                : {
+                                      background: 'linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)',
+                                      border: '1px solid #dbe7f6',
+                                  }),
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -780,14 +831,21 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                 sx={{
                                     width: '100%',
                                     height: '100%',
-                                    backgroundColor: '#fff',
+                                    backgroundColor: isDark ? theme.palette.customed1.main : '#fff',
                                 }}
                             />
                         )}
                     </Box>
                     {!settingsMenuCollapsed ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <Typography sx={{ fontSize: '18px', lineHeight: 1.1, color: '#5f7da3', fontWeight: 600 }}>
+                            <Typography
+                                sx={{
+                                    fontSize: '18px',
+                                    lineHeight: 1.1,
+                                    color: isDark ? theme.palette.text.primary : '#5f7da3',
+                                    fontWeight: 600,
+                                }}
+                            >
                                 {connectedKeyboard?.productName || 'QK100 MKII'}
                             </Typography>
                             <Box
@@ -811,12 +869,21 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                     PaperProps={{
                         sx: {
                             borderRadius: `${KP.radiusDefault}px`,
-                            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
                             mt: '8px',
                             width: `${KP.popoverWidth}px`,
-                            border: '1px solid #91a1b8',
-                            background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3);',
                             cursor: 'default',
+                            ...(isDark
+                                ? {
+                                      border: `1px solid ${alpha(theme.palette.primary.main, 0.5)}`,
+                                      background: theme.palette.background.paper,
+                                      boxShadow: '0 8px 28px rgba(0,0,0,0.55)',
+                                  }
+                                : {
+                                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
+                                      border: '1px solid #91a1b8',
+                                      background:
+                                          'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3);',
+                                  }),
                         },
                     }}
                 >
@@ -828,14 +895,14 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             sx={{
                                 fontSize: '16px',
                                 fontWeight: 600,
-                                color: '#ffffff',
+                                color: theme.palette.primary.contrastText,
                                 mb: '10px',
-                                background: KP.primary,
+                                background: theme.palette.primary.main,
                                 width: '100%',
                                 textTransform: 'none',
                                 borderRadius: `${KP.radiusDefault}px`,
                                 py: '10px',
-                                '&:hover': { background: KP.primaryHover },
+                                '&:hover': { background: theme.palette.primary.dark },
                             }}
                         >
                             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -859,7 +926,11 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                             p: '10px',
                                             borderRadius: '8px',
                                             cursor: 'pointer',
-                                            backgroundColor: active ? KP.primary : 'rgba(241, 245, 249, 0.9)',
+                                            backgroundColor: active
+                                                ? theme.palette.primary.main
+                                                : isDark
+                                                  ? alpha(theme.palette.primary.main, 0.08)
+                                                  : 'rgba(241, 245, 249, 0.9)',
                                             transition: 'background-color 0.2s ease-out, color 0.2s ease-out',
                                         }}
                                     >
@@ -868,7 +939,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 sx={{
                                                     width: '48px',
                                                     height: '40px',
-                                                    backgroundColor: '#fff',
+                                                    backgroundColor: isDark ? theme.palette.customed1.main : '#fff',
                                                     borderRadius: '6px',
                                                     display: 'flex',
                                                     alignItems: 'center',
@@ -893,7 +964,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                         sx={{
                                                             width: '100%',
                                                             height: '100%',
-                                                            backgroundColor: '#fff',
+                                                            backgroundColor: isDark ? theme.palette.customed1.main : '#fff',
                                                         }}
                                                     />
                                                 )}
@@ -904,7 +975,11 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                     sx={{
                                                         fontSize: KP.titleFont.fontSize,
                                                         fontWeight: KP.titleFont.fontWeight,
-                                                        color: active ? '#fff' : '#0f172a',
+                                                        color: active
+                                                            ? theme.palette.primary.contrastText
+                                                            : isDark
+                                                              ? theme.palette.text.primary
+                                                              : '#0f172a',
                                                         whiteSpace: 'nowrap',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis',
@@ -1067,7 +1142,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
 
                 <Box
                     sx={{
-                        ...sidePanelSx,
+                        ...panelCardSx,
                         flex: 1,
                         minHeight: 0,
                         display: 'flex',
@@ -1082,7 +1157,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             <Typography
                                 sx={{
                                     ...KP.titleFont,
-                                    color: KP.titleColor,
+                                    color: isDark ? theme.palette.text.primary : KP.titleColor,
                                     visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
                                     fontSize: "20px",
                                     fontWeight: "400",
@@ -1095,13 +1170,14 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                         <Typography
                             sx={{
                                 ...KP.tipsFont,
-                                color: KP.tipsColor,
+                                color: isDark ? theme.palette.text.secondary : KP.tipsColor,
                                 mt: '6px',
                                 height: '20px',
                                 visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
                                 overflow: 'hidden',
                                 fontSize: "16px",
                                 fontWeight: "400",
+                                p:"0px 10px"
                             }}
                         >
                             {t('2710')}
@@ -1117,6 +1193,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             overflow: 'hidden',
                             overflowY: 'auto',
                             alignItems: 'center',
+                            ...getComfortableScrollbarSx(isDark),
                         }}
                     >
                         {keyboardSettings.map((setting) => {
@@ -1160,6 +1237,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 id={setting.id}
                                                 active={active}
                                                 collapsed={settingsMenuCollapsed}
+                                                isDark={isDark}
                                             />
                                         }
                                         sx={{
@@ -1167,15 +1245,20 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                             width: settingsMenuCollapsed ? 44 : '100%',
                                             height: '42px',
                                             px: settingsMenuCollapsed ? 0 : `${KP.submenuPaddingX}px`,
-                                            borderRadius: '10px',
+                                            borderRadius: active && isDark ? '999px' : '10px',
                                             justifyContent: settingsMenuCollapsed ? 'center' : 'flex-start',
                                             gap: settingsMenuCollapsed ? 0 : '10px',
                                             fontSize: '16px',
                                             fontWeight: active ? 600 : 500,
                                             textTransform: 'none',
-                                            color: active ? '#ffffff' : '#7d93b0',
-                                            backgroundColor: active ? '#4a86f7' : 'transparent',
-                                            transition: 'background-color 0.2s ease-out, color 0.2s ease-out, width 0.2s ease-out',
+                                            color: active
+                                                ? theme.palette.primary.contrastText
+                                                : isDark
+                                                  ? theme.palette.text.primary
+                                                  : '#7d93b0',
+                                            backgroundColor: active ? theme.palette.primary.main : 'transparent',
+                                            transition:
+                                                'background-color 0.2s ease-out, color 0.2s ease-out, width 0.2s ease-out, border-radius 0.2s ease-out',
                                             '& .MuiButton-startIcon': {
                                                 mr: settingsMenuCollapsed ? 0 : 1,
                                                 ml: 0,
@@ -1186,12 +1269,24 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                 },
                                             },
                                             '&:hover': {
-                                                backgroundColor: active ? '#3b78f0' : 'rgba(74, 134, 247, 0.08)',
-                                                color: active ? '#ffffff' : '#4a86f7',
+                                                backgroundColor: active
+                                                    ? theme.palette.primary.dark
+                                                    : isDark
+                                                      ? alpha(theme.palette.primary.main, 0.14)
+                                                      : 'rgba(74, 134, 247, 0.08)',
+                                                color: active
+                                                    ? theme.palette.primary.contrastText
+                                                    : isDark
+                                                      ? theme.palette.text.primary
+                                                      : '#4a86f7',
                                                 transform: active ? 'scale(1)' : 'scale(1.05)',
                                             },
                                             '&:active': {
-                                                backgroundColor: active ? '#3b78f0' : 'rgba(59, 130, 246, 0.08)',
+                                                backgroundColor: active
+                                                    ? theme.palette.primary.dark
+                                                    : isDark
+                                                      ? alpha(theme.palette.primary.main, 0.2)
+                                                      : 'rgba(59, 130, 246, 0.08)',
                                                 transform: active ? 'scale(1)' : 'scale(.95)',
                                                 transition: 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
                                             },

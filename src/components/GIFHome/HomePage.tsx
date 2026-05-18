@@ -1,345 +1,287 @@
-import { Box, Button, Flex, Image } from "@chakra-ui/react";
-import { useCallback, useContext, useState, useEffect } from "react";
-import { MainContext } from "@/providers/MainProvider";
-import { useTranslation } from "@/app/i18n";
-import { ConnectKbContext } from "@/providers/ConnectKbProvider";
+'use client';
+
+import { useContext, useEffect, useState } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { MainContext } from '@/providers/MainProvider';
+import { useTranslation } from '@/app/i18n';
+import { ConnectKbContext } from '@/providers/ConnectKbProvider';
+import { EditorContext } from '@/providers/EditorProvider';
+import { connectScreenLcdWebHid } from '@/lib/screenLcdWebHidConnect';
+import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
+import { notifyFirmwareUpdateAfterScreenConnect } from '@/utils/postScreenConnectFirmwareHint';
+import type { ConnectScreenHidResult, FilterDevice } from '@/types/types';
+
+/** 直接 PNG：<img> 加载带外链的 SVG 时内嵌图常被浏览器拦截 */
+const KEYBOARD_IMG = '/screen-auth-keyboard-source.png';
+/** 与 `screen-auth-keyboard-source.png` 像素尺寸一致（避免 flex 挤压导致「看起来没变」） */
+const KEYBOARD_W = 751;
+const KEYBOARD_H = 466;
 
 type HomePageProps = {
-  onAuthorized?: () => void;
+    onAuthorized?: () => void;
 };
 
 export default function HomePage({ onAuthorized }: HomePageProps) {
-  const { connectDevice } = useContext(MainContext);
-  const { t } = useTranslation("common");
-  const { connectedKeyboard } = useContext(ConnectKbContext);
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+    const { connectDevice } = useContext(MainContext);
+    const { onChangeTab, requestSettingsFirmwareTab } = useContext(EditorContext);
+    const { t } = useTranslation('common');
+    const { connectedKeyboard, keyboard } = useContext(ConnectKbContext);
+    const { showFirmwareUpdateCard } = useSnackbarDialog();
 
-  // 用于控制屏幕动画效果
-  const [, setScreenAnimation] = useState(0);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isOpeningDevice, setIsOpeningDevice] = useState(false);
-  const [openingDots, setOpeningDots] = useState(0);
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [isOpeningDevice, setIsOpeningDevice] = useState(false);
+    const [openingDots, setOpeningDots] = useState(0);
 
-  const ensureScreenOnline = useCallback(async (keyboard: any) => {
-    try {
-      // 不在线：保持“正在打开设备...”显示 2 秒，并在这段时间尝试点亮  延迟俩秒
-      const status = await keyboard.checkLightStatus();
-      if (status?.status) {
-        // 已在线：不等待，但仍立即点亮屏幕
-        await connectDevice([{ usagePage: 0x00ff, usage: 0x0001 }]);
-        return true;
-      }
-    } catch {
-      // 状态读取失败时，继续尝试亮屏流程
-    }
-    setIsOpeningDevice(true);
-    setOpeningDots(0);
-    try {
-      // 不在线：保持“正在打开设备...”显示 2 秒，并在这段时间尝试点亮
-      // 立刻下发点亮命令，不等待它完成；授权仍然在 2 秒后弹出
-      void keyboard.lightOn()
+    useEffect(() => {
+        if (!isOpeningDevice) return;
+        const timer = setInterval(() => {
+            setOpeningDots((prev) => (prev + 1) % 3);
+        }, 500);
+        return () => clearInterval(timer);
+    }, [isOpeningDevice]);
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setIsConnecting(true);
-      await connectDevice([{ usagePage: 0x00ff, usage: 0x0001 }]);
-      return true;
-    } finally {
-      setIsOpeningDevice(false);
-      setIsConnecting(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setScreenAnimation((prev: number) => (prev + 1) % 3);
-    }, 3000);
-    return () => {
-      clearInterval(timer);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOpeningDevice) return;
-    const timer = setInterval(() => {
-      setOpeningDots((prev) => (prev + 1) % 3);
-    }, 500);
-    return () => clearInterval(timer);
-  }, [isOpeningDevice]);
-
-  // 定义一个connect函数
-  const connect = async () => {
-    if (isConnecting || isOpeningDevice) return;
-
-    if (connectedKeyboard) {
-      const ok = await ensureScreenOnline(connectedKeyboard);
-      console.log(ok);
-      
-      if (ok) {
+    const connect = async () => {
+        if (isConnecting || isOpeningDevice || !connectedKeyboard) return;
+        const result = await connectScreenLcdWebHid(
+            connectDevice as (filter: FilterDevice[] | undefined) => Promise<ConnectScreenHidResult>,
+            connectedKeyboard,
+            {
+                setOpening: setIsOpeningDevice,
+                setConnecting: setIsConnecting,
+                onStartLightSequence: () => setOpeningDots(0),
+            },
+        );
+        if (!result.success) return;
         onAuthorized?.();
-      }
-      return;
-    }
-  };
-  return (
-    <Box w="100%" h="100%" position="relative">
-      {/* 动态背景 */}
+        const demo = connectedKeyboard.api?.address === 'demo';
+        notifyFirmwareUpdateAfterScreenConnect({
+            screenInfo: result.screenInfo,
+            fwVid: connectedKeyboard.vendorId ?? 0,
+            fwPid: connectedKeyboard.productId ?? 0,
+            firmwareChangelogKeySegment: keyboard?.deviceBaseInfo?.keyboardID ?? 0,
+            keyboardNeedsUpgrade: keyboard?.deviceNeedsUpgrade,
+            keyboardDeviceVersion: keyboard?.deviceVersion,
+            keyboardUpgradeVersion: keyboard?.deviceUpgradeVersion,
+            demoSession: demo,
+            showFirmwareUpdateCard,
+            onNavigateToSettingsFirmware: () => {
+                onChangeTab('settings');
+                requestSettingsFirmwareTab();
+            },
+            t,
+        });
+    };
 
+    const connectLabel = isConnecting
+        ? '连接中...'
+        : isOpeningDevice
+          ? `${t('2725')}${'.'.repeat(openingDots + 1)}`
+          : t('16');
 
-      {/* 内容区域 */}
-      <Box
-        w="100%"
-        h="100vh"
-        position="relative"
-        zIndex={1}
-        overflowY="auto"
-        overflowX="hidden"
-        pb="48px" // 为底部导航腾出空间
-        sx={{
-          '@keyframes gridMove': {
-            '0%': { transform: 'translateY(0) scale(1)' },
-            '50%': { transform: 'translateY(-20px) scale(1.05)' },
-            '100%': { transform: 'translateY(0) scale(1)' },
-          },
-          '@keyframes blink': {
-            '0%': { opacity: 0.3, transform: 'scale(0.8)' },
-            '50%': { opacity: 1, transform: 'scale(1.2)' },
-            '100%': { opacity: 0.3, transform: 'scale(0.8)' },
-          },
-          '@keyframes gradientShift': {
-            '0%': { opacity: 0.7 },
-            '50%': { opacity: 0.9 },
-            '100%': { opacity: 0.7 },
-          },
-          '@keyframes floatEffect': {
-            '0%': { transform: 'translateY(0px)' },
-            '50%': { transform: 'translateY(-10px)' },
-            '100%': { transform: 'translateY(0px)' },
-          },
-          '@keyframes particleFloat': {
-            '0%': { transform: 'translateY(0px) translateX(0px)' },
-            '50%': { transform: 'translateY(-10px) translateX(5px)' },
-            '100%': { transform: 'translateY(0px) translateX(0px)' },
-          },
-          '@keyframes pulseGlow': {
-            '0%': { opacity: 0.3 },
-            '50%': { opacity: 0.8 },
-            '100%': { opacity: 0.3 },
-          },
-          '@keyframes keyPress': {
-            '0%': { transform: 'translateY(0px)' },
-            '50%': { transform: 'translateY(2px)' },
-            '100%': { transform: 'translateY(0px)' },
-          },
-          '@keyframes pixelate': {
-            '0%': { filter: 'none' },
-            '5%': { filter: 'brightness(1.1) contrast(1.3)' },
-            '10%': { filter: 'none' },
-            '15%': { filter: 'brightness(0.9) contrast(1.2)' },
-            '20%': { filter: 'none' },
-            '100%': { filter: 'none' },
-          },
-          '@keyframes scanline': {
-            '0%': { transform: 'translateY(-100%)' },
-            '100%': { transform: 'translateY(100%)' },
-          },
-          '@keyframes textFlow': {
-            '0%': { backgroundPosition: '200% center' },
-            '100%': { backgroundPosition: '0% center' }
-          },
-          '@keyframes screenFlicker': {
-            '0%': { opacity: 1 },
-            '49%': { opacity: 1 },
-            '50%': { opacity: 0.95 },
-            '51%': { opacity: 1 },
-            '52%': { opacity: 1 },
-            '53%': { opacity: 0.9 },
-            '54%': { opacity: 1 },
-            '100%': { opacity: 1 },
-          },
-          '&::-webkit-scrollbar': { width: '3px' }, // 3px -> 3px
-        }}
-      >
-
-        {/* 中央内容 */}
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          px={4}
-          pt={{ base: 6, md: 8 }}
-          position="relative"
-          width="100%"
-          height="100%"
-        >
-          {/* 标题 */}
-          <Box
-            fontSize="36px"
-            fontWeight="bold"
-            whiteSpace={{ base: "normal", md: "nowrap" }}
-            textAlign="center"
-            display="inline-block"
-            position="relative"
-            letterSpacing={{ base: "1px", md: "2px" }}
-            px={3}
-            mb={4}
-            className="gradient-text"
+    return (
+        <Box
             sx={{
-              background: 'linear-gradient(90deg, #00BFFF, #0080FF, #1E90FF, #0080FF, #00BFFF)',
-              backgroundSize: '200% auto',
-              animation: 'textFlow 3s linear infinite',
-              backgroundClip: 'text',
-              textFillColor: 'transparent',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: '0 0 20px rgba(0, 150, 255, 0.5)', // 20px -> 20px
-              filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))' // 修正单位，4px -> 4px
+                width: '100%',
+                height: '100%',
+                minHeight: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxSizing: 'border-box',
+                py: 2,
             }}
-          >
-            {t("10") || t("9005")}
-          </Box>
-
-
-          {/* LCD屏幕模拟 */}
-          <Box
-            w={{ base: "90%", sm: "85%", md: "75%", lg: "65%" }}
-            maxW="700px" // 700px -> 700px
-            borderRadius="8px"
-            overflow="hidden"
-            marginTop="50px" // 50px -> 50px
-
-            position="relative"
-            boxShadow="0 0 40px rgba(0, 150, 255, 0.4)" // 40px -> 40px
-            mb={{ base: "50px", md: "60px" }} // 50px -> 50px, 60px -> 60px
-          >
-            {/* 屏幕边框 */}
+        >
+            {/* 整体卡片：浅灰底 + 轻阴影 + 圆角（与参考图一致） */}
             <Box
-              position="absolute"
-              top="-2px"
-              left="-2px"
-              right="-2px"
-              bottom="-2px"
-              bg="rgba(30, 30, 50, 0.95)"
-              borderRadius="10px"
-              zIndex={0}
-              boxShadow="inset 0 0 10px rgba(0, 0, 0, 0.5)" // 10px -> 10px
-            />
-
-            {/* 屏幕主体 */}
-            <Box
-              position="relative"
-              zIndex={1}
-              pt="56.25%" // 16:9 宽高比
-              overflow="hidden"
-              border="4px solid "
-              borderRadius="6px"
-              width="700px" // 700px -> 700px
-              sx={{
-                animation: 'screenFlicker 8s infinite',
-              }}
+                sx={{
+                    width: '100%',
+                    maxWidth: 'min(1120px, calc(100vw - 32px))',
+                    mx: 3,
+                    borderRadius: '16px',
+                    p: '20px',
+                    boxSizing: 'border-box',
+                    ...(isDark
+                        ? {
+                              background: `linear-gradient(180deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha('#131316', 1)} 100%)`,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.28)}`,
+                              boxShadow: `0 4px 28px ${alpha('#000', 0.45)}`,
+                          }
+                        : {
+                              background: 'linear-gradient(180deg, #FAFBFC 0%, #F2F4F7 48%, #EEF1F4 100%)',
+                              border: '1px solid rgba(226, 232, 240, 0.85)',
+                              boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
+                          }),
+                }}
             >
-              {/* 屏幕内容 */}
-              <Box
-                position="absolute"
-                top="0"
-                left="0"
-                right="0"
-                bottom="0"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                flexDirection="column"
-                overflow="hidden"
-              >
-                {/* 播放LCD.gif动画 */}
+                {/* 上：键盘区（固定 751×466，不被 flex 压缩）+ 渐变卡 */}
                 <Box
-                  position="absolute"
-                  top="0"
-                  left="0"
-                  right="0"
-                  bottom="0"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: { xs: '16px', sm: '24px' },
+                        minHeight: `${KEYBOARD_H}px`,
+                        width: '100%',
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        boxSizing: 'border-box',
+                        justifyContent: 'space-around',
+                    }}
                 >
-                  <Image
-                    src="./default/default1.gif"
-                    alt="LCD Screen Animation"
-                    width="100%"
-                    height="100%"
-                    objectFit="cover"
-                    style={{ mixBlendMode: 'lighten' }}
-                  />
+                    <Box
+                        sx={{
+                            flex: '0 0 auto',
+                            width: `${KEYBOARD_W}px`,
+                            height: `${KEYBOARD_H}px`,
+                            borderRadius: '14px',
+                            boxSizing: 'border-box',
+                            ...(isDark
+                                ? {
+                                      bgcolor: alpha(theme.palette.common.white, 0.06),
+                                      boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.common.white, 0.12)}, inset 0 1px 0 ${alpha(theme.palette.common.white, 0.04)}`,
+                                  }
+                                : {
+                                      bgcolor: 'rgba(255, 255, 255, 0.72)',
+                                      boxShadow:
+                                          'inset 0 0 0 1px #E8ECF0, inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+                                  }),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <Box
+                            component="img"
+                            src={KEYBOARD_IMG}
+                            alt=""
+                            aria-hidden
+                            width={KEYBOARD_W}
+                            height={KEYBOARD_H}
+                            sx={{
+                                width: `${KEYBOARD_W}px`,
+                                height: `${KEYBOARD_H}px`,
+                                display: 'block',
+                                objectFit: 'contain',
+                                userSelect: 'none',
+                                pointerEvents: 'none',
+                                outline: 'none',
+                                border: 0,
+                                verticalAlign: 'top',
+                                filter: isDark ? 'brightness(0.88) contrast(1.08)' : 'none',
+                            }}
+                        />
+                    </Box>
+
+                    <Box
+                        sx={{
+                            position: 'relative',
+                            flexShrink: 0,
+                            width: '244px',
+                            height: '466px',
+                            borderRadius: '22px',
+                            overflow: 'hidden',
+                            ...(isDark
+                                ? {
+                                      border: `1px solid ${alpha(theme.palette.common.white, 0.14)}`,
+                                      boxShadow: `0 12px 40px ${alpha('#000', 0.5)}`,
+                                      background:
+                                          'linear-gradient(145deg, #4a6bb8 0%, #2d3340 32%, #8b5348 55%, #1e1e24 72%, #3d5588 100%)',
+                                  }
+                                : {
+                                      border: '1px solid rgba(255, 255, 255, 0.95)',
+                                      boxShadow: '0 10px 36px rgba(100, 116, 139, 0.2)',
+                                      background:
+                                          'linear-gradient(145deg, #6B93F0 0%, #E8ECF4 28%, #F6A08E 52%, #FDFDFE 68%, #5A82E8 100%)',
+                                  }),
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                inset: 0,
+                                opacity: isDark ? 0.32 : 0.38,
+                                backgroundImage:
+                                    'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
+                                mixBlendMode: isDark ? 'soft-light' : 'overlay',
+                                pointerEvents: 'none',
+                            }}
+                        />
+                    </Box>
                 </Box>
 
-                {/* 屏幕扫描线 */}
+                {/* 下：略缩进白底条 + 轻阴影（相对主卡片左右留一点边） */}
                 <Box
-                  position="absolute"
-                  top="0"
-                  left="0"
-                  right="0"
-                  height="2px" // 2px -> 2px
-                  bg="rgba(255, 255, 255, 0.1)"
-                  sx={{ animation: 'scanline 3s linear infinite' }}
-                />
+                    sx={{
+                        mt: '14px',
+                        mx: '2px',
+                        display: 'flex',
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderRadius: '12px',
+                        px: '20px',
+                        py: '14px',
+                        boxSizing: 'border-box',
+                        ...(isDark
+                            ? {
+                                  bgcolor: theme.palette.background.paper,
+                                  border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+                                  boxShadow: `0 2px 16px ${alpha('#000', 0.35)}`,
+                              }
+                            : {
+                                  bgcolor: '#FFFFFF',
+                                  boxShadow: '0 2px 14px rgba(15, 23, 42, 0.05)',
+                              }),
+                    }}
+                >
+                    <Typography
+                        sx={{
+                            fontSize: '20px',
+                            fontWeight: 500,
+                            color: isDark ? theme.palette.text.secondary : '#5F6368',
+                            lineHeight: 1.35,
+                            letterSpacing: '0.01em',
+                        }}
+                    >
+                        {t('10')}
+                    </Typography>
 
-                {/* 像素网格效果 */}
-                <Box
-                  position="absolute"
-                  top="0"
-                  left="0"
-                  right="0"
-                  bottom="0"
-                  backgroundImage="url('./pixel_grid.png')"
-                  backgroundSize="cover"
-                  opacity={0.05}
-                  pointerEvents="none"
-                />
-              </Box>
+                    <Button
+                        variant="contained"
+                        disableElevation
+                        onClick={() => void connect()}
+                        disabled={isConnecting || isOpeningDevice || !connectedKeyboard}
+                        sx={{
+                            minWidth: '213px',
+                            height: '36px',
+                            px: '22px',
+                            py: 0,
+                            borderRadius: '8px',
+                            textTransform: 'none',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            bgcolor: isDark ? theme.palette.primary.main : '#4A90E2',
+                            color: theme.palette.primary.contrastText,
+                            boxShadow: 'none',
+                            '&:hover': {
+                                bgcolor: isDark ? theme.palette.primary.dark : '#3d7fd4',
+                                boxShadow: 'none',
+                            },
+                            '&.Mui-disabled': {
+                                bgcolor: isDark
+                                    ? alpha(theme.palette.primary.main, 0.4)
+                                    : 'rgba(74, 144, 226, 0.45)',
+                                color: alpha(theme.palette.common.white, 0.9),
+                            },
+                        }}
+                    >
+                        {connectLabel}
+                    </Button>
+                </Box>
             </Box>
-          </Box>
-
-          {/* 连接键盘按钮 */}
-          <Button
-            as="button"
-            onClick={() => connect()}
-            isDisabled={isConnecting || isOpeningDevice}
-            bg="rgba(0, 150, 255, 0.8)"
-            color="white"
-            _hover={{ bg: "rgba(0, 180, 255, 0.9)" }}
-            _active={{ bg: "rgba(0, 120, 255, 1)" }}
-            borderRadius="md"
-            px={10}
-            py={6}
-            fontSize="32px"
-            fontWeight="bold"
-            boxShadow="0 0 20px rgba(0, 150, 255, 0.5)" // 20px -> 20px
-            transition="all 0.2s ease"
-            position="relative"
-            marginTop="50px" // 50px -> 50px
-            _before={{
-              content: '""',
-              position: 'absolute',
-              top: '-3px', // 3px -> 3px
-              left: '-3px', // 3px -> 3px
-              right: '-3px', // 3px -> 3px
-              bottom: '-3px', // 3px -> 3px
-              borderRadius: 'md',
-              padding: '3px', // 3px -> 3px
-              background: 'linear-gradient(90deg, #00BFFF, #0080FF, #1E90FF, #0080FF, #00BFFF)',
-              mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              maskComposite: 'xor',
-              animation: 'textFlow 3s linear infinite',
-            }}
-          >
-            <span>
-              {isConnecting
-                  ? "连接中..."
-                : isOpeningDevice
-                  ? `正在打开设备${".".repeat(openingDots + 1)}`
-                  : t("16") || "连接设备"}
-            </span>
-          </Button>
-        </Flex>
-      </Box>
-    </Box>
-  );
+        </Box>
+    );
 }

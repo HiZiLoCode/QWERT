@@ -2,7 +2,7 @@
 
 import { createContext, useState, ReactNode, useEffect, useRef, useCallback } from "react";
 import {
-  FilterDevice, screenInfo
+  FilterDevice, screenInfo, type ConnectScreenHidResult
 } from "../types/types";
 import { DeviceComm, connectDeviceHID, type LcdScreenFuncInfo } from "../LEDdevices/LCDScreenDevice";
 import { useTranslation } from "@/app/i18n";
@@ -12,7 +12,7 @@ import { TransferProgress } from "@/components/GifConverter";
 type MainProps = {
   softwareVersion: string;
   deviceComm?: DeviceComm;
-  connectDevice: Function;           // 连接设备
+  connectDevice: (filter: FilterDevice[] | undefined) => Promise<ConnectScreenHidResult>;
   disconnectDevice: Function;       // 断开设备
   downLoad: boolean;                // 下载状态
   setDownLoad: Function;
@@ -189,7 +189,7 @@ function MainProvider({ children }: { children: ReactNode }) {
   };
 
   // 连接设备
-  const connectDevice = async (filter: FilterDevice[] | undefined) => {
+  const connectDevice = async (filter: FilterDevice[] | undefined): Promise<ConnectScreenHidResult> => {
     try {
       // 连接设备
       const connecDevice = await connectDeviceHID(filter);
@@ -197,7 +197,7 @@ function MainProvider({ children }: { children: ReactNode }) {
         console.log("connectedDevice undefined, not find device!");
         setDeviceStatus(false);
         setDeviceComm(undefined);
-        return false;
+        return { success: false };
       }
       setDeviceStatus(true);
       setDeviceComm(connecDevice);
@@ -219,14 +219,14 @@ function MainProvider({ children }: { children: ReactNode }) {
           console.warn('pollConnectStatus:', e)
         );
       }, 3000);
-      return true;
+      return { success: true, screenInfo };
     } catch (error) {
       console.error("连接设备失败:", error);
       clearLcdHeartbeat();
       setDeviceStatus(false);
       setDeviceComm(undefined);
       setFuncInfo(undefined);
-      return false;
+      return { success: false };
     }
   };
 

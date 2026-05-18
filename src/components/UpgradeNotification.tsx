@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import {
   Paper,
-  Button,
   Typography,
   Box,
   useTheme,
@@ -101,12 +100,8 @@ const UpgradeNotification: React.FC = () => {
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         sx={{
-          position: 'fixed',
-          top: '60px', // 60px
-          right: '20px', // 20px
           width: '300px', // 300px
           padding: '16px',
-          zIndex: 1300,
           display: 'flex',
           flexDirection: 'column',
           gap: '8px',

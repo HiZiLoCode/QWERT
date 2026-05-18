@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Box, Button, Divider, Popover, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import ColorPicker from "@/components/ColorPicker";
-import { screenThemeColors } from "./theme";
-import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx, screenThemePillRadius } from "./screenThemeButtonSx";
+import {
+  getScreenThemeFilledPillButtonSx,
+  getScreenThemeOutlinedPillButtonSx,
+  screenThemePillRadius,
+} from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type ThemeColorField = "theme" | "date" | "power" | "status";
 
@@ -33,12 +37,31 @@ export default function ScreenThemeThemeColorPanel({
   isLocked = false,
 }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const filledSx = getScreenThemeFilledPillButtonSx(sv);
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
+
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [activeField, setActiveField] = useState<ThemeColorField>("theme");
   const [savePhase, setSavePhase] = useState<"idle" | "busy" | "done">("idle");
   const [saveProgress, setSaveProgress] = useState(0);
   const rafRef = useRef<number | null>(null);
   const timeoutRefs = useRef<number[]>([]);
+
+  const savePrimaryButtonSx = useMemo(() => {
+    const busyOverlay =
+      savePhase === "busy"
+        ? {
+            "&:hover": { boxShadow: "none" },
+            "&.Mui-disabled": {
+              borderColor: sv.primary,
+              color: "transparent",
+            },
+          }
+        : {};
+    if (savePhase === "done") return filledSx;
+    return { ...outlinedSx, ...busyOverlay };
+  }, [savePhase, filledSx, outlinedSx, sv.primary]);
 
   const clearTimers = useCallback(() => {
     timeoutRefs.current.forEach((id) => window.clearTimeout(id));
@@ -131,7 +154,7 @@ export default function ScreenThemeThemeColorPanel({
             component="p"
             sx={{
               m: 0,
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "12px",
               lineHeight: 1.55,
             }}
@@ -144,7 +167,7 @@ export default function ScreenThemeThemeColorPanel({
             sx={{
               m: 0,
               mt: "6px",
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "12px",
               lineHeight: 1.55,
             }}
@@ -166,20 +189,7 @@ export default function ScreenThemeThemeColorPanel({
             width: "208px",
             minWidth: "208px",
             height: "36px",
-            ...(savePhase === "done"
-              ? screenThemeFilledPillButtonSx
-              : {
-                  ...screenThemeOutlinedPillButtonSx,
-                  ...(savePhase === "busy"
-                    ? {
-                        "&:hover": { boxShadow: "none" },
-                        "&.Mui-disabled": {
-                          borderColor: screenThemeColors.primary,
-                          color: "transparent",
-                        },
-                      }
-                    : {}),
-                }),
+            ...savePrimaryButtonSx,
           }}
         >
           {savePhase === "busy" && (
@@ -191,7 +201,7 @@ export default function ScreenThemeThemeColorPanel({
                 top: 0,
                 bottom: 0,
                 width: `${saveProgress}%`,
-                backgroundColor: screenThemeColors.primary,
+                backgroundColor: sv.primary,
                 borderTopLeftRadius: screenThemePillRadius,
                 borderBottomLeftRadius: screenThemePillRadius,
                 borderTopRightRadius: saveProgress >= 99 ? screenThemePillRadius : 0,
@@ -207,7 +217,7 @@ export default function ScreenThemeThemeColorPanel({
               zIndex: 1,
               fontSize: "14px",
               fontWeight: savePhase === "done" ? 600 : 500,
-              color: savePhase === "busy" ? "transparent" : savePhase === "done" ? "#fff" : screenThemeColors.textDark,
+              color: savePhase === "busy" ? "transparent" : savePhase === "done" ? "#fff" : sv.textDark,
               whiteSpace: "nowrap",
             }}
           >
@@ -216,16 +226,16 @@ export default function ScreenThemeThemeColorPanel({
         </Button>
       </Box>
 
-      <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
+      <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 28 }}>
-        <Typography sx={{ color: screenThemeColors.textDark, fontSize: "14px", fontWeight: 500 }}>
+        <Typography sx={{ color: sv.textDark, fontSize: "14px", fontWeight: 500 }}>
           {t("2541")}
         </Typography>
         {COLOR_ROWS.map((item) => (
           <Box key={item.field} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
-              <Typography sx={{ color: screenThemeColors.textDark, fontSize: "14px", minWidth: "72px" }}>
+              <Typography sx={{ color: sv.textDark, fontSize: "14px", minWidth: "72px" }}>
                 {t(item.labelKey)}
               </Typography>
               <Box
@@ -234,7 +244,7 @@ export default function ScreenThemeThemeColorPanel({
                   height: "14px",
                   borderRadius: "50%",
                   backgroundColor: colors[item.field],
-                  border: "1px solid rgba(0,0,0,0.12)",
+                  border: `1px solid ${sv.borderLight}`,
                 }}
               />
             </Box>
@@ -244,7 +254,7 @@ export default function ScreenThemeThemeColorPanel({
               disabled={isLocked}
               onClick={(event) => openPicker(event, item.field)}
               sx={{
-                ...screenThemeOutlinedPillButtonSx,
+                ...outlinedSx,
                 flexShrink: 0,
                 minHeight: "36px",
                 width: "172px",
@@ -269,7 +279,7 @@ export default function ScreenThemeThemeColorPanel({
             p: 1.5,
             mr: 1,
             borderRadius: "14px",
-            border: "1px solid rgba(181,187,196,0.45)",
+            border: `1px solid ${sv.panelBorder}`,
             boxShadow: "0 8px 24px rgba(15, 23, 42, 0.16)",
           },
         }}

@@ -7,7 +7,8 @@ import { getActuationLabel, getCompositeKeyClipPath, getNameColor, renderPattern
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 import customKeys from '@/data/customkeys.json';
 import { useTranslation } from '@/app/i18n';
-import { keyTypeIconVisualScale } from '@/utils/keyTypeIconVisualScale';
+import { alpha, useTheme } from '@mui/material/styles';
+import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
 
 const iconPathToNameMap: Record<string, string> = (customKeys as any[])
     .flatMap((group) => group?.keycodes ?? [])
@@ -93,6 +94,8 @@ export default function KeyboardKeys({
     disableKeyHoverScale = false,
 }: KeyboardKeysProps) {
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
 
     const isImageIcon = (value: string) => {
         const normalized = String(value || '').trim();
@@ -121,7 +124,7 @@ export default function KeyboardKeys({
 
     return (
         <Box sx={{ position: 'relative', ...keyboardStyle, transition: 'none', animation: 'none' }}>
-            {underPatterns.map((pattern, idx) => renderPattern(pattern, idx, ku, kg))}
+            {underPatterns.map((pattern, idx) => renderPattern(pattern, idx, ku, kg, isDark ? 'dark' : 'light'))}
             {layoutKeys.map((key, idx) => {
                 const composite = key as CompositeLayoutKey;
                 const keyIndex = key.index ?? idx;
@@ -132,16 +135,22 @@ export default function KeyboardKeys({
                     demoHighlightKeyIndex >= 0 &&
                     keyIndex === demoHighlightKeyIndex;
                 const actuation = travelKeys[keyIndex]?.actuation;
-                const keyBg = colorMode ? (keyColors[keyIndex] || '#000000') : 'rgba(255,255,255,1)';
-                const nameColor = getNameColor(colorMode, colorMode ? keyBg : undefined);
+                const keyBg = colorMode
+                    ? keyColors[keyIndex] || '#000000'
+                    : isDark
+                      ? theme.palette.customed1.main
+                      : 'rgba(255,255,255,1)';
+                const nameColor = getNameColor(colorMode, colorMode ? keyBg : undefined, isDark ? 'dark' : 'light');
                 const keyWidth = Math.max(key.w ?? 1, (composite.w2 ?? 0) + (composite.x2 ?? 0));
                 const keyHeight = Math.max(key.h ?? 1, (composite.h2 ?? 0) + (composite.y2 ?? 0));
                 const clipPath = getCompositeKeyClipPath(composite);
                 const border = isDemoHighlight
                     ? '2px solid #ff9100'
                     : selected
-                      ? '2px solid #4A86F7'
-                      : '1px solid #e5e7eb';
+                      ? `2px solid ${isDark ? theme.palette.primary.main : '#4A86F7'}`
+                      : isDark
+                        ? `1px solid var(--border-default)`
+                        : '1px solid #e5e7eb';
 
                 const keyName = String(key.name ?? '').trim();
                 const keyDisplay = String(key.icon || key.name || keyIndex + 1);
@@ -207,7 +216,7 @@ export default function KeyboardKeys({
                                     height: '12px',
                                     px: '2px',
                                     borderRadius: '10px',
-                                    bgcolor: '#3b82f6',
+                                    bgcolor: theme.palette.primary.main,
                                     color: '#fff',
                                     fontSize: '9px',
                                     fontWeight: 700,
@@ -220,36 +229,29 @@ export default function KeyboardKeys({
                             </Box>
                         )}
                         {isImageIcon(keyDisplay) ? (
-                            (() => {
-                                const src = keyDisplay.trim();
-                                const iconScale = keyTypeIconVisualScale(src);
-                                return (
-                                    <Box
-                                        sx={{
-                                            width: '32px',
-                                            height: '32px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            flexShrink: 0,
-                                            mb: showActuation ? '4px' : 0,
-                                        }}
-                                    >
-                                        <Box
-                                            component="img"
-                                            src={src}
-                                            alt={keyName || keyDisplay}
-                                            sx={{
-                                                width: '32px',
-                                                height: '32px',
-                                                objectFit: 'contain',
-                                                transform: iconScale !== 1 ? `scale(${iconScale})` : undefined,
-                                                transformOrigin: 'center center',
-                                            }}
-                                        />
-                                    </Box>
-                                );
-                            })()
+                            <Box
+                                sx={{
+                                    width: KEY_TYPE_ICON_BOX_PX,
+                                    height: KEY_TYPE_ICON_BOX_PX,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                    mb: showActuation ? '4px' : 0,
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={keyDisplay.trim()}
+                                    alt={keyName || keyDisplay}
+                                    sx={{
+                                        width: KEY_TYPE_ICON_BOX_PX,
+                                        height: KEY_TYPE_ICON_BOX_PX,
+                                        objectFit: 'contain',
+                                        filter: isDark && isImageIcon(keyDisplay) ? 'brightness(0) invert(1)' : 'none',
+                                    }}
+                                />
+                            </Box>
                         ) : (
                             <Typography
                                 sx={{
@@ -270,7 +272,7 @@ export default function KeyboardKeys({
                             </Typography>
                         )}
                         {showActuation && (
-                            <Typography sx={{ fontSize: '12px', lineHeight: 1, color: '#4284ef', fontWeight: 700 }}>
+                            <Typography sx={{ fontSize: '12px', lineHeight: 1, color: theme.palette.primary.main, fontWeight: 700 }}>
                                 {getActuationLabel(actuation, travelValue)}
                             </Typography>
                         )}
@@ -303,7 +305,9 @@ export default function KeyboardKeys({
                     </Box>
                 );
             })}
-            {overPatterns.map((pattern, idx) => renderPattern(pattern, idx + underPatterns.length, ku, kg))}
+            {overPatterns.map((pattern, idx) =>
+                renderPattern(pattern, idx + underPatterns.length, ku, kg, isDark ? 'dark' : 'light'),
+            )}
         </Box>
     );
 }

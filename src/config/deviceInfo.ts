@@ -6,11 +6,11 @@ export const deviceInfo: any = {
     name: "KRUX Drox",
     layout: "36B0_3059_0",
     updateFile: "./fw-files/36B0_3059_0.bin",
-    upgradeVersion: "200",
+    upgradeVersion: "118",
     /** 屏幕 OTA：app.bin（必选）；image.bin（可选，不配则只升固件） */
     screenFirmwareFile: "./fw-files/36B0_3059_0_screen_app.bin",
     screenImageFile: "./fw-files/36B0_3059_0_screen_image.bin",
-    screenUpgradeVersion: "200",
+    screenUpgradeVersion: "115",
     vendorId: "0x36B0",
     productId: "0x3059",
     keyBoardLayer:false

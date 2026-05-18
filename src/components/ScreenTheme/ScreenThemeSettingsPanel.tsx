@@ -12,14 +12,14 @@ import {
 } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import type { TransitionKind } from "./types";
-import { screenThemeColors } from "./theme";
-import { screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
 import { INTERVAL_OPTIONS, TRANSITION_OPTIONS } from "./options";
 import {
-  screenThemeSelectMenuItemSx,
-  screenThemeSelectMenuProps,
-  screenThemeSelectSx,
+  getScreenThemeSelectMenuItemSx,
+  getScreenThemeSelectMenuProps,
+  getScreenThemeSelectSx,
 } from "./screenThemeSelectStyles";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type Props = {
   fileIndex: number;
@@ -47,6 +47,11 @@ export default function ScreenThemeSettingsPanel({
   isLocked = false,
 }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
+  const selectSx = getScreenThemeSelectSx(sv);
+  const selectMenuProps = getScreenThemeSelectMenuProps(sv);
+  const menuItemSx = getScreenThemeSelectMenuItemSx(sv);
 
   return (
     <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.25, pl: 1, pr: 0.5 }}>
@@ -65,7 +70,7 @@ export default function ScreenThemeSettingsPanel({
             component="p"
             sx={{
               m: 0,
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "16px",
               lineHeight: 1.55,
             }}
@@ -78,7 +83,7 @@ export default function ScreenThemeSettingsPanel({
             sx={{
               m: 0,
               mt: "6px",
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "16px",
               lineHeight: 1.55,
             }}
@@ -92,7 +97,7 @@ export default function ScreenThemeSettingsPanel({
           disabled={isSaving || isLocked}
           onClick={onSaveToKeyboard}
           sx={{
-            ...screenThemeOutlinedPillButtonSx,
+            ...outlinedSx,
             flexShrink: 0,
             px: 2.5,
             py: 0.75,
@@ -104,10 +109,10 @@ export default function ScreenThemeSettingsPanel({
         </Button>
       </Box>
 
-      <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
+      <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />
       <Box sx={{ display: "flex", flexDirection: "column", gap: 61 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "18px" }}>
+          <Typography variant="body2" sx={{ color: sv.textDark, fontWeight: 500, fontSize: "18px" }}>
             {t("2540")}
             {fileIndex}/{fileTotal}
           </Typography>
@@ -117,7 +122,7 @@ export default function ScreenThemeSettingsPanel({
             disabled={isLocked}
             onClick={onSelectFolder}
             sx={{
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               flexShrink: 0,
               minHeight: "36px",
               width: "172px",
@@ -129,7 +134,7 @@ export default function ScreenThemeSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "18px" }}>
+          <Typography variant="body2" sx={{ color: sv.textDark, minWidth: "88px", fontSize: "18px" }}>
             {t("1612")}
           </Typography>
           <FormControl size="small" sx={{ minWidth: "172px" }}>
@@ -137,11 +142,11 @@ export default function ScreenThemeSettingsPanel({
               value={intervalSec}
               disabled={isLocked}
               onChange={(e: SelectChangeEvent) => onIntervalChange(e.target.value)}
-              sx={screenThemeSelectSx}
-              MenuProps={screenThemeSelectMenuProps}
+              sx={selectSx}
+              MenuProps={selectMenuProps}
             >
               {INTERVAL_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value} sx={screenThemeSelectMenuItemSx}>
+                <MenuItem key={o.value} value={o.value} sx={menuItemSx}>
                   {t(o.labelKey)}
                 </MenuItem>
               ))}
@@ -150,7 +155,7 @@ export default function ScreenThemeSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "18px" }}>
+          <Typography variant="body2" sx={{ color: sv.textDark, minWidth: "88px", fontSize: "18px" }}>
             {t("1613")}
           </Typography>
           <FormControl size="small" sx={{ minWidth: "172px" }}>
@@ -158,11 +163,11 @@ export default function ScreenThemeSettingsPanel({
               value={transition}
               disabled={isLocked}
               onChange={(e: SelectChangeEvent) => onTransitionChange(e.target.value as TransitionKind)}
-              sx={screenThemeSelectSx}
-              MenuProps={screenThemeSelectMenuProps}
+              sx={selectSx}
+              MenuProps={selectMenuProps}
             >
               {TRANSITION_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value} sx={screenThemeSelectMenuItemSx}>
+                <MenuItem key={o.value} value={o.value} sx={menuItemSx}>
                   {t(o.labelKey)}
                 </MenuItem>
               ))}

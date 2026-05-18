@@ -13,8 +13,15 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useMemo, useState } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useTranslation } from '@/app/i18n';
 import { ButtonRem } from '@/styled/ReconstructionRem';
+import {
+    getSettingsRowDescriptionSx,
+    getSettingsRowListUlSx,
+    getSettingsRowTitleSx,
+} from '@/constants/settingsPanelTypography';
+import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import {
     findFirmwareRelease,
     getFirmwareReleasesForDevice,
@@ -52,6 +59,8 @@ export default function FirmwareChangelogSection({
     demoSession = false,
 }: FirmwareChangelogSectionProps) {
     const { t, i18n } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const [historyOpen, setHistoryOpen] = useState(false);
     const lang = i18n.resolvedLanguage ?? i18n.language ?? 'zh';
 
@@ -75,23 +84,75 @@ export default function FirmwareChangelogSection({
 
     const connected = vendorId > 0 && productId > 0;
 
-    const cardSx = {
-        background: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-        borderRadius: '12px',
-        boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-        border: '1px solid rgba(255, 255, 255, 1)',
-        px: '20px',
-        py: '18px',
-        
-    } as const;
+    const cardSx = useMemo(() => settingsFirmwareCardSx(theme), [theme]);
+
+    const checkUpdatesBtnSx = useMemo(
+        () => ({
+            textTransform: 'none' as const,
+            height: '36px',
+            px: '20px',
+            fontSize: '14px',
+            fontWeight: 500,
+            borderRadius: '8px',
+            boxShadow: 'none',
+            ...(isDark
+                ? {
+                      color: alpha(theme.palette.common.white, 0.78),
+                      background: theme.palette.background.paper,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                      '&:hover': {
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          borderColor: alpha(theme.palette.primary.main, 0.5),
+                      },
+                      '&.Mui-disabled': {
+                          color: alpha(theme.palette.common.white, 0.35),
+                          borderColor: alpha(theme.palette.common.white, 0.12),
+                      },
+                  }
+                : {
+                      color: '#64748b',
+                      background: 'rgba(255, 255, 255, 1)',
+                      border: '1px solid rgba(148, 163, 184, 0.55)',
+                      '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
+                      '&.Mui-disabled': { color: '#94a3b8', borderColor: '#e2e8f0' },
+                  }),
+        }),
+        [theme, isDark]
+    );
+
+    const historyLinkBtnSx = useMemo(
+        () => ({
+            textTransform: 'none' as const,
+            height: '32px',
+            px: '16px',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: theme.palette.primary.main,
+            bgcolor: 'transparent',
+            border: 'none',
+            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+        }),
+        [theme]
+    );
+
+    const accordionSx = useMemo(
+        () => ({
+            border: `1px solid ${isDark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(148, 163, 184, 0.25)'}`,
+            borderRadius: '8px !important',
+            mb: 10,
+            '&:before': { display: 'none' },
+            overflow: 'hidden',
+            padding: '12px',
+            ...(isDark ? { bgcolor: alpha(theme.palette.common.white, 0.03) } : {}),
+        }),
+        [theme, isDark]
+    );
 
     if (demoSession) {
         return (
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '8px' }}>
-                    {t('737')}
-                </Typography>
-                <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2596')}</Typography>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '8px' }}>{t('737')}</Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2596')}</Typography>
             </Box>
         );
     }
@@ -99,10 +160,8 @@ export default function FirmwareChangelogSection({
     if (!connected) {
         return (
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '8px' }}>
-                    {t('2508')}
-                </Typography>
-                <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2527')}</Typography>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '8px' }}>{t('2508')}</Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2527')}</Typography>
             </Box>
         );
     }
@@ -110,49 +169,54 @@ export default function FirmwareChangelogSection({
     return (
         <>
             <Box sx={cardSx}>
-                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '5.6px' }}>
-                    {t('2508')}
-                </Typography>
-                <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '5.6px' }}>{t('2508')}</Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '8px' }}>
                     {t('2521')}: V{deviceVersion || '—'}
                     {currentRelease?.date ? ` · ${currentRelease.date}` : null}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>{t('2522')}</Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '5.6px' }}>{t('2522')}</Typography>
                 {releases.length === 0 ? (
-                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2531')}</Typography>
+                    <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2531')}</Typography>
                 ) : currentItems.length > 0 ? (
-                    <Box
-                        component="ul"
-                        sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
-                    >
+                    <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                         {currentItems.map((line, idx) => (
                             <li key={idx}>{line}</li>
                         ))}
                     </Box>
                 ) : (
-                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>{t('2526')}</Typography>
+                    <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2526')}</Typography>
                 )}
 
                 {deviceNeedsUpgrade && deviceUpgradeVersion && (
-                    <Box sx={{ mt: '20px', pt: '16px', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
-                        <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
+                    <Box
+                        sx={{
+                            mt: '20px',
+                            pt: '16px',
+                            borderTop: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.12) : 'rgba(148, 163, 184, 0.2)'}`,
+                        }}
+                    >
+                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '8px' }}>
                             {t('2533')}: V{deviceVersion || '—'}
                         </Typography>
-                        <Typography sx={{ fontSize: '13px', color: '#b45309', fontWeight: 600, mb: '5.6px' }}>
+                        <Typography
+                            sx={{
+                                fontSize: '14px',
+                                color: theme.palette.warning.main,
+                                fontWeight: 600,
+                                mb: '5.6px',
+                            }}
+                        >
                             {t('2509')}: V{deviceUpgradeVersion}
                         </Typography>
-                        <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>{t('2529')}</Typography>
+                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '5.6px' }}>{t('2529')}</Typography>
                         {upgradeItems.length > 0 ? (
-                            <Box
-                                component="ul"
-                                sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
-                            >
+                            <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                                 {upgradeItems.map((line, idx) => (
                                     <li key={idx}>{line}</li>
                                 ))}
                             </Box>
                         ) : (
-                            <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2532')}</Typography>
+                            <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2532')}</Typography>
                         )}
                     </Box>
                 )}
@@ -162,20 +226,7 @@ export default function FirmwareChangelogSection({
                         type="button"
                         onClick={onCheckUpdates}
                         disabled={checkingForUpdates}
-                        sx={{
-                            textTransform: 'none',
-                            height: '36px',
-                            px: '20px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            color: '#64748b',
-                            background: ' rgba(255, 255, 255, 1)',
-                            border: '1px solid rgba(148, 163, 184, 0.55)',
-                            borderRadius: '8px',
-                            boxShadow: 'none',
-                            '&:hover': { bgcolor: '#f8fafc', borderColor: '#94a3b8' },
-                            '&.Mui-disabled': { color: '#94a3b8', borderColor: '#e2e8f0' },
-                        }}
+                        sx={checkUpdatesBtnSx}
                     >
                         {checkingForUpdates ? t('733') : t('2514')}
                     </ButtonRem>
@@ -183,17 +234,7 @@ export default function FirmwareChangelogSection({
                         <ButtonRem
                             type="button"
                             onClick={() => setHistoryOpen(true)}
-                            sx={{
-                                textTransform: 'none',
-                                height: '32px',
-                                px: '16px',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                color: '#3b82f6',
-                                bgcolor: 'transparent',
-                                border: 'none',
-                                '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.08)' },
-                            }}
+                            sx={historyLinkBtnSx}
                         >
                             {t('2523')}
                         </ButtonRem>
@@ -208,9 +249,7 @@ export default function FirmwareChangelogSection({
                 fullWidth
                 PaperProps={{ sx: { borderRadius: '12px' } }}
             >
-                <DialogTitle sx={{ fontSize: '16px', fontWeight: 600, color: '#334155', pb: 10 }}>
-                    {t('2530')}
-                </DialogTitle>
+                <DialogTitle sx={{ ...getSettingsRowTitleSx(theme), pb: 10 }}>{t('2530')}</DialogTitle>
                 <DialogContent dividers sx={{ maxHeight: '50vh' }}>
                     {releases.map((release) => {
                         const items = pickChanges(release, lang);
@@ -220,36 +259,32 @@ export default function FirmwareChangelogSection({
                                 key={`${release.version}-${release.date}`}
                                 disableGutters
                                 elevation={0}
-                                sx={{
-                                    border: '1px solid rgba(148, 163, 184, 0.25)',
-                                    borderRadius: '8px !important',
-                                    mb: 10,
-                                    '&:before': { display: 'none' },
-                                    overflow: 'hidden',
-                                    padding: '12px',
-                                }}
+                                sx={accordionSx}
                             >
-                                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#64748b' }} />}>
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon
+                                            sx={{ color: isDark ? alpha(theme.palette.common.white, 0.45) : '#64748b' }}
+                                        />
+                                    }
+                                >
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
-                                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
+                                        <Typography sx={{ ...getSettingsRowTitleSx(theme) }}>
                                             V{release.version}
                                             {isCurrent ? ` · ${t('2521')}` : ''}
                                         </Typography>
-                                        <Typography sx={{ fontSize: '12px', color: '#94a3b8' }}>{release.date}</Typography>
+                                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{release.date}</Typography>
                                     </Box>
                                 </AccordionSummary>
                                 <AccordionDetails sx={{ pt: 0 }}>
                                     {items.length > 0 ? (
-                                        <Box
-                                            component="ul"
-                                            sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}
-                                        >
+                                        <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                                             {items.map((line, idx) => (
                                                 <li key={idx}>{line}</li>
                                             ))}
                                         </Box>
                                     ) : (
-                                        <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2526')}</Typography>
+                                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2526')}</Typography>
                                     )}
                                 </AccordionDetails>
                             </Accordion>

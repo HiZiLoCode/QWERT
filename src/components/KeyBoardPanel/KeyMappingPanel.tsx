@@ -3,6 +3,7 @@
 import { Box, Button, Typography } from '@mui/material';
 import { useContext, useMemo, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { alpha, useTheme } from '@mui/material/styles';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import FullKeyboard from '@/components/FullKeyboard';
@@ -11,7 +12,7 @@ import MacroRecorder from '@/components/KeyBoardPanel/MacroRecorder';
 import customKeys from '@/data/customkeys.json';
 import type { LayoutKey } from '@/types/types_v1';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
-import { keyTypeIconVisualScale } from '@/utils/keyTypeIconVisualScale';
+import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
 import { expandKeyedPool, type KeyPoolItem } from '@/utils/customkeysUiLayout';
 import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
@@ -54,6 +55,9 @@ const MAP = {
     textTitle: '#5f7089',
     /** 仅限制顶部区域最小高度，避免键盘被压扁；略小以贴近设计稿比例 */
     topAreaMinHeight: 300,
+    /** 媒体 / 功能 / 自定义等 Tab 下图标键位池每行个数 */
+    keyPoolIconColumns: 12,
+    keyPoolIconGridGap: 6,
 } as const;
 
 type DeviceLightCaps = {
@@ -120,6 +124,8 @@ type KeyItem = {
     code2: number;
     code3?: number;
     langid?: string;
+    /** 若存在，悬停提示用该文案；按钮上仍用 `langid` / 90000+code1 / `name` */
+    tooltipLangid?: string;
     icon?: string;
 };
 
@@ -132,6 +138,8 @@ const KeyButton = ({
 }) => {
     const [hover, setHover] = useState(false);
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
 
     const dragStart = (evt: DragEvent) => {
         evt.dataTransfer.setData('keyCode', JSON.stringify(keyItem));
@@ -149,14 +157,24 @@ const KeyButton = ({
         (translatedByLangid && translatedByLangid !== keyItem.langid ? translatedByLangid : '') ||
         (translatedByFallback && translatedByFallback !== customFallbackLangId ? translatedByFallback : '') ||
         keyItem.name;
+    const tooltipFromId = keyItem.tooltipLangid ? t(keyItem.tooltipLangid) : '';
+    const tooltipTitle =
+        keyItem.tooltipLangid && tooltipFromId && tooltipFromId !== keyItem.tooltipLangid
+            ? tooltipFromId
+            : displayLabel;
     const iconValue = keyItem.icon ?? '';
     const isImageIcon =
         typeof iconValue === 'string' &&
         (iconValue.startsWith('/KeyType/') || iconValue.endsWith('.svg') || iconValue.endsWith('.png'));
 
+    const codeUpper = String(keyItem.code || '').toUpperCase();
+    /** Fn0–3 短标签：与设计稿一致用正文字号，不再整体 scale(0.6) */
+    const isCompactFnLayerText =
+        !keyItem.icon && /^FN_[0-3]$/.test(codeUpper);
+
     return (
-        <Box sx={{ display: 'inline-block', m: '4px' }}>
-            <UnifiedTooltip title={displayLabel} arrow placement="top">
+        <Box sx={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <UnifiedTooltip title={tooltipTitle} arrow placement="top">
                 <ButtonRem
                     variant="text"
                     onMouseEnter={() => setHover(true)}
@@ -164,61 +182,94 @@ const KeyButton = ({
                     draggable
                     onDragStart={dragStart}
                     sx={{
-                        width: '80px',
-                        minWidth: '44px',
+                        width: '100%',
+                        minWidth: 0,
+                        maxWidth: '100%',
                         height: '56px',
                         borderRadius: '10px',
                         textTransform: 'none',
                         fontSize: '14px',
                         fontWeight: 600,
-                        border: '1px solid #cfe0ff',
-                        color: hover ? '#2f6fe8' : '#2d4a75',
-                        backgroundColor: hover ? '#f2f7ff' : '#ffffff',
-                        boxShadow: hover ? '0 0 0 1px #9fc2ff inset' : '0 2px 6px rgba(63, 115, 197, 0.06)',
                         wordBreak: 'keep-all',
                         overflowWrap: 'break-word',
                         whiteSpace: 'nowrap',
-                        padding: '6px 12px',
-                        '&:hover': {
-                            borderColor: '#9fc2ff',
-                            backgroundColor: '#f7fbff',
-                        },
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        padding: '6px 8px',
+                        ...(isDark
+                            ? {
+                                  border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
+                                  color: hover ? theme.palette.primary.light : theme.palette.text.primary,
+                                  backgroundColor: hover
+                                      ? alpha(theme.palette.primary.main, 0.22)
+                                      : theme.palette.customed1.main,
+                                  boxShadow: hover
+                                      ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.35)} inset`
+                                      : '0 2px 8px rgba(0,0,0,0.25)',
+                                  '&:hover': {
+                                      borderColor: alpha(theme.palette.primary.main, 0.55),
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.18),
+                                  },
+                              }
+                            : {
+                                  border: '1px solid #cfe0ff',
+                                  color: hover ? '#2f6fe8' : '#2d4a75',
+                                  backgroundColor: hover ? '#f2f7ff' : '#ffffff',
+                                  boxShadow: hover ? '0 0 0 1px #9fc2ff inset' : '0 2px 6px rgba(63, 115, 197, 0.06)',
+                                  '&:hover': {
+                                      borderColor: '#9fc2ff',
+                                      backgroundColor: '#f7fbff',
+                                  },
+                              }),
                     }}
                     onClick={changeKey}
                 >
                     {keyItem.icon ? (
                         isImageIcon ? (
-                            (() => {
-                                const iconScale = keyTypeIconVisualScale(iconValue);
-                                return (
-                                    <Box
-                                        sx={{
-                                            width: 28,
-                                            height: 28,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            flexShrink: 0,
-                                        }}
-                                    >
-                                        <Box
-                                            component="img"
-                                            src={iconValue}
-                                            alt={displayLabel}
-                                            sx={{
-                                                width: 28,
-                                                height: 28,
-                                                objectFit: 'contain',
-                                                transform: iconScale !== 1 ? `scale(${iconScale})` : undefined,
-                                                transformOrigin: 'center center',
-                                            }}
-                                        />
-                                    </Box>
-                                );
-                            })()
+                            <Box
+                                sx={{
+                                    width: KEY_TYPE_ICON_BOX_PX,
+                                    height: KEY_TYPE_ICON_BOX_PX,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={iconValue}
+                                    alt={displayLabel}
+                                    sx={{
+                                        width: KEY_TYPE_ICON_BOX_PX,
+                                        height: KEY_TYPE_ICON_BOX_PX,
+                                        objectFit: 'contain',
+                                        filter:
+                                            isDark && isImageIcon
+                                                ? 'brightness(0) invert(1)'
+                                                : 'none',
+                                    }}
+                                />
+                            </Box>
                         ) : (
                             <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
                         )
+                    ) : isCompactFnLayerText ? (
+                        <Box
+                            component="span"
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '100%',
+                                fontSize: '14px',
+                                fontWeight: 600,
+                                lineHeight: 1.2,
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            {displayLabel}
+                        </Box>
                     ) : (
                         <span style={{ transform: 'scale(0.6)', width: '128px', whiteSpace: 'pre-wrap', display: 'flex' }}>
                             {displayLabel}
@@ -261,6 +312,8 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
     const userKeys = keyboard?.userKeys?.[currentLayer] ?? [];
     const { selectedSetting } = useContext(EditorContext);
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const [category, setCategory] = useState<CategoryId>('basic');
 
     const basicList = useMemo(() => {
@@ -506,9 +559,8 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                     margin: "0 auto",
                     display: "flex",
                     p: `${MAP.sectionShellPadding}px`,
-                    borderRadius: `${MAP.sectionShellRadius}px`,
+                    borderRadius: isDark ? '8px' : `${MAP.sectionShellRadius}px`,
                     backgroundColor: MAP.sectionShellBg,
-                    border: MAP.sectionShellBorder,
                     boxShadow: MAP.sectionShellShadow,
                     gap: 69,
                     alignItems: 'stretch',
@@ -540,9 +592,8 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                     display: 'flex',
                     flexDirection: 'column',
                     p: `${MAP.sectionShellPadding}px`,
-                    borderRadius: `${MAP.sectionShellRadius}px`,
+                    borderRadius: isDark ? '8px' : `${MAP.sectionShellRadius}px`,
                     backgroundColor: MAP.sectionShellBg,
-                    border: MAP.sectionShellBorder,
                     boxShadow: MAP.sectionShellShadow,
                     alignItems: "center",
                     maxWidth: 1800,
@@ -574,22 +625,24 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                                     maxWidth: '220px',
                                     flex: '0 0 220px',
                                 },
-                                border: MAP.cardBorder,
-                                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
+                                border: isDark ? `1px solid ${theme.palette.primary.main}` : MAP.cardBorder,
+                                background: isDark ? theme.palette.background.paper : 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
                                 p: `${MAP.categoryPadding}px`,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: `${MAP.categoryGap}px`,
                                 borderRadius: `${MAP.categoryRadius}px`,
-                                boxShadow: MAP.cardShadow,
+                                boxShadow: isDark ? 'none' : MAP.cardShadow,
                                 overflow: 'auto',
                                 '&::-webkit-scrollbar': { width: '8px' },
                                 '&::-webkit-scrollbar-thumb': {
-                                    background: 'rgba(122,142,170,.42)',
+                                    background: isDark
+                                        ? alpha(theme.palette.common.white, 0.15)
+                                        : 'rgba(122,142,170,.42)',
                                     borderRadius: '8px',
                                 },
                                 '&::-webkit-scrollbar-track': {
-                                    background: 'rgba(209,222,242,.35)',
+                                    background: isDark ? alpha(theme.palette.common.white, 0.05) : 'rgba(209,222,242,.35)',
                                     borderRadius: '8px',
                                 },
                             }}
@@ -597,7 +650,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                             <Typography
                                 sx={{
                                     fontSize: `${MAP.categoryTitleSize}px`,
-                                    color: MAP.textTitle,
+                                    color: isDark ? theme.palette.text.primary : MAP.textTitle,
                                     fontWeight: 700,
                                     mb: '4px',
                                 }}
@@ -618,15 +671,33 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                                             justifyContent: 'center',
                                             fontSize: '14px',
                                             fontWeight: active ? 600 : 500,
-                                            color: active ? '#fff' : '#66778f',
-                                            background: active ? MAP.primary : 'transparent',
+                                            color: active
+                                                ? theme.palette.primary.contrastText
+                                                : isDark
+                                                  ? theme.palette.text.secondary
+                                                  : '#66778f',
+                                            background: active ? theme.palette.primary.main : 'transparent',
+                                            transition:
+                                                'background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out',
                                             '&:hover': {
-                                                background: active ? MAP.primaryHover : 'rgba(59,130,246,.10)',
-                                                color: active ? '#fff' : MAP.primary,
+                                                background: active
+                                                    ? theme.palette.primary.dark
+                                                    : isDark
+                                                      ? alpha(theme.palette.primary.main, 0.12)
+                                                      : 'rgba(59,130,246,.10)',
+                                                color: active
+                                                    ? theme.palette.primary.contrastText
+                                                    : isDark
+                                                      ? theme.palette.text.primary
+                                                      : MAP.primary,
                                                 transform: active ? 'scale(1)' : 'scale(1.05)',
                                             },
                                             '&:active': {
-                                                backgroundColor: active ? MAP.primaryHover : 'rgba(59, 130, 246, 0.08)',
+                                                backgroundColor: active
+                                                    ? theme.palette.primary.dark
+                                                    : isDark
+                                                      ? alpha(theme.palette.primary.main, 0.18)
+                                                      : 'rgba(59, 130, 246, 0.08)',
                                                 transform: active ? 'scale(1)' : 'scale(.95)',
                                                 transition: 'transform 0.12s cubic-bezier(0.2, 0, 0, 1)',
                                             },
@@ -641,15 +712,17 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                         <Box
                             sx={{
                                 width: "100%",
-                                border: MAP.cardBorder,
-                                background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
+                                border: isDark ? `1px solid ${theme.palette.primary.main}` : MAP.cardBorder,
+                                background: isDark ? theme.palette.background.paper : 'linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%), rgba(255, 255, 255, 0.3)',
                                 p: `${MAP.contentPadding}px`,
                                 overflow: 'auto',
                                 borderRadius: `${MAP.contentRadius}px`,
-                                boxShadow: MAP.cardShadow,
+                                boxShadow: isDark ? 'none' : MAP.cardShadow,
                                 '&::-webkit-scrollbar': { width: '8px' },
                                 '&::-webkit-scrollbar-thumb': {
-                                    background: 'rgba(122,142,170,.35)',
+                                    background: isDark
+                                        ? alpha(theme.palette.common.white, 0.12)
+                                        : 'rgba(122,142,170,.35)',
                                     borderRadius: '8px',
                                 },
                             }}
@@ -663,17 +736,23 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                                     <MacroRecorder />
                                 </Box>
                             ) : (
-                                <Box sx={{ display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '4px' }}>
+                                <Box
+                                    sx={{
+                                        display: 'grid',
+                                        gridTemplateColumns: `repeat(${MAP.keyPoolIconColumns}, minmax(0, 1fr))`,
+                                        gap: `${MAP.keyPoolIconGridGap}px`,
+                                        alignContent: 'start',
+                                    }}
+                                >
                                     {(selectedPool as KeyPoolItem[]).map((item, idx) =>
                                         isSectionPoolItem(item) ? (
                                             <Typography
                                                 key={`${item.code}-${idx}`}
                                                 sx={{
-                                                    width: '100%',
-                                                    flexBasis: '100%',
+                                                    gridColumn: '1 / -1',
                                                     fontSize: '14px',
                                                     fontWeight: 700,
-                                                    color: MAP.textTitle,
+                                                    color: isDark ? theme.palette.text.secondary : MAP.textTitle,
                                                     py: '6px',
                                                     pl: '4px',
                                                     mt: idx > 0 ? '8px' : 0,

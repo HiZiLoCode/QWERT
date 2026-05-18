@@ -3,7 +3,8 @@
 import { Box, Button } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import type { ImportSource } from "./types";
-import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeFilledPillButtonSx, getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 const SOURCES: { id: ImportSource; labelKey: string }[] = [
   { id: "theme", labelKey: "2535" },
@@ -34,6 +35,9 @@ export default function ScreenThemeImportPanel({
   themeColorSlot = null,
 }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const filledSx = getScreenThemeFilledPillButtonSx(sv);
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
   const visibleSources = themeColorSlot ? SOURCES : SOURCES.filter((item) => item.id !== "theme");
 
   return (
@@ -64,7 +68,7 @@ export default function ScreenThemeImportPanel({
               width: "222px",
               height: "48px",
               minWidth: 0,
-              ...(active ? screenThemeFilledPillButtonSx : screenThemeOutlinedPillButtonSx),
+              ...(active ? filledSx : outlinedSx),
             }}
           >
             {t(s.labelKey)}

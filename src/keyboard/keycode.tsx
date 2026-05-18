@@ -2549,14 +2549,14 @@ const keyCodes = [
 ];
 // V2、V3版本
 const customKeys = [
-  { code: 1, code1: 0, key: "Fn0", icon: "FN_0" },
-  { code: 2, code1: 0, key: "Fn1", icon: "FN_1" },
-  { code: 3, code1: 0, key: "Fn2", icon: "FN_2" },
-  { code: 4, code1: 0, key: "Fn3", icon: "FN_3" },
-  { code: 5, code1: 0, key: "To0", icon: "TO_0" },
-  { code: 6, code1: 0, key: "To1", icon: "TO_1" },
-  { code: 7, code1: 0, key: "To2", icon: "TO_2" },
-  { code: 8, code1: 0, key: "To3", icon: "TO_3" },
+  { code: 1, code1: 0, key: "Fn0", icon: "FN 0" },
+  { code: 2, code1: 0, key: "Fn1", icon: "FN 1" },
+  { code: 3, code1: 0, key: "Fn2", icon: "FN 2" },
+  { code: 4, code1: 0, key: "Fn3", icon: "FN 3" },
+  { code: 5, code1: 0, key: "To0", icon: "TO 0" },
+  { code: 6, code1: 0, key: "To1", icon: "TO 1" },
+  { code: 7, code1: 0, key: "To2", icon: "TO 2" },
+  { code: 8, code1: 0, key: "To3", icon: "TO 3" },
   { code: 9, code1: 0, key: "Key Light Toggle", icon: "/KeyType/custom_bl_toggle.svg" },
   { code: 10, code1: 0, key: "Key Light Mode +", icon: "/KeyType/custom_bl_mode_plus.svg" },
   { code: 11, code1: 0, key: "Key Light Mode -", icon: "/KeyType/custom_bl_mode_minus.svg" },
@@ -2610,9 +2610,9 @@ const customKeys = [
   { code: 59, code1: 0, key: "Win Toggle", icon: "/KeyType/custom_kye_macwin_toggle.svg" },
   { code: 59, code1: 1, key: "MAC/Win Toggle", icon: "/KeyType/custom_kye_macwin_toggle.svg" },
   { code: 60, code1: 0, key: "Win Lock Toggle", icon: "/KeyType/custom_kye_win_lock_set.svg" },
-  { code: 61, code1: 0, key: "WASD Toggle", icon: "🎮" },
-  { code: 62, code1: 0, key: "Key Delay Toggle", icon: "⏳" },
-  { code: 63, code1: 0, key: "F-Row Mode Toggle", icon: "🅵" },
+  { code: 61, code1: 0, key: "WASD Toggle", icon: "/KeyType/custom_kye_wasd_toggle.svg" },
+  { code: 62, code1: 0, key: "Key Delay Toggle", icon: "/KeyType/custom_kye_key_delay_toggle.svg" },
+  { code: 63, code1: 0, key: "F-Row Mode Toggle", icon: "/KeyType/custom_kye_frow_mode_toggle.svg" },
   { code: 64, code1: 0, key: "Wheel Function Toggle", icon: "🎡" },
   { code: 65, code1: 0, key: "All Power Toggle", icon: "⚡" },
   { code: 66, code1: 0, key: "LCD Power Toggle", icon: "📺🔌" },
@@ -2676,8 +2676,8 @@ const formerCustom = [
   { code: 48, code1: 0, key: "KYE_SIX_NCH", icon: "/KeyType/custom_kye_six_nch.svg" },
   { code: 49, code1: 0, key: "KYE_MAC_WINCH", icon: "/KeyType/custom_kye_macwin_toggle.svg" },
   { code: 50, code1: 0, key: "KYE_WIN_LOCK_SET", icon: "/KeyType/custom_kye_win_lock_set.svg" },
-  { code: 51, code1: 0, key: "KYE_WASD_SET", icon: "🆆🅰️🆂🅳" },
-  { code: 52, code1: 0, key: "KYE_SCAK_DELAY_SET", icon: "⏱️" }
+  { code: 51, code1: 0, key: "KYE_WASD_SET", icon: "/KeyType/custom_kye_wasd_toggle.svg" },
+  { code: 52, code1: 0, key: "KYE_SCAK_DELAY_SET", icon: "/KeyType/custom_kye_key_delay_toggle.svg" }
 ];
 const singleCustom = [
   { code: 1, code1: 0, key: "Fn0", icon: "FN_0" },
@@ -2721,20 +2721,20 @@ const singleCustom = [
   { code: 39, code1: 0, key: "6K/NK Toggle", icon: "/KeyType/custom_kye_six_nch.svg" },
   { code: 40, code1: 0, key: "MAC/Win Toggle", icon: "/KeyType/custom_kye_macwin_toggle.svg" },
   { code: 41, code1: 0, key: "Win Lock Toggle", icon: "/KeyType/custom_kye_win_lock_set.svg" },
-  { code: 42, code1: 0, key: "WASD Toggle", icon: "🆆🅰️🆂🅳" },
-  { code: 43, code1: 0, key: "Key Delay Toggle", icon: "⏱️" },
-  { code: 44, code1: 0, key: "F-Row Mode Toggle", icon: "⚙️" },
+  { code: 42, code1: 0, key: "WASD Toggle", icon: "/KeyType/custom_kye_wasd_toggle.svg" },
+  { code: 43, code1: 0, key: "Key Delay Toggle", icon: "/KeyType/custom_kye_key_delay_toggle.svg" },
+  { code: 44, code1: 0, key: "F-Row Mode Toggle", icon: "/KeyType/custom_kye_frow_mode_toggle.svg" },
   { code: 45, code1: 0, key: "KYE_CHANGE_FLAG", icon: "🔁" },
   { code: 46, code1: 0, key: "BL_RTOG", icon: "💡🔄" }
 ]
 const mouseKeys = [
   { "type": 32, "code1": 0, "code2": 1, "name": "Left Button", "icon": "/KeyType/mouse_left_button.svg" },
-  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_middle_button.svg" },
-  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_scroll_down.svg" },
-  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_forward.svg" },
-  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_right_button.svg" },
-  { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_backward.svg" },
-  { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_scroll_up.svg" }
+  { "type": 32, "code1": 0, "code2": 2, "name": "Right Button", "icon": "/KeyType/mouse_right_button.svg" },
+  { "type": 32, "code1": 0, "code2": 4, "name": "Middle Button", "icon": "/KeyType/mouse_middle_button.svg" },
+  { "type": 32, "code1": 5, "code2": 1, "name": "Scroll Up", "icon": "/KeyType/mouse_scroll_up.svg" },
+  { "type": 32, "code1": 6, "code2": 1, "name": "Scroll Down", "icon": "/KeyType/mouse_scroll_down.svg" },
+  { "type": 32, "code1": 0, "code2": 8, "name": "Forward", "icon": "/KeyType/mouse_forward.svg" },
+  { "type": 32, "code1": 0, "code2": 16, "name": "Backward", "icon": "/KeyType/mouse_backward.svg" }
 ]
 const mediaKeys = [
   { code: 131, code1: 0, key: "Player" },

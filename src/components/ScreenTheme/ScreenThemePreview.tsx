@@ -6,7 +6,7 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 import { MainContext } from "@/providers/MainProvider";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 import ScreenThemeGifCanvasPlayer from "./ScreenThemeGifCanvasPlayer";
 
 type AlbumCarouselProps = {
@@ -29,7 +29,23 @@ type Props = {
   gifPlaybackSpeed?: string | null;
   /** 上传超限 GIF 时，仅预览前 N 帧（与下发到设备一致） */
   gifFrameLimit?: number;
+  /**
+   * 「导入视频」且尚无预览 dataUrl 时，用 `public/` 下该路径作为占位图（如 `/screen-theme/default-background.gif`）。
+   * 与 `assetPrefix: "./"` 兼容：在客户端解析为相对当前页的 URL。
+   */
+  videoEmptyFallbackPublicPath?: string | null;
 };
+
+function resolvePublicImgSrc(absolutePath: string | null | undefined): string | null {
+  if (!absolutePath) return null;
+  if (typeof window === "undefined") return absolutePath;
+  if (!absolutePath.startsWith("/")) return absolutePath;
+  try {
+    return new URL(`.${absolutePath}`, window.location.href).href;
+  } catch {
+    return absolutePath;
+  }
+}
 
 const toCssPx = (v: number) => `${v}px`;
 
@@ -37,10 +53,22 @@ const PLACEHOLDER_BG =
   "linear-gradient(135deg, #ff8a4a 0%, #4a7cff 45%, #ff3c5c 78%, #9aa3ad 100%)";
 
 /** 中间预览区：GIF 在「视频」源下用 canvas 按所选 fps 播放，否则用 img；虚线框表示设备裁切区域 */
-export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlaybackSpeed, gifFrameLimit }: Props) {
+export default function ScreenThemePreview({
+  previewUrl,
+  albumCarousel,
+  gifPlaybackSpeed,
+  gifFrameLimit,
+  videoEmptyFallbackPublicPath,
+}: Props) {
   const { screenWidth, screenHeight } = useContext(MainContext);
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
   const [gifEngineFallback, setGifEngineFallback] = useState(false);
+
+  const resolvedVideoFallbackSrc = useMemo(
+    () => resolvePublicImgSrc(videoEmptyFallbackPublicPath ?? null),
+    [videoEmptyFallbackPublicPath],
+  );
 
   useEffect(() => {
     setGifEngineFallback(false);
@@ -86,12 +114,12 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
         width: "400px",
         minHeight: "400px",
         mx: 36,
-        border: "1px solid rgba(59, 130, 246, 1)",
+        border: `1px solid ${sv.primary}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: "13px",
-        background: "rgba(255, 255, 255, 0.6)",
+        background: sv.previewOuterBg,
         boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.25)",
       }}
     >
@@ -102,18 +130,37 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
           height: "380px",
           borderRadius: "12px",
           overflow: "hidden",
-          background: "rgba(241,243,247,0.9)",
+          background: sv.previewInnerBg,
           boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.07)",
         }}
       >
         {!previewUrl ? (
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              background: PLACEHOLDER_BG,
-            }}
-          />
+          resolvedVideoFallbackSrc ? (
+            <Box
+              component="img"
+              src={resolvedVideoFallbackSrc}
+              alt=""
+              sx={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                objectPosition: "center",
+                display: "block",
+                userSelect: "none",
+                pointerEvents: "none",
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 0,
+                background: PLACEHOLDER_BG,
+              }}
+            />
+          )
         ) : useCanvasGif && previewUrl && gifPlaybackSpeed ? (
           <ScreenThemeGifCanvasPlayer
             dataUrl={previewUrl}
@@ -161,7 +208,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
                 "&:hover": { bgcolor: "#fff" },
               }}
             >
-              <ChevronLeft sx={{ fontSize: "20px", color: screenThemeColors.textDark }} />
+              <ChevronLeft sx={{ fontSize: "20px", color: sv.textDark }} />
             </IconButton>
             <IconButton
               type="button"
@@ -182,7 +229,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
                 "&:hover": { bgcolor: "#fff" },
               }}
             >
-              <ChevronRight sx={{ fontSize: "20px", color: screenThemeColors.textDark }} />
+              <ChevronRight sx={{ fontSize: "20px", color: sv.textDark }} />
             </IconButton>
             <Stack
               direction="row"
@@ -205,7 +252,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
                     width: "6px",
                     height: "6px",
                     borderRadius: "50%",
-                    bgcolor: i === albumCarousel.index ? screenThemeColors.primary : "rgba(0,0,0,0.22)",
+                    bgcolor: i === albumCarousel.index ? sv.primary : "rgba(0,0,0,0.22)",
                     transition: "background-color 0.2s ease",
                   }}
                 />
@@ -222,7 +269,7 @@ export default function ScreenThemePreview({ previewUrl, albumCarousel, gifPlayb
             width: toCssPx(frameRect.width),
             height: toCssPx(frameRect.height),
             borderRadius: "12px",
-            border: "2px dashed rgba(0, 0, 0, 0.72)",
+            border: `2px dashed ${sv.previewCropDash}`,
             pointerEvents: "none",
             boxSizing: "border-box",
             zIndex: 1,

@@ -2,6 +2,7 @@
 
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 import { useTranslation } from "@/app/i18n";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import TravelVirtualKeyboard from "@/components/TravelVirtualKeyboard";
@@ -9,6 +10,7 @@ import ToggleSlider from "@/components/common/ToggleSlider";
 import { getKeyCodeFromWebCode } from "@/keyboard/keycode";
 import testKeyboard128 from "@/data/keyboardLayout/test_keyboard_128.json";
 import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
+import { lightingPanelCardSx } from "@/constants/lightingPanelChrome";
 
 function normalizeKeyName(event: KeyboardEvent): string {
   const key = event.key;
@@ -204,7 +206,6 @@ function pushGenericLeftRightModifierAliases(
 }
 
 const RESET_BUSY_MS = 720;
-const RESET_ACCENT = "#3f72b9";
 /** 页面内模拟按键松开的延迟（毫秒），与真实短按接近 */
 const SYNTHETIC_RELEASE_MS = 200;
 
@@ -265,6 +266,9 @@ function isLikelyPrintScreenKey(ev: KeyboardEvent): boolean {
 
 function BindTest() {
   const { t } = useTranslation("common");
+  const theme = useTheme();
+  const accent = theme.palette.primary.main;
+  const isDark = theme.palette.mode === "dark";
   const { keyboard, keyboardLayout } = useContext(ConnectKbContext);
   const [matrixTestEnabled, setMatrixTestEnabled] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<number[]>([]);
@@ -784,11 +788,17 @@ function BindTest() {
       sx={{
         flex: 1,
         borderRadius: "14px",
-        backdropFilter: "blur(6px)",
+        backdropFilter: isDark ? "none" : "blur(6px)",
         p: 20,
         display: "flex",
         flexDirection: "column",
         gap: 10,
+        // ...(isDark
+        //   ? {
+        //       ...lightingPanelCardSx(theme),
+        //       boxShadow: "0 1px 12px rgba(0,0,0,0.35)",
+        //     }
+        //   : {}),
       }}
     >
       <Box
@@ -835,11 +845,18 @@ function BindTest() {
             overflow: "hidden",
             border:
               resetPhase === "done"
-                ? `1px solid ${RESET_ACCENT}`
+                ? `1px solid ${accent}`
                 : resetPhase === "busy"
-                  ? `1px solid ${RESET_ACCENT}`
-                  : "1px solid rgba(203,213,225,0.95)",
-            bgcolor: resetPhase === "done" ? RESET_ACCENT : "rgba(248,250,252,1)",
+                  ? `1px solid ${accent}`
+                  : isDark
+                    ? `1px solid ${alpha(accent, 0.4)}`
+                    : "1px solid rgba(203,213,225,0.95)",
+            bgcolor:
+              resetPhase === "done"
+                ? accent
+                : isDark
+                  ? alpha(theme.palette.common.white, 0.06)
+                  : "rgba(248,250,252,1)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -849,7 +866,7 @@ function BindTest() {
             ...(resetPhase === "idle"
               ? {
                   "&:hover": {
-                    borderColor: "rgba(63, 114, 185, 0.85)",
+                    borderColor: isDark ? alpha(accent, 0.75) : "rgba(63, 114, 185, 0.85)",
                   },
                 }
               : {}),
@@ -869,7 +886,7 @@ function BindTest() {
                 top: 0,
                 bottom: 0,
                 width: `${resetProgress}%`,
-                backgroundColor: RESET_ACCENT,
+                backgroundColor: accent,
                 borderTopLeftRadius: "12.8px",
                 borderBottomLeftRadius: "12.8px",
                 borderTopRightRadius: resetProgress >= 99 ? "12.8px" : 0,
@@ -889,8 +906,10 @@ function BindTest() {
                 resetPhase === "busy"
                   ? "transparent"
                   : resetPhase === "done"
-                    ? "#fff"
-                    : "rgba(100, 116, 139, 1)",
+                    ? theme.palette.primary.contrastText
+                    : isDark
+                      ? alpha(theme.palette.common.white, 0.72)
+                      : "rgba(100, 116, 139, 1)",
             }}
           >
             {resetPhase === "done" ? t("2717") : t("1304")}
@@ -900,20 +919,26 @@ function BindTest() {
 
       <Box
         sx={{
+          width: "70%",
+          mx: "auto",
+          ...lightingPanelCardSx(theme),
           borderRadius: "16px",
-          border: "1px solid rgba(153,169,191,0.18)",
-          background: "linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)",
           px: "32px",
           py: "16px",
           display: "flex",
           flexDirection: "column",
           gap: "16px",
-          width: "70%",
-          mx: "auto",
+          boxShadow: isDark ? "0 1px 12px rgba(0,0,0,0.35)" : "0 1px 3px rgba(15, 23, 42, 0.06)",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography sx={{ fontSize: "16px", color: "rgba(100, 116, 139, 1)", fontWeight: 500 }}>
+          <Typography
+            sx={{
+              fontSize: "16px",
+              fontWeight: 500,
+              color: isDark ? alpha(theme.palette.common.white, 0.72) : "rgba(100, 116, 139, 1)",
+            }}
+          >
             {t("2715")}
           </Typography>
           <ToggleSlider

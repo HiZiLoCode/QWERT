@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useLayoutEffect, useContext } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useContext, useMemo } from 'react';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
 import { Box, TextField, Typography, Snackbar, Alert } from '@mui/material';
@@ -9,6 +9,7 @@ import { ButtonRem } from '@/styled/ReconstructionRem';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import type { MacroProfile as V1MacroProfile, MacroAction as V1MacroAction } from '@/types/types_v1';
 import { useTranslation } from '@/app/i18n';
+import { alpha, useTheme } from '@mui/material/styles';
 
 // ─── 本地 UI 类型（与原来保持一致）───────────────────────────────────────────
 interface MacroAction {
@@ -108,16 +109,30 @@ const MacroRecorder: React.FC = () => {
     const isFirstEventRef = useRef(true);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+
+    const surfaceCardSx = useMemo(
+        () =>
+            isDark
+                ? {
+                      border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
+                      bgcolor: theme.palette.background.paper,
+                      borderRadius: '14px',
+                      boxShadow: 'none' as const,
+                  }
+                : {
+                      border: '1px solid #e5e7eb',
+                      bgcolor: '#ffffff',
+                      borderRadius: '14px',
+                      boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)' as const,
+                  },
+        [isDark, theme],
+    );
+    const macroAccent = isDark ? theme.palette.primary.main : '#4a86f7';
+    const macroAccentHover = isDark ? theme.palette.primary.dark : '#3b78f0';
+
     const selectedMacro = macros[selectedMacroIndex];
-    /** 与设计稿一致：浅灰底、白卡、弱阴影（不用主色光晕） */
-    const surfaceCardSx = {
-        border: '1px solid #e5e7eb',
-        bgcolor: '#ffffff',
-        borderRadius: '14px',
-        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.05)',
-    } as const;
-    const macroBlue = '#4a86f7';
-    const macroBlueHover = '#3b78f0';
 
     // localStorage key（与 ConnectKbProvider 保持一致）
     const storageKey = `macro_profile_${keyboard?.version ?? 'default'}`;
@@ -462,7 +477,17 @@ const MacroRecorder: React.FC = () => {
                             overflow: 'auto',
                         }}
                     >
-                        <Typography sx={{ fontSize: '13px', color: '#64748b', fontWeight: 500, lineHeight: 1.45, letterSpacing: '0.01em', textAlign: 'center',pb: 18 }}>
+                        <Typography
+                            sx={{
+                                fontSize: '13px',
+                                color: isDark ? theme.palette.text.secondary : '#64748b',
+                                fontWeight: 500,
+                                lineHeight: 1.45,
+                                letterSpacing: '0.01em',
+                                textAlign: 'center',
+                                pb: 18,
+                            }}
+                        >
                             {t('1679')}
                         </Typography>
                         <Box
@@ -486,16 +511,26 @@ const MacroRecorder: React.FC = () => {
                                             minHeight: '44px',
                                             padding: '2px 4px',
                                             minWidth: 0,
-                                            color: active ? '#ffffff' : '#94a3b8',
-                                            background: active ? macroBlue : '#ffffff',
-                                            border: `1px solid ${active ? macroBlue : '#e8edf3'}`,
+                                            color: active ? '#ffffff' : isDark ? theme.palette.text.secondary : '#94a3b8',
+                                            background: active
+                                                ? macroAccent
+                                                : isDark
+                                                  ? theme.palette.customed1.main
+                                                  : '#ffffff',
+                                            border: `1px solid ${
+                                                active ? macroAccent : isDark ? alpha(theme.palette.common.white, 0.12) : '#e8edf3'
+                                            }`,
                                             fontWeight: active ? 600 : 500,
-                                            boxShadow: active ? 'none' : 'inset 0 1px 0 rgba(255,255,255,1)',
+                                            boxShadow: active ? 'none' : isDark ? 'none' : 'inset 0 1px 0 rgba(255,255,255,1)',
                                             transition: 'background 0.18s, color 0.18s, border-color 0.18s',
                                             '&:hover': {
-                                                background: active ? macroBlueHover : '#f8fafc',
-                                                color: active ? '#ffffff' : macroBlue,
-                                                borderColor: active ? macroBlueHover : macroBlue,
+                                                background: active
+                                                    ? macroAccentHover
+                                                    : isDark
+                                                      ? alpha(theme.palette.common.white, 0.08)
+                                                      : '#f8fafc',
+                                                color: active ? '#ffffff' : macroAccent,
+                                                borderColor: active ? macroAccentHover : macroAccent,
                                             },
                                         }}
                                     >
@@ -535,8 +570,10 @@ const MacroRecorder: React.FC = () => {
                                 width: '100%',
                                 p: '12px',
                                 borderRadius: '12px',
-                                border: '1px solid #e8edf3',
-                                bgcolor: '#f8fafc',
+                                border: isDark
+                                    ? `1px solid ${alpha(theme.palette.common.white, 0.1)}`
+                                    : '1px solid #e8edf3',
+                                bgcolor: isDark ? alpha(theme.palette.common.white, 0.04) : '#f8fafc',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '12px',
@@ -554,11 +591,17 @@ const MacroRecorder: React.FC = () => {
                                         textTransform: 'none',
                                         borderRadius: '10px',
                                         fontWeight: 600,
-                                        color: standardDelay ? '#ffffff' : '#64748b',
-                                        bgcolor: standardDelay ? macroBlue : '#ffffff',
-                                        border: `1px solid ${standardDelay ? macroBlue : '#e2e8f0'}`,
+                                        color: standardDelay ? '#ffffff' : isDark ? theme.palette.text.secondary : '#64748b',
+                                        bgcolor: standardDelay ? macroAccent : isDark ? theme.palette.customed1.main : '#ffffff',
+                                        border: `1px solid ${
+                                            standardDelay ? macroAccent : isDark ? alpha(theme.palette.common.white, 0.12) : '#e2e8f0'
+                                        }`,
                                         '&:hover': {
-                                            bgcolor: standardDelay ? macroBlueHover : '#f1f5f9',
+                                            bgcolor: standardDelay
+                                                ? macroAccentHover
+                                                : isDark
+                                                  ? alpha(theme.palette.common.white, 0.08)
+                                                  : '#f1f5f9',
                                         },
                                     }}
                                 >
@@ -575,11 +618,17 @@ const MacroRecorder: React.FC = () => {
                                         textTransform: 'none',
                                         borderRadius: '10px',
                                         fontWeight: 600,
-                                        color: !standardDelay ? '#ffffff' : '#64748b',
-                                        bgcolor: !standardDelay ? macroBlue : '#ffffff',
-                                        border: `1px solid ${!standardDelay ? macroBlue : '#e2e8f0'}`,
+                                        color: !standardDelay ? '#ffffff' : isDark ? theme.palette.text.secondary : '#64748b',
+                                        bgcolor: !standardDelay ? macroAccent : isDark ? theme.palette.customed1.main : '#ffffff',
+                                        border: `1px solid ${
+                                            !standardDelay ? macroAccent : isDark ? alpha(theme.palette.common.white, 0.12) : '#e2e8f0'
+                                        }`,
                                         '&:hover': {
-                                            bgcolor: !standardDelay ? macroBlueHover : '#f1f5f9',
+                                            bgcolor: !standardDelay
+                                                ? macroAccentHover
+                                                : isDark
+                                                  ? alpha(theme.palette.common.white, 0.08)
+                                                  : '#f1f5f9',
                                         },
                                     }}
                                 >
@@ -598,7 +647,14 @@ const MacroRecorder: React.FC = () => {
                                     overflow: 'hidden',
                                 }}
                             >
-                                <Typography sx={{ fontSize: '13px', color: '#64748b', whiteSpace: 'nowrap', fontWeight: 500 }}>
+                                <Typography
+                                    sx={{
+                                        fontSize: '13px',
+                                        color: isDark ? theme.palette.text.secondary : '#64748b',
+                                        whiteSpace: 'nowrap',
+                                        fontWeight: 500,
+                                    }}
+                                >
                                     {t('1684')}
                                 </Typography>
                                 <TextField
@@ -621,15 +677,28 @@ const MacroRecorder: React.FC = () => {
                                     inputProps={{ min: DELAY_MIN, max: DELAY_MAX }}
                                     sx={{
                                         width: '68px',
-                                        '& .MuiInputBase-input': { fontSize: '13px', py: '7px', fontWeight: 600 },
+                                        '& .MuiInputBase-input': {
+                                            fontSize: '13px',
+                                            py: '7px',
+                                            fontWeight: 600,
+                                            color: isDark ? theme.palette.text.primary : undefined,
+                                        },
                                         '& .MuiOutlinedInput-root': {
                                             height: '38px',
-                                            bgcolor: '#ffffff',
+                                            bgcolor: isDark ? theme.palette.customed1.main : '#ffffff',
                                             borderRadius: '8px',
+                                            '& fieldset': {
+                                                borderColor: isDark ? alpha(theme.palette.common.white, 0.15) : undefined,
+                                            },
+                                            '&:hover fieldset': {
+                                                borderColor: isDark ? alpha(theme.palette.common.white, 0.22) : undefined,
+                                            },
                                         },
                                     }}
                                 />
-                                <Typography sx={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>ms</Typography>
+                                <Typography sx={{ fontSize: '13px', color: isDark ? theme.palette.text.secondary : '#94a3b8', fontWeight: 500 }}>
+                                    ms
+                                </Typography>
                             </Box>
                         </Box>
 
@@ -645,12 +714,14 @@ const MacroRecorder: React.FC = () => {
                                         minHeight: '42px',
                                         fontSize: '13px',
                                         textTransform: 'none',
-                                        color: '#16a34a',
-                                        border: '1px solid rgba(22,163,74,0.45)',
+                                        color: isDark ? '#4ade80' : '#16a34a',
+                                        border: isDark
+                                            ? '1px solid rgba(74,222,128,0.45)'
+                                            : '1px solid rgba(22,163,74,0.45)',
                                         borderRadius: '10px',
-                                        bgcolor: '#f0fdf4',
+                                        bgcolor: isDark ? alpha('#22c55e', 0.12) : '#f0fdf4',
                                         fontWeight: 600,
-                                        '&:hover': { bgcolor: '#dcfce7' },
+                                        '&:hover': { bgcolor: isDark ? alpha('#22c55e', 0.2) : '#dcfce7' },
                                     }}
                                 >
                                     {t('1685')}
@@ -670,12 +741,14 @@ const MacroRecorder: React.FC = () => {
                                         minHeight: '42px',
                                         fontSize: '13px',
                                         textTransform: 'none',
-                                        color: '#d97706',
-                                        border: '1px solid rgba(245,158,11,0.5)',
+                                        color: isDark ? theme.palette.warning.light : '#d97706',
+                                        border: isDark
+                                            ? `1px solid ${alpha(theme.palette.warning.main, 0.5)}`
+                                            : '1px solid rgba(245,158,11,0.5)',
                                         borderRadius: '10px',
-                                        bgcolor: '#fffbeb',
+                                        bgcolor: isDark ? alpha(theme.palette.warning.main, 0.12) : '#fffbeb',
                                         fontWeight: 600,
-                                        '&:hover': { bgcolor: '#fef3c7' },
+                                        '&:hover': { bgcolor: isDark ? alpha(theme.palette.warning.main, 0.2) : '#fef3c7' },
                                     }}
                                 >
                                     {t('1686')}
@@ -696,12 +769,14 @@ const MacroRecorder: React.FC = () => {
                                     minHeight: '44px',
                                     fontSize: '14px',
                                     textTransform: 'none',
-                                    color: '#dc2626',
-                                    border: '1px solid rgba(220,38,38,0.45)',
+                                    color: isDark ? theme.palette.error.light : '#dc2626',
+                                    border: isDark
+                                        ? `1px solid ${alpha(theme.palette.error.main, 0.45)}`
+                                        : '1px solid rgba(220,38,38,0.45)',
                                     borderRadius: '10px',
-                                    bgcolor: '#ffffff',
+                                    bgcolor: isDark ? alpha(theme.palette.error.main, 0.1) : '#ffffff',
                                     fontWeight: 600,
-                                    '&:hover': { bgcolor: '#fef2f2' },
+                                    '&:hover': { bgcolor: isDark ? alpha(theme.palette.error.main, 0.18) : '#fef2f2' },
                                 }}
                             >
                                 {t('603')}
@@ -718,11 +793,11 @@ const MacroRecorder: React.FC = () => {
                                 textTransform: 'none',
                                 borderRadius: '10px',
                                 fontWeight: 600,
-                                bgcolor: isRecording ? '#ef4444' : macroBlue,
+                                bgcolor: isRecording ? '#ef4444' : macroAccent,
                                 color: '#fff !important',
                                 boxShadow: 'none',
                                 '&:hover': {
-                                    bgcolor: isRecording ? '#dc2626' : macroBlueHover,
+                                    bgcolor: isRecording ? '#dc2626' : macroAccentHover,
                                     boxShadow: 'none',
                                 },
                             }}
@@ -750,10 +825,15 @@ const MacroRecorder: React.FC = () => {
                                     textTransform: 'none',
                                     fontSize: '13px',
                                     fontWeight: 600,
-                                    bgcolor: '#ffffff',
-                                    color: '#64748b',
-                                    border: '1px solid #e2e8f0',
-                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' },
+                                    bgcolor: isDark ? theme.palette.customed1.main : '#ffffff',
+                                    color: isDark ? theme.palette.text.secondary : '#64748b',
+                                    border: isDark
+                                        ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                                        : '1px solid #e2e8f0',
+                                    '&:hover': {
+                                        bgcolor: isDark ? alpha(theme.palette.common.white, 0.08) : '#f8fafc',
+                                        borderColor: isDark ? alpha(theme.palette.common.white, 0.18) : '#cbd5e1',
+                                    },
                                 }}
                             >
                                 {t('1680')}
@@ -767,10 +847,15 @@ const MacroRecorder: React.FC = () => {
                                     textTransform: 'none',
                                     fontSize: '13px',
                                     fontWeight: 600,
-                                    bgcolor: '#ffffff',
-                                    color: '#64748b',
-                                    border: '1px solid #e2e8f0',
-                                    '&:hover': { bgcolor: '#f8fafc', borderColor: '#cbd5e1' },
+                                    bgcolor: isDark ? theme.palette.customed1.main : '#ffffff',
+                                    color: isDark ? theme.palette.text.secondary : '#64748b',
+                                    border: isDark
+                                        ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                                        : '1px solid #e2e8f0',
+                                    '&:hover': {
+                                        bgcolor: isDark ? alpha(theme.palette.common.white, 0.08) : '#f8fafc',
+                                        borderColor: isDark ? alpha(theme.palette.common.white, 0.18) : '#cbd5e1',
+                                    },
                                 }}
                             >
                                 {t('1681')}
@@ -800,18 +885,30 @@ const MacroRecorder: React.FC = () => {
                                 overflow: 'auto',
                                 display: 'flex',
                                 flexDirection: 'column',
-                                bgcolor: '#f1f4f9',
-                                border: '1px solid #e2e8f0',
+                                bgcolor: isDark ? theme.palette.customed1.main : '#f1f4f9',
+                                border: isDark
+                                    ? `1px solid ${alpha(theme.palette.common.white, 0.1)}`
+                                    : '1px solid #e2e8f0',
                                 '&::-webkit-scrollbar': { width: '6px' },
                                 '&::-webkit-scrollbar-thumb': {
-                                    backgroundColor: 'rgba(100,116,139,0.35)',
+                                    backgroundColor: isDark
+                                        ? alpha(theme.palette.common.white, 0.18)
+                                        : 'rgba(100,116,139,0.35)',
                                     borderRadius: '4px',
                                 },
                                 '&::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
                             }}
                         >
                             {selectedMacro.actions.length === 0 ? (
-                                <Typography sx={{ textAlign: 'center', fontSize: '13px', py: 6, color: '#94a3b8', fontWeight: 500 }}>
+                                <Typography
+                                    sx={{
+                                        textAlign: 'center',
+                                        fontSize: '13px',
+                                        py: 6,
+                                        color: isDark ? theme.palette.text.secondary : '#94a3b8',
+                                        fontWeight: 500,
+                                    }}
+                                >
                                     {isRecording ? t('1687') : t('1688')}
                                 </Typography>
                             ) : (
@@ -848,21 +945,45 @@ const MacroRecorder: React.FC = () => {
                                                                     borderRadius: '6px',
                                                                     border:
                                                                         action.type === 'delay'
-                                                                            ? '1px solid #d9d9d9'
-                                                                            : '1px solid #e2e8f0',
-                                                                    bgcolor: action.type === 'delay' ? '#d9d9d9' : '#f8fafc',
+                                                                            ? isDark
+                                                                              ? `1px solid ${alpha(theme.palette.common.white, 0.14)}`
+                                                                              : '1px solid #d9d9d9'
+                                                                            : isDark
+                                                                              ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                                                                              : '1px solid #e2e8f0',
+                                                                    bgcolor:
+                                                                        action.type === 'delay'
+                                                                            ? isDark
+                                                                              ? alpha(theme.palette.common.white, 0.1)
+                                                                              : '#d9d9d9'
+                                                                            : isDark
+                                                                              ? alpha(theme.palette.common.white, 0.06)
+                                                                              : '#f8fafc',
                                                                     cursor: 'grab',
                                                                     opacity: snapshot.isDragging ? 0.75 : 1,
                                                                     boxShadow: snapshot.isDragging
-                                                                        ? '0 4px 12px rgba(59,130,246,0.2)'
-                                                                        : '0 1px 2px rgba(0,0,0,0.06)',
+                                                                        ? isDark
+                                                                          ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.35)}`
+                                                                          : '0 4px 12px rgba(59,130,246,0.2)'
+                                                                        : isDark
+                                                                          ? '0 1px 2px rgba(0,0,0,0.35)'
+                                                                          : '0 1px 2px rgba(0,0,0,0.06)',
                                                                     transform: snapshot.isDragging ? 'scale(1.06) rotate(1deg)' : 'scale(1)',
                                                                     transition: 'box-shadow 0.15s ease, transform 0.15s ease',
                                                                     minWidth: '48px',
                                                                     minHeight: '16px',
                                                                     '&:hover': {
-                                                                        borderColor: action.type === 'delay' ? '#93c5fd' : '#cbd5e1',
-                                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+                                                                        borderColor:
+                                                                            action.type === 'delay'
+                                                                                ? isDark
+                                                                                  ? alpha(theme.palette.primary.light, 0.5)
+                                                                                  : '#93c5fd'
+                                                                                : isDark
+                                                                                  ? alpha(theme.palette.common.white, 0.2)
+                                                                                  : '#cbd5e1',
+                                                                        boxShadow: isDark
+                                                                            ? '0 2px 8px rgba(0,0,0,0.4)'
+                                                                            : '0 2px 6px rgba(0,0,0,0.1)',
                                                                         '& .delete-btn': { opacity: 1 },
                                                                     },
                                                                 }}
@@ -954,7 +1075,9 @@ const MacroRecorder: React.FC = () => {
                                                                                 background: 'transparent',
                                                                                 fontSize: '10px',
                                                                                 fontWeight: 700,
-                                                                                color: '#3B82F6',
+                                                                                color: isDark
+                                                                                    ? theme.palette.primary.light
+                                                                                    : '#3B82F6',
                                                                                 textAlign: 'center',
                                                                                 lineHeight: 1,
                                                                                 p: 0,
@@ -967,7 +1090,9 @@ const MacroRecorder: React.FC = () => {
                                                                         <Typography
                                                                             sx={{
                                                                                 fontSize: '7px',
-                                                                                color: '#93c5fd',
+                                                                                color: isDark
+                                                                                    ? alpha(theme.palette.primary.light, 0.85)
+                                                                                    : '#93c5fd',
                                                                                 lineHeight: 1,
                                                                                 fontWeight: 600,
                                                                                 letterSpacing: '0.03em',
@@ -981,7 +1106,9 @@ const MacroRecorder: React.FC = () => {
                                                                         sx={{
                                                                             fontSize: '11px',
                                                                             fontWeight: 700,
-                                                                            color: '#334155',
+                                                                            color: isDark
+                                                                                ? theme.palette.text.primary
+                                                                                : '#334155',
                                                                             lineHeight: 1,
                                                                             textAlign: 'center',
                                                                             letterSpacing: '0.02em',

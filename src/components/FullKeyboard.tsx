@@ -2,11 +2,13 @@
 
 import { FC, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, styled } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import type { LayoutKey, KeyboardKey } from '@/types/types_v1';
 import keyboardLayout from '@/data/keyboardLayout/full_keyboard.json';
 import keyboardLayoutDe from '@/data/keyboardLayout/full_keyboard_de.json';
 import { getKeyByKeyNameValue, getKeyName } from '@/keyboard/keycode';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
+import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
 
 const KEY_UNIT_PX = 3.5 * 16;
 const KEY_GAP_PX = 0.2 * 16;
@@ -42,6 +44,8 @@ interface FullKeyboardProps {
 }
 
 const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
   const currentLanguage =
     (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || 'zh';
   const isGerman = currentLanguage.startsWith('de');
@@ -159,9 +163,11 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       width: '100%',
                       height: '100%',
                       borderRadius: '4px',
-                      border: '1px solid #d2dae7',
-                      transition: 'background-color 0.2s ease',
-                      color: '#68798f',
+                      border: isDark
+                        ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                        : '1px solid #d2dae7',
+                      transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                      color: isDark ? theme.palette.text.secondary : '#68798f',
                       fontSize: '12px',
                       lineHeight: 1.1,
                       textAlign: 'center',
@@ -173,8 +179,18 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                       whiteSpace: 'normal',
                       wordBreak: 'keep-all',
                       overflowWrap: 'normal',
+                      backgroundColor: isDark ? theme.palette.customed1.main : 'transparent',
                       '&:hover': {
-                        background: disabled ? '' : '#ffffff',
+                        background: disabled
+                          ? ''
+                          : isDark
+                            ? alpha(theme.palette.primary.main, 0.2)
+                            : '#ffffff',
+                        borderColor: disabled
+                          ? undefined
+                          : isDark
+                            ? alpha(theme.palette.primary.main, 0.45)
+                            : '#d2dae7',
                       },
                     }}
                   >
@@ -183,7 +199,11 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                         component="img"
                         src={String(keyLabel).trim()}
                         alt={keyCodeLabel || keyLabel}
-                        sx={{ width: '21.6px', height: '21.6px', objectFit: 'contain' }}
+                        sx={{
+                          width: KEY_TYPE_ICON_BOX_PX,
+                          height: KEY_TYPE_ICON_BOX_PX,
+                          objectFit: 'contain',
+                        }}
                       />
                     ) : (
                       keyLabel

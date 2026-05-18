@@ -26,6 +26,7 @@ export default function HeroSection() {
     const { connectKeyboard } = useContext(ConnectKbContext);
     const { t } = useTranslation('common');
     const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const ringBorderColor = alpha(theme.palette.primary.main, 0.125);
 
     const wrapperStyles: CSSProperties = {
@@ -130,7 +131,12 @@ export default function HeroSection() {
                         component="img"
                         src="/qk-text-logo.svg"
                         alt="QWERTYKEYS"
-                        sx={{ width: 'min(520px, 100%)', height: 'auto', display: 'block' }}
+                        sx={{
+                            width: 'min(520px, 100%)',
+                            height: 'auto',
+                            display: 'block',
+                            filter: isDark ? 'brightness(0) invert(1)' : 'none',
+                        }}
                     />
                     <Typography
                         variant="body1"

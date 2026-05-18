@@ -3,8 +3,8 @@
 import { Box, Button, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
 import type { ScreenThemeTab } from "./types";
-import { screenThemeColors } from "./theme";
-import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeFilledPillButtonSx, getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 const NAV_ITEMS: { id: ScreenThemeTab; labelKey: string }[] = [
   { id: "basic", labelKey: "1601" },
@@ -23,6 +23,9 @@ type Props = {
 
 export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, disabled = false }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const filledSx = getScreenThemeFilledPillButtonSx(sv);
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
 
   return (
     <Box
@@ -41,9 +44,12 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
         flexDirection: "column",
         alignItems: "stretch",
         width: "264px",
-        background: "#F9F9F9",
+        background: sv.sidebarBg,
+        border: sv.sidebarBorder,
+        boxShadow: sv.boxShadow,
         marginRight: "32px",
         height: "100%",
+        
         padding: "24px 20px",
       }}
     >
@@ -52,7 +58,7 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
         sx={{
           fontSize: "16px",
           fontWeight: 400,
-          color: "rgba(100, 116, 139, 1)",
+          color: sv.textMuted,
           letterSpacing: "0.02em",
           mb: 20,
           lineHeight: 1.3,
@@ -61,7 +67,6 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
       >
         {t("1600")}
       </Typography>
-
 
       <Box
         component="nav"
@@ -72,8 +77,6 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
           alignItems: "stretch",
           gap: "10px",
           width: "100%",
-
-
         }}
       >
         {NAV_ITEMS.map((item) => {
@@ -89,16 +92,16 @@ export default function ScreenThemeSidebar({ activeTab, onTabChange, embedded, d
               sx={{
                 justifyContent: "center",
                 height: "48px",
-                ...(active ? screenThemeFilledPillButtonSx : screenThemeOutlinedPillButtonSx),
+                ...(active ? filledSx : outlinedSx),
                 ...(active
                   ? {}
                   : {
-                      color: "#66778f",
+                      color: sv.textMuted,
                       "&:hover": {
-                        backgroundColor: "#fff",
-                        borderColor: screenThemeColors.primary,
-                        boxShadow: "0 0 0 3px rgba(0, 102, 255, 0.2)",
-                        color: "#0066ff",
+                        backgroundColor: sv.pillOutlinedBg,
+                        borderColor: sv.primary,
+                        boxShadow: `0 0 0 3px ${sv.primaryGlow}`,
+                        color: sv.primary,
                       },
                     }),
               }}

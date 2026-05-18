@@ -13,8 +13,15 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useMemo, useState } from 'react';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useTranslation } from '@/app/i18n';
 import { ButtonRem } from '@/styled/ReconstructionRem';
+import {
+    getSettingsRowDescriptionSx,
+    getSettingsRowListUlSx,
+    getSettingsRowTitleSx,
+} from '@/constants/settingsPanelTypography';
+import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import packageJson from '../../../package.json';
 import {
     WEB_DRIVER_RELEASES,
@@ -28,6 +35,8 @@ function pickChanges(release: WebDriverRelease, lang: string): string[] {
 
 export default function WebDriverChangelogSection() {
     const { t, i18n } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const [historyOpen, setHistoryOpen] = useState(false);
 
     const appVersion = packageJson.version;
@@ -40,56 +49,57 @@ export default function WebDriverChangelogSection() {
 
     const currentItems = currentRelease ? pickChanges(currentRelease, lang) : [];
 
+    const cardSx = useMemo(() => settingsFirmwareCardSx(theme), [theme]);
+
+    const historyLinkBtnSx = useMemo(
+        () => ({
+            textTransform: 'none' as const,
+            height: '32px',
+            px: '16px',
+            fontSize: '13px',
+            fontWeight: 500,
+            color: theme.palette.primary.main,
+            bgcolor: 'transparent',
+            border: 'none',
+            '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) },
+        }),
+        [theme]
+    );
+
+    const accordionSx = useMemo(
+        () => ({
+            border: `1px solid ${isDark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(148, 163, 184, 0.25)'}`,
+            borderRadius: '8px !important',
+            mb: 10,
+            '&:before': { display: 'none' },
+            overflow: 'hidden',
+            padding: '12px',
+            ...(isDark ? { bgcolor: alpha(theme.palette.common.white, 0.03) } : {}),
+        }),
+        [theme, isDark]
+    );
+
     return (
         <>
-            <Box
-                sx={{
-                    bgcolor: 'linear-gradient(180deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0) 100%)',
-                    borderRadius: '12px',
-                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 1)',
-                    px: '20px',
-                    py: '18px',
-                }}
-            >
-                <Typography sx={{ fontSize: '15px', color: '#334155', fontWeight: 600, mb: '5.6px' }}>
-                    {t('2512')}
-                </Typography>
-                <Typography sx={{ fontSize: '13px', color: '#64748b', mb: '8px' }}>
+            <Box sx={cardSx}>
+                <Typography sx={{ ...getSettingsRowTitleSx(theme), mb: '5.6px' }}>{t('2512')}</Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '8px' }}>
                     {t('2521')}: V{appVersion}
                     {currentRelease?.date ? ` · ${currentRelease.date}` : null}
                 </Typography>
-                <Typography sx={{ fontSize: '12px', color: '#94a3b8', mb: '5.6px' }}>
-                    {t('2522')}
-                </Typography>
+                <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '5.6px' }}>{t('2522')}</Typography>
                 {currentItems.length > 0 ? (
-                    <Box component="ul" sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
+                    <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                         {currentItems.map((line, idx) => (
                             <li key={idx}>{line}</li>
                         ))}
                     </Box>
                 ) : (
-                    <Typography sx={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.55 }}>
-                        {t('2526')}
-                    </Typography>
+                    <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2526')}</Typography>
                 )}
                 {WEB_DRIVER_RELEASES.length > 0 && (
                     <Box sx={{ mt: '16px' }}>
-                        <ButtonRem
-                            type="button"
-                            onClick={() => setHistoryOpen(true)}
-                            sx={{
-                                textTransform: 'none',
-                                height: '32px',
-                                px: '16px',
-                                fontSize: '13px',
-                                fontWeight: 500,
-                                color: '#3b82f6',
-                                bgcolor: 'transparent',
-                                border: 'none',
-                                '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.08)' },
-                            }}
-                        >
+                        <ButtonRem type="button" onClick={() => setHistoryOpen(true)} sx={historyLinkBtnSx}>
                             {t('2523')}
                         </ButtonRem>
                     </Box>
@@ -103,9 +113,7 @@ export default function WebDriverChangelogSection() {
                 fullWidth
                 PaperProps={{ sx: { borderRadius: '12px' } }}
             >
-                <DialogTitle sx={{ fontSize: '16px', fontWeight: 600, color: '#334155', pb: 10 }}>
-                    {t('2524')}
-                </DialogTitle>
+                <DialogTitle sx={{ ...getSettingsRowTitleSx(theme), pb: 10 }}>{t('2524')}</DialogTitle>
                 <DialogContent dividers sx={{ maxHeight: '50vh' }}>
                     {WEB_DRIVER_RELEASES.map((release) => {
                         const items = pickChanges(release, lang);
@@ -115,33 +123,32 @@ export default function WebDriverChangelogSection() {
                                 key={release.version}
                                 disableGutters
                                 elevation={0}
-                                sx={{
-                                    border: '1px solid rgba(148, 163, 184, 0.25)',
-                                    borderRadius: '8px !important',
-                                    mb: 10,
-                                    '&:before': { display: 'none' },
-                                    overflow: 'hidden',
-                                    padding: '12px',
-                                }}
+                                sx={accordionSx}
                             >
-                                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#64748b' }} />}>
+                                <AccordionSummary
+                                    expandIcon={
+                                        <ExpandMoreIcon
+                                            sx={{ color: isDark ? alpha(theme.palette.common.white, 0.45) : '#64748b' }}
+                                        />
+                                    }
+                                >
                                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
-                                        <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#334155' }}>
+                                        <Typography sx={{ ...getSettingsRowTitleSx(theme) }}>
                                             V{release.version}
                                             {isCurrent ? ` · ${t('2521')}` : ''}
                                         </Typography>
-                                        <Typography sx={{ fontSize: '12px', color: '#94a3b8' }}>{release.date}</Typography>
+                                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{release.date}</Typography>
                                     </Box>
                                 </AccordionSummary>
                                 <AccordionDetails sx={{ pt: 0 }}>
                                     {items.length > 0 ? (
-                                        <Box component="ul" sx={{ m: 0, pl: '20px', color: '#475569', fontSize: '13px', lineHeight: 1.6 }}>
+                                        <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                                             {items.map((line, idx) => (
                                                 <li key={idx}>{line}</li>
                                             ))}
                                         </Box>
                                     ) : (
-                                        <Typography sx={{ fontSize: '13px', color: '#94a3b8' }}>{t('2526')}</Typography>
+                                        <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2526')}</Typography>
                                     )}
                                 </AccordionDetails>
                             </Accordion>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -14,8 +14,10 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from '@/app/i18n';
+import { lightingPanelCardSx } from '@/constants/lightingPanelChrome';
 import { WebHidUpgradeClient, type KeyboardLightOffCapable } from '@/lib/webhidScreenUpgrade';
 import { connectScreenLcdWebHid } from '@/lib/screenLcdWebHidConnect';
 import type { DeviceComm } from '@/LEDdevices/LCDScreenDevice';
@@ -23,13 +25,8 @@ import { MainContext } from '@/providers/MainProvider';
 import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import type { KeyboardDevice } from '@/devices/KeyboardDevice';
-import type { FilterDevice } from '@/types/types';
+import type { FilterDevice, ConnectScreenHidResult } from '@/types/types';
 
-declare global {
-  interface Navigator {
-    hid?: HID;
-  }
-}
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -80,11 +77,11 @@ export default function ScreenFirmwareUpgrade({
 }: ScreenFirmwareUpgradeProps) {
   const theme = useTheme();
   const isLightMode = theme.palette.mode === 'light';
+  const isDark = theme.palette.mode === 'dark';
   const { t } = useTranslation('common');
   const { setDownLoad, setIsDownloading, connectDevice, setScreenFirmwareOtaBlocking } =
     useContext(MainContext);
   const { showDialog, showMessage } = useSnackbarDialog();
-  const primaryColor = theme.palette.primary.main;
 
   const clientRef = useRef<WebHidUpgradeClient | null>(null);
   const lcdConnectLockRef = useRef(false);
@@ -189,8 +186,8 @@ export default function ScreenFirmwareUpgrade({
     if (lcdConnectLockRef.current || upgradeState.isUpgrading) return;
     lcdConnectLockRef.current = true;
     try {
-      const ok = await connectScreenLcdWebHid(
-        connectDevice as (filter: FilterDevice[] | undefined) => Promise<boolean>,
+      const result = await connectScreenLcdWebHid(
+        connectDevice as (filter: FilterDevice[] | undefined) => Promise<ConnectScreenHidResult>,
         keyboardForScreen ?? null,
         {
           setOpening: setIsOpeningLcd,
@@ -198,7 +195,7 @@ export default function ScreenFirmwareUpgrade({
           onStartLightSequence: () => setOpeningDots(0),
         }
       );
-      if (ok) {
+      if (result.success) {
         showMessage({ type: 'success', message: t('92') });
       } else {
         showMessage({ type: 'info', message: t('1253') });
@@ -375,9 +372,39 @@ export default function ScreenFirmwareUpgrade({
     t,
   ]);
 
-  const borderMuted = isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-  const borderOk = 'rgba(76, 175, 80, 0.55)';
-  const borderWarn = isLightMode ? 'rgba(245, 158, 11, 0.45)' : 'rgba(251, 191, 36, 0.35)';
+  const P = theme.palette.primary.main;
+  const trackBg = isLightMode ? 'rgba(0, 0, 0, 0.06)' : alpha(theme.palette.common.white, 0.1);
+
+  /** 与 OTA 流程阈值一致：≥34 为数据传输阶段；≥97 为收尾，展示「固件写入完成」 */
+  const P_PREP_END = 34;
+  const P_FINAL = 97;
+
+  const progressHeadlineLeft = useMemo(() => {
+    if (upgradeState.statusType === 'error') return upgradeState.status;
+    if (upgradeState.isUpgrading) {
+      const p = Math.round(upgradeState.progress);
+      if (p >= 100 || p >= P_FINAL) return t('2884');
+      if (p >= P_PREP_END) return t('2848');
+      return upgradeState.status;
+    }
+    return t('1208');
+  }, [
+    upgradeState.isUpgrading,
+    upgradeState.progress,
+    upgradeState.status,
+    upgradeState.statusType,
+    t,
+  ]);
+
+  const progressRowTextColor =
+    upgradeState.statusType === 'error'
+      ? 'error.main'
+      : upgradeState.statusType === 'warning'
+        ? 'warning.main'
+        : 'text.secondary';
+
+  const progressAccentColor =
+    upgradeState.statusType === 'error' ? theme.palette.error.main : P;
 
   return (
     <Modal
@@ -397,14 +424,16 @@ export default function ScreenFirmwareUpgrade({
           maxWidth: '640px',
           maxHeight: '90vh',
           overflow: 'auto',
-          bgcolor: isLightMode ? 'rgba(250, 250, 252, 0.98)' : 'rgba(40, 40, 52, 0.98)',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'}`,
+          bgcolor: theme.palette.background.paper,
+          backdropFilter: isLightMode ? 'blur(20px)' : 'none',
+          border: `1px solid ${
+            isDark ? alpha(P, 0.48) : 'rgba(15, 23, 42, 0.08)'
+          }`,
           borderRadius: '18px',
           p: '32px !important',
           boxShadow: isLightMode
             ? '0 24px 64px rgba(15, 23, 42, 0.12)'
-            : '0 24px 64px rgba(0, 0, 0, 0.45)',
+            : '0 24px 64px rgba(0, 0, 0, 0.55)',
         }}
       >
         <Box
@@ -413,11 +442,20 @@ export default function ScreenFirmwareUpgrade({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            mb: '28px',
-            minHeight: '40px',
+            mb: '24px',
+            minHeight: '44px',
           }}
         >
-          <Typography sx={{ fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em', textAlign: 'center' }}>
+          <Typography
+            sx={{
+              fontSize: '20px',
+              fontWeight: 700,
+              lineHeight: 1.35,
+              letterSpacing: '0.02em',
+              textAlign: 'center',
+              color: 'text.primary',
+            }}
+          >
             {t('2800')}
           </Typography>
           {!upgradeState.isUpgrading && (
@@ -430,8 +468,10 @@ export default function ScreenFirmwareUpgrade({
                 top: '50%',
                 transform: 'translateY(-50%)',
                 flexShrink: 0,
+                color: 'text.secondary',
+                '& .MuiSvgIcon-root': { fontSize: 22 },
                 '&:hover': {
-                  bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.06)',
+                  bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.05)' : alpha(theme.palette.common.white, 0.08),
                 },
               }}
             >
@@ -442,9 +482,22 @@ export default function ScreenFirmwareUpgrade({
 
         <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '24px !important' } }}>
           {!lcdConnected ? (
-            <Alert severity="warning" sx={{ borderRadius: '12px' }}>
-              <AlertTitle sx={{ fontSize: '14px', fontWeight: 700 }}>{t('1210')}</AlertTitle>
-              <Typography sx={{ fontSize: '13px', lineHeight: 1.65, mb: 1.25 }}>
+            <Alert
+              severity="warning"
+              sx={{
+                borderRadius: '12px',
+                ...(isDark
+                  ? {
+                      bgcolor: alpha(theme.palette.warning.main, 0.12),
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.35)}`,
+                      color: alpha(theme.palette.common.white, 0.88),
+                      '& .MuiAlert-icon': { color: theme.palette.warning.main },
+                    }
+                  : {}),
+              }}
+            >
+              <AlertTitle sx={{ fontSize: '15px', fontWeight: 700, lineHeight: 1.4 }}>{t('1210')}</AlertTitle>
+              <Typography sx={{ fontSize: '14px', lineHeight: 1.7, mb: 1.25, color: 'text.secondary' }}>
                 {t('2856', { connect: t('16') })}
               </Typography>
               <ButtonRem
@@ -453,17 +506,21 @@ export default function ScreenFirmwareUpgrade({
                 disabled={upgradeState.isUpgrading || isConnectingLcd || isOpeningLcd}
                 sx={{
                   textTransform: 'none',
-                  height: '36px',
-                  px: '20px',
-                  fontSize: '14px',
+                  minHeight: '40px',
+                  px: '22px',
+                  fontSize: '15px',
                   fontWeight: 600,
-                  color: '#fff',
-                  bgcolor: '#3B82F6',
-                  border: '1px solid #3B82F6',
+                  color: theme.palette.primary.contrastText,
+                  bgcolor: P,
+                  border: `1px solid ${P}`,
                   borderRadius: '8px',
                   boxShadow: 'none',
-                  '&:hover': { bgcolor: '#2f70dc', borderColor: '#2f70dc' },
-                  '&.Mui-disabled': { color: 'rgba(255,255,255,0.75)', bgcolor: '#93c5fd', borderColor: '#93c5fd' },
+                  '&:hover': { bgcolor: theme.palette.primary.dark, borderColor: theme.palette.primary.dark },
+                  '&.Mui-disabled': {
+                    color: alpha(theme.palette.primary.contrastText, 0.75),
+                    bgcolor: isDark ? alpha(P, 0.45) : '#93c5fd',
+                    borderColor: isDark ? alpha(P, 0.45) : '#93c5fd',
+                  },
                 }}
               >
                 {isConnectingLcd
@@ -476,42 +533,66 @@ export default function ScreenFirmwareUpgrade({
           ) : null}
 
           <Box>
+            <Typography
+              sx={{
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'text.secondary',
+                mb: '8px',
+                letterSpacing: '0.03em',
+              }}
+            >
+              {t('1202')}
+            </Typography>
             <Paper
               sx={{
                 p: '20px !important',
-                bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.28)',
-                border: `1px solid ${lcdConnected ? borderOk : borderWarn}`,
-                borderRadius: '14px',
+                ...lightingPanelCardSx(theme),
+                ...(lcdConnected
+                  ? {}
+                  : {
+                      border: `1px solid ${alpha(theme.palette.warning.main, isDark ? 0.55 : 0.45)}`,
+                    }),
               }}
             >
               <Typography
                 sx={{
-                  color: lcdConnected ? 'success.main' : 'warning.main',
-                  fontSize: '14px',
+                  color: lcdConnected ? 'primary.main' : 'warning.main',
+                  fontSize: '15px',
                   fontWeight: 600,
+                  lineHeight: 1.45,
+                  textAlign: 'center',
                   mb: deviceInfo?.currentVersion || deviceInfo?.upgradeVersion ? '16px' : 0,
                 }}
               >
-                {lcdConnected ? `✅ ${t('2854')}` : `⚠️ ${t('2855', { connect: t('16') })}`}
+                {lcdConnected ? t('2854') : t('2855', { connect: t('16') })}
               </Typography>
               {(deviceInfo?.currentVersion || deviceInfo?.upgradeVersion) && (
                 <Stack
                   spacing={1}
                   sx={{
                     pt: '16px',
-                    borderTop: `1px solid ${isLightMode ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
+                    borderTop: `1px solid ${
+                      isDark ? alpha(theme.palette.common.white, 0.1) : 'rgba(0,0,0,0.08)'
+                    }`,
                   }}
                 >
                   {deviceInfo?.currentVersion ? (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>{t('1206')}</Typography>
-                      <Typography sx={{ fontSize: '13px', fontWeight: 600 }}>v{deviceInfo.currentVersion}</Typography>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>
+                        {t('1206')}
+                      </Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'text.primary', letterSpacing: '0.02em' }}>
+                        v{deviceInfo.currentVersion}
+                      </Typography>
                     </Box>
                   ) : null}
                   {deviceInfo?.upgradeVersion ? (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>{t('1207')}</Typography>
-                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: primaryColor }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>
+                        {t('1207')}
+                      </Typography>
+                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: 'primary.main', letterSpacing: '0.02em' }}>
                         v{deviceInfo.upgradeVersion}
                       </Typography>
                     </Box>
@@ -521,123 +602,179 @@ export default function ScreenFirmwareUpgrade({
             </Paper>
           </Box>
 
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: '12px' }}>
+          <Box
+            sx={{
+              borderRadius: '10px',
+              border: isLightMode ? '1px solid rgba(0, 0, 0, 0.06)' : `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+              bgcolor: isLightMode ? '#ffffff' : alpha(theme.palette.common.white, 0.04),
+              pt: '12px',
+              pb: '14px',
+              overflow: 'hidden',
+            }}
+          >
+            {upgradeState.isUpgrading ? (
               <Typography
                 sx={{
-                  color:
-                    upgradeState.statusType === 'error'
-                      ? 'error.main'
-                      : upgradeState.statusType === 'warning'
-                        ? 'warning.main'
-                        : 'text.primary',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                }}
-              >
-                {upgradeState.status}
-              </Typography>
-              <Typography sx={{ color: primaryColor, fontSize: '14px', fontWeight: 700 }}>
-                {Math.min(100, Math.max(0, Math.round(upgradeState.progress)))}%
-              </Typography>
-            </Box>
-            {upgradeState.isUpgrading && upgradeState.detail ? (
-              <Typography
-                variant="caption"
-                sx={{
-                  display: 'block',
-                  mb: '10.4px',
-                  color: 'text.secondary',
-                  fontSize: '12px',
+                  fontSize: '20px',
+                  fontWeight: 500,
                   lineHeight: 1.55,
-                  opacity: 0.92,
+                  color: 'text.secondary',
                 }}
               >
-                {upgradeState.detail}
+                {t('2883')}
               </Typography>
             ) : null}
-            <LinearProgress
-              variant="determinate"
-              value={Math.min(100, Math.max(0, upgradeState.progress))}
-              sx={{
-                height: 9,
-                borderRadius: '8px',
-                bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.06)',
-                '& .MuiLinearProgress-bar': {
-                  bgcolor:
-                    upgradeState.statusType === 'error'
-                      ? 'error.main'
-                      : upgradeState.statusType === 'warning'
-                        ? 'warning.main'
-                        : primaryColor,
-                  borderRadius: '8px',
-                },
-              }}
-            />
+            <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', minHeight: 44 }}>
+              <Box
+                sx={{
+                  width: 3,
+                  flexShrink: 0,
+                  borderRadius: '0 2px 2px 0',
+                }}
+              />
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  pl: '14px',
+                  pr: '14px',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: progressRowTextColor,
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    lineHeight: 1.45,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  {progressHeadlineLeft}
+                </Typography>
+                <Typography
+                  sx={{
+                    color: progressRowTextColor,
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    lineHeight: 1.45,
+                    flexShrink: 0,
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {Math.min(100, Math.max(0, Math.round(upgradeState.progress)))}%
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ px: '14px', mt: '12px' }}>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(100, Math.max(0, upgradeState.progress))}
+                sx={{
+                  height: 10,
+                  borderRadius: '999px',
+                  bgcolor: trackBg,
+                  '& .MuiLinearProgress-bar': {
+                    bgcolor:
+                      upgradeState.statusType === 'error'
+                        ? theme.palette.error.main
+                        : upgradeState.statusType === 'warning'
+                          ? theme.palette.warning.main
+                          : P,
+                    borderRadius: '999px',
+                  },
+                }}
+              />
+            </Box>
           </Box>
 
           {upgradeState.error ? (
-            <Alert severity="error" sx={{ borderRadius: '12px' }}>
-              <AlertTitle sx={{ fontSize: '14px' }}>{t('1219')}</AlertTitle>
-              <Typography sx={{ fontSize: '13px' }}>{upgradeState.error}</Typography>
+            <Alert
+              severity="error"
+              sx={{
+                borderRadius: '12px',
+                ...(isDark
+                  ? {
+                      bgcolor: alpha(theme.palette.error.main, 0.12),
+                      border: `1px solid ${alpha(theme.palette.error.main, 0.35)}`,
+                      color: alpha(theme.palette.common.white, 0.88),
+                      '& .MuiAlert-icon': { color: theme.palette.error.main },
+                    }
+                  : {}),
+              }}
+            >
+              <AlertTitle sx={{ fontSize: '15px', fontWeight: 700 }}>{t('1219')}</AlertTitle>
+              <Typography sx={{ fontSize: '14px', lineHeight: 1.65, color: 'text.secondary' }}>
+                {upgradeState.error}
+              </Typography>
             </Alert>
           ) : null}
 
           <Paper
             sx={{
               p: '20px !important',
-              bgcolor: isLightMode ? 'rgba(255, 255, 255, 0.72)' : 'rgba(0, 0, 0, 0.28)',
-              border: `1px solid ${borderMuted}`,
-              borderRadius: '14px',
+              ...lightingPanelCardSx(theme),
             }}
           >
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, mb: '16px !important', color: 'text.primary' }}>
-              ⚠️ {t('1210')}
+            <Typography
+              sx={{
+                fontSize: '16px',
+                fontWeight: 700,
+                lineHeight: 1.4,
+                mb: '14px !important',
+                color: 'error.main',
+              }}
+            >
+              {t('1210')}
             </Typography>
-            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '12px !important' } }}>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
-                {t('1211')}
+            <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '10px !important' } }}>
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('2920')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
-                {t('1212')}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('2921')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
-                {t('1213')}
+              <Typography sx={{ color: 'error.main', fontSize: '14px', lineHeight: 1.7, fontWeight: 600 }}>
+                {t('2922')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
-                {t('1214')}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('2923')}
               </Typography>
-              <Typography sx={{ color: 'text.secondary', fontSize: '12px', lineHeight: 1.65 }}>
-                {t('2733')}
+              <Typography sx={{ color: 'text.secondary', fontSize: '14px', lineHeight: 1.7, fontWeight: 400 }}>
+                {t('2924')}
               </Typography>
             </Stack>
           </Paper>
 
           <Button
             variant="contained"
+            color="primary"
             size="large"
             fullWidth
             onClick={upgradeState.done ? handleClose : runUpgrade}
             disabled={upgradeState.isUpgrading || !firmwareBytes || !lcdConnected}
             sx={{
-              py: 1.35,
+              py: '13px',
+              minHeight: 48,
               textTransform: 'none',
               justifyContent: 'center',
-              bgcolor: upgradeState.done ? '#4caf50' : primaryColor,
-              color: '#fff !important',
               fontWeight: 700,
-              fontSize: '15px',
+              fontSize: '16px',
+              lineHeight: 1.35,
               borderRadius: '12px',
-              boxShadow: upgradeState.done
-                ? '0 6px 20px rgba(76, 175, 80, 0.35)'
-                : `0 8px 24px ${primaryColor}40`,
+              boxShadow: `0 8px 24px ${alpha(P, 0.35)}`,
               '&:hover': {
-                bgcolor: upgradeState.done ? '#43a047' : primaryColor,
-                filter: 'brightness(1.04)',
+                bgcolor: theme.palette.primary.dark,
+                filter: 'brightness(1.02)',
               },
               '&:disabled': {
-                bgcolor: isLightMode ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)',
-                color: `${isLightMode ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)'} !important`,
+                bgcolor: isDark ? alpha(theme.palette.common.white, 0.08) : 'rgba(0, 0, 0, 0.08)',
+                color: `${isDark ? alpha(theme.palette.common.white, 0.35) : 'rgba(0,0,0,0.38)'} !important`,
                 boxShadow: 'none',
               },
             }}

@@ -3,8 +3,12 @@
 import { Box, Button, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
-import { screenThemeFilledPillButtonSx, screenThemeOutlinedPillButtonSx, screenThemePillRadius } from "./screenThemeButtonSx";
+import {
+  getScreenThemeFilledPillButtonSx,
+  getScreenThemeOutlinedPillButtonSx,
+  screenThemePillRadius,
+} from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type Props = {
   /** 返回 true 表示同步成功，用于展示「已同步」 */
@@ -15,6 +19,9 @@ const BUSY_MS = 720;
 
 export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const filledSx = getScreenThemeFilledPillButtonSx(sv);
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
   const [phase, setPhase] = useState<"idle" | "busy" | "done">("idle");
   const [progress, setProgress] = useState(0);
   const rafRef = useRef<number | null>(null);
@@ -82,7 +89,7 @@ export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
     }
   }, [phase, onSync, clearTimers]);
 
-  const primary = screenThemeColors.primary;
+  const primary = sv.primary;
 
   return (
     <Button
@@ -92,16 +99,16 @@ export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
       disabled={phase !== "idle"}
       sx={{
         position: "relative",
-        width: "176px",
-        height: "36px",
-        minWidth: "176px",
+        width: "11rem",
+        height: "2.25rem",
+        minWidth: "11rem",
         p: 0,
         overflow: "hidden",
         flexShrink: 0,
         ...(phase === "done"
-          ? screenThemeFilledPillButtonSx
+          ? filledSx
           : {
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               ...(phase === "busy"
                 ? {
                     "&:hover": { boxShadow: "none" },
@@ -137,9 +144,9 @@ export default function ScreenThemeSyncTimeButton({ onSync }: Props) {
         sx={{
           position: "relative",
           zIndex: 1,
-          fontSize: "14px",
+          fontSize: "0.875rem",
           fontWeight: phase === "done" ? 600 : 500,
-          color: phase === "busy" ? "transparent" : phase === "done" ? "#fff" : screenThemeColors.textDark,
+          color: phase === "busy" ? "transparent" : phase === "done" ? "#fff" : sv.textDark,
         }}
       >
         {phase === "done" ? t("1630") : t("1605")}

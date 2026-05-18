@@ -2,14 +2,14 @@
 
 import { Box, Button, Divider, FormControl, MenuItem, Select, type SelectChangeEvent, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
-import { screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
 import { VIDEO_SPEED_OPTIONS } from "./options";
 import {
-  screenThemeSelectMenuItemSx,
-  screenThemeSelectMenuProps,
-  screenThemeSelectSx,
+  getScreenThemeSelectMenuItemSx,
+  getScreenThemeSelectMenuProps,
+  getScreenThemeSelectSx,
 } from "./screenThemeSelectStyles";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type Props = {
   fileName: string;
@@ -33,6 +33,11 @@ export default function ScreenThemeVideoSettingsPanel({
   isLocked = false,
 }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
+  const selectSx = getScreenThemeSelectSx(sv);
+  const selectMenuProps = getScreenThemeSelectMenuProps(sv);
+  const menuItemSx = getScreenThemeSelectMenuItemSx(sv);
 
   return (
     <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2.25, pl: 1, pr: 0.5 }}>
@@ -51,7 +56,7 @@ export default function ScreenThemeVideoSettingsPanel({
             component="p"
             sx={{
               m: 0,
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "12px",
               lineHeight: 1.55,
             }}
@@ -64,7 +69,7 @@ export default function ScreenThemeVideoSettingsPanel({
             sx={{
               m: 0,
               mt: "6px",
-              color: screenThemeColors.textMuted,
+              color: sv.textMuted,
               fontSize: "12px",
               lineHeight: 1.55,
             }}
@@ -78,7 +83,7 @@ export default function ScreenThemeVideoSettingsPanel({
           disabled={isSaving || isLocked}
           onClick={onSaveToKeyboard}
           sx={{
-            ...screenThemeOutlinedPillButtonSx,
+            ...outlinedSx,
             flexShrink: 0,
             px: 2.5,
             py: 0.75,
@@ -90,13 +95,13 @@ export default function ScreenThemeVideoSettingsPanel({
         </Button>
       </Box>
 
-      <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
+      <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.25 }}>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
           <Typography
             variant="body2"
-            sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "14px", wordBreak: "break-all", pr: 1 }}
+            sx={{ color: sv.textDark, fontWeight: 500, fontSize: "14px", wordBreak: "break-all", pr: 1 }}
           >
             {t("1635")}
             {fileName}
@@ -107,7 +112,7 @@ export default function ScreenThemeVideoSettingsPanel({
             disabled={isLocked}
             onClick={onSelectFile}
             sx={{
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               flexShrink: 0,
               minHeight: "36px",
               width: "172px",
@@ -119,7 +124,7 @@ export default function ScreenThemeVideoSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between", mt: 61 }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "14px" }}>
+          <Typography variant="body2" sx={{ color: sv.textDark, minWidth: "88px", fontSize: "14px" }}>
             {t("1637")}
           </Typography>
           <FormControl size="small" sx={{ minWidth: "172px" }}>
@@ -127,11 +132,11 @@ export default function ScreenThemeVideoSettingsPanel({
               value={VIDEO_SPEED_OPTIONS.some((o) => o.value === speed) ? speed : VIDEO_SPEED_OPTIONS[0]!.value}
               disabled={isLocked}
               onChange={(e: SelectChangeEvent) => onSpeedChange(e.target.value)}
-              sx={screenThemeSelectSx}
-              MenuProps={screenThemeSelectMenuProps}
+              sx={selectSx}
+              MenuProps={selectMenuProps}
             >
               {VIDEO_SPEED_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value} sx={screenThemeSelectMenuItemSx}>
+                <MenuItem key={o.value} value={o.value} sx={menuItemSx}>
                   {t(o.labelKey)}
                 </MenuItem>
               ))}
@@ -140,7 +145,7 @@ export default function ScreenThemeVideoSettingsPanel({
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", justifyContent: "space-between", mt: 61 }}>
-          <Typography variant="body2" sx={{ color: screenThemeColors.textDark, minWidth: "88px", fontSize: "14px" }}>
+          <Typography variant="body2" sx={{ color: sv.textDark, minWidth: "88px", fontSize: "14px" }}>
             {t("2571")}
           </Typography>
           <Button
@@ -149,7 +154,7 @@ export default function ScreenThemeVideoSettingsPanel({
             disabled={isLocked || isSaving}
             onClick={onRestoreBackground}
             sx={{
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               flexShrink: 0,
               minHeight: "36px",
               width: "172px",

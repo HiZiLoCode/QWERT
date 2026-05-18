@@ -1,4 +1,7 @@
+'use client';
+
 import { ButtonBase, type SxProps, type Theme } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 
 type ToggleSliderProps = {
   checked: boolean;
@@ -20,6 +23,19 @@ export default function ToggleSlider({
   ariaLabel = 'toggle',
   sx,
 }: ToggleSliderProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const P = theme.palette.primary.main;
+  const PDark = theme.palette.primary.dark;
+
+  const trackUnchecked = isDark
+    ? `linear-gradient(180deg, ${alpha('#fff', 0.08)} 0%, ${alpha('#000', 0.45)} 100%)`
+    : 'linear-gradient(180deg, #E6E8EC 0%, #D9DDE2 100%)';
+  const trackChecked = `linear-gradient(180deg, ${alpha(P, 0.98)} 0%, ${PDark} 100%)`;
+
+  const borderUnchecked = isDark ? `1px solid ${alpha('#fff', 0.14)}` : '1px solid transparent';
+  const borderChecked = `1px solid ${alpha(P, 0.85)}`;
+
   return (
     <ButtonBase
       focusRipple={false}
@@ -32,10 +48,8 @@ export default function ToggleSlider({
         width: `${TRACK_W}px`,
         height: `${TRACK_H}px`,
         borderRadius: `${TRACK_H / 2}px`,
-        border: checked ? '1px solid #3B82F6' : '1px solid transparent',
-        background: checked
-          ? 'linear-gradient(180deg, #4D91FF 0%, #3B82F6 100%)'
-          : 'linear-gradient(180deg, #E6E8EC 0%, #D9DDE2 100%)',
+        border: checked ? borderChecked : borderUnchecked,
+        background: checked ? trackChecked : trackUnchecked,
         position: 'relative',
         transition: 'all 0.18s ease',
         opacity: disabled ? 0.45 : 1,
@@ -48,21 +62,21 @@ export default function ToggleSlider({
           width: `${THUMB}px`,
           height: `${THUMB}px`,
           borderRadius: '50%',
-          backgroundColor: checked ? '#FFFFFF' : '#3B82F6',
+          backgroundColor: checked ? '#FFFFFF' : P,
           boxShadow: checked
-            ? '0 1px 2px rgba(15, 23, 42, 0.16)'
-            : '0 1px 2px rgba(59, 130, 246, 0.24)',
+            ? '0 1px 3px rgba(0, 0, 0, 0.35)'
+            : `0 1px 2px ${alpha(P, 0.35)}`,
           transition: 'all 0.2s ease',
         },
         '&:hover': {
-          borderColor: '#3B82F6',
-          boxShadow: checked ? '0 0 0 2px rgba(59, 130, 246, 0.18) inset' : 'none',
+          borderColor: P,
+          boxShadow: checked ? `0 0 0 2px ${alpha(P, 0.25)} inset` : 'none',
           '&::before': {
-            backgroundColor: checked ? '#FFFFFF' : '#3B82F6',
+            backgroundColor: checked ? '#FFFFFF' : P,
           },
         },
         '&:focus-visible': {
-          outline: '2px solid #3B82F6',
+          outline: `2px solid ${P}`,
           outlineOffset: '2px',
         },
         ...sx,
@@ -70,4 +84,3 @@ export default function ToggleSlider({
     />
   );
 }
-

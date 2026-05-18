@@ -11,6 +11,7 @@ export type KeyItemLike = {
     code2: number;
     code3?: number;
     langid?: string;
+    tooltipLangid?: string;
     icon?: string;
 };
 

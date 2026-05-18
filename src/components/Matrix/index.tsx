@@ -2,12 +2,23 @@ import React, { useContext, useEffect, useMemo, useRef, useState, type ChangeEve
 import ColorPicker from "../ColorPicker";
 import { useTranslation } from "react-i18next";
 import { Box, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import { debounce } from "lodash";
 import { FunInfo } from "@/types/types_v1";
 import { ButtonRem, SliderRem } from "@/styled/ReconstructionRem";
 import TravelVirtualKeyboard from "../TravelVirtualKeyboard";
 import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
+import {
+    lightingEffectButtonSx,
+    lightingGroupTitleSx,
+    lightingPanelCardSx,
+    lightingPercentMutedSx,
+    lightingSectionLabelSx,
+    lightingSliderSx,
+    lightingBrightnessInputSx,
+} from "@/constants/lightingPanelChrome";
+import { getComfortableScrollbarSx } from "@/utils/comfortableScrollbarSx";
 
 const rgbToHex = (r: number, g: number, b: number) => {
     const rr = Math.max(0, Math.min(255, r));
@@ -19,6 +30,8 @@ const rgbToHex = (r: number, g: number, b: number) => {
 };
 
 const Matrix = () => {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === "dark";
     const { matrixData, keyboard, keyboardLayout, connectedKeyboard } = useContext(ConnectKbContext);
     const { t } = useTranslation();
 
@@ -190,7 +203,7 @@ const Matrix = () => {
                 </Box>
             </Box>
             <Box sx={{
-                flex: 1, display: 'flex',  gap: '22px', maxWidth: "1800px",
+                flex: 1, display: 'flex',  gap: '16px', maxWidth: "1800px",
                 minWidth: "1200px",
                 maxHeight: "500px",
                 height: '100%',
@@ -201,12 +214,15 @@ const Matrix = () => {
             }}>
                 <Box sx={{
                     width: "550px",
-                    minWidth: "450px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    minWidth: "450px",
+                    ...lightingPanelCardSx(theme),
+                    p: 20,
                     boxSizing: "border-box",
-                    overflow: "auto"
+                    overflow: "auto",
+                    ...getComfortableScrollbarSx(isDark),
                 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, mb: 2 }}>
-                        <Typography sx={{ fontSize: '18px', fontWeight: "500", color: "rgba(100, 116, 139, 1)", mb: 11 }}>{t("1001")}</Typography>
+                        <Typography sx={{ ...lightingGroupTitleSx(theme), mb: 11 }}>{t("1001")}</Typography>
                     </Box>
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: "8px", overflowY: "auto" }}>
                         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", width: "32%", flexBasis: "32%", flexGrow: 0, pt: "5.2px" }}>
@@ -215,17 +231,7 @@ const Matrix = () => {
                                 fullWidth
                                 variant="text"
                                 sx={{
-                                    height: '34px',
-                                    borderRadius: '8px',
-                                    fontSize: '15px',
-                                    textTransform: 'none',
-                                    fontWeight: "500",
-                                    color: (deviceBaseInfo?.matrixScreenLightSize || 0) === LightMode ? '#fff' : '#5f7089',
-                                    backgroundColor: (deviceBaseInfo?.matrixScreenLightSize || 0) === LightMode ? '#3B82F6' : '',
-                                    '&:hover': {
-                                        border: '1px solid #3B82F6',
-                                        boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                                    },
+                                    ...lightingEffectButtonSx(theme, (deviceBaseInfo?.matrixScreenLightSize || 0) === LightMode),
                                 }}
                             >
                                 {t("1675")}
@@ -239,17 +245,7 @@ const Matrix = () => {
                                         fullWidth
                                         variant="text"
                                         sx={{
-                                            height: '34px',
-                                            borderRadius: '8px',
-                                            fontSize: '15px',
-                                            textTransform: 'none',
-                                            fontWeight: "500",
-                                            color: LightMode === item.value ? '#fff' : '#5f7089',
-                                            backgroundColor: LightMode === item.value ? '#3B82F6' : '',
-                                            '&:hover': {
-                                                border: '1px solid #3B82F6',
-                                                boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                                            },
+                                            ...lightingEffectButtonSx(theme, LightMode === item.value),
                                         }}
                                     >
                                         {t(item.lang)}
@@ -261,11 +257,14 @@ const Matrix = () => {
                 </Box>
 
                 <Box sx={{
-                    width: "400px", minWidth: "350px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    width: "400px", minWidth: "350px",
+                    ...lightingPanelCardSx(theme),
+                    p: 20,
                     boxSizing: "border-box",
-                    overflow: "auto"
+                    overflow: "auto",
+                    ...getComfortableScrollbarSx(isDark),
                 }}>
-                    <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1676")}</Typography>
+                    <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t("1676")}</Typography>
                     <Box sx={{ mb: 3 }}>
                         <SliderBlock>
                             <SliderRem
@@ -274,17 +273,7 @@ const Matrix = () => {
                                 max={100}
                                 step={1}
                                 onChange={(_, newValue) => handleBrightnessChange(newValue as number)}
-                                sx={{
-                                    color: '#3B82F6',
-                                    '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
-                                    '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
-                                    '& .MuiSlider-thumb': {
-                                        width: '32px',
-                                        height: '32px',
-                                        border: '4px solid #fff',
-                                        boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                                    },
-                                }}
+                                sx={lightingSliderSx(theme)}
                             />
                             <Box
                                 component="input"
@@ -299,12 +288,12 @@ const Matrix = () => {
                                         e.currentTarget.blur();
                                     }
                                 }}
-                                sx={valueInputSx}
+                                sx={{ ...lightingBrightnessInputSx(theme), ml: 0, marginLeft: "10px" }}
                             />
-                            <Typography sx={{ color: '#94A3B8', fontSize: '20px', fontWeight: 600 }}>%</Typography>
+                            <Typography sx={lightingPercentMutedSx(theme)}>%</Typography>
                         </SliderBlock>
                     </Box>
-                    <Typography sx={{ fontSize: '16px', color: '#5f7089', fontWeight: 700, mb: 8 }}>{t("1677")}</Typography>
+                    <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t("1677")}</Typography>
                     <SliderBlock>
                         <SliderRem
                             value={speedValue}
@@ -312,18 +301,7 @@ const Matrix = () => {
                             max={matrixSpeedMax}
                             step={1}
                             onChange={(_, newValue) => handleSpeedChange(newValue as number)}
-                            sx={{
-                                color: '#3B82F6',
-
-                                '& .MuiSlider-rail': { backgroundColor: '#ECEFF4', opacity: 1, height: '12px', borderRadius: '999px' },
-                                '& .MuiSlider-track': { height: '12px', borderRadius: '999px', border: 'none' },
-                                '& .MuiSlider-thumb': {
-                                    width: '30.4px',
-                                    height: '32px',
-                                    border: '4px solid #fff',
-                                    boxShadow: '0 2px 8px rgba(59,130,246,0.35)',
-                                },
-                            }}
+                            sx={lightingSliderSx(theme, { thumbWidth: 30.4 })}
                         />
                         <Box sx={{ width: '50px', height: '32px' }} />
                         <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
@@ -332,9 +310,12 @@ const Matrix = () => {
 
                 <Box sx={{
                     width: "350px",
-                    minWidth: "350px", borderRadius: '14px', border: '1px solid rgba(153,169,191,0.22)', background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(6px)', p: 20,
+                    minWidth: "350px",
+                    ...lightingPanelCardSx(theme),
+                    p: 20,
                     boxSizing: "border-box",
-                    overflow: "auto"
+                    overflow: "auto",
+                    ...getComfortableScrollbarSx(isDark),
                 }}>
                     <ColorPicker
                         selectColor={selectedColor}
@@ -355,22 +336,5 @@ function SliderBlock({ children }: { children: React.ReactNode }) {
         </Box>
     );
 }
-
-const valueInputSx = {
-    width: '50px',
-    height: '32px',
-    borderRadius: '8px',
-    border: '1px solid #E2E8F0',
-    textAlign: 'center',
-    color: '#64748b',
-    fontSize: '15px',
-    fontWeight: 600,
-    backgroundColor: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    outline: 'none',
-    marginLeft: '10px',
-} as const;
 
 export { Matrix };

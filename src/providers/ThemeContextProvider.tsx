@@ -3,9 +3,11 @@
 import React, { createContext, useState, useMemo, useContext, ReactNode, useEffect } from 'react';
 import { ThemeProvider, Theme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { lightTheme, darkTheme } from './theme';
+import { lightTheme, darkTheme, DARK_APP, LIGHT_APP } from './theme';
 interface ThemeContextType {
   toggleTheme: () => void;
+  /** 直接设为明亮或深色（与切换等价，可幂等） */
+  setThemeMode: (next: 'light' | 'dark') => void;
   mode: 'light' | 'dark';
 }
 
@@ -51,28 +53,43 @@ const ThemeContextProvider: React.FC<ThemeContextProviderProps> = ({ children })
 
   const toggleTheme = () => {
     const newMode = mode === 'light' ? 'dark' : 'light';
+    setThemeModeInternal(newMode);
+  };
+
+  const setThemeMode = (next: 'light' | 'dark') => {
+    if (next === mode) return;
+    setThemeModeInternal(next);
+  };
+
+  const setThemeModeInternal = (newMode: 'light' | 'dark') => {
     setMode(newMode);
+    cachedTheme = newMode;
     if (typeof window !== 'undefined') {
       localStorage.setItem('appTheme', newMode);
     }
   };
+
   const theme: Theme = useMemo(() => (mode === 'light' ? lightTheme : darkTheme), [mode]);
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // localStorage.setItem('appTheme', mode);
-      // 有主题色 建议写成函数调用 
-      document.documentElement.style.setProperty(
-        '--key--color_accent',
-        theme.palette.primary.main,
-      )
-      document.documentElement.style.setProperty(
-        '--key--color_inside-accent',
-        theme.palette.black.main,
-      )
-    }
-  }, [mode]);
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    root.setAttribute('data-app-theme', mode);
+    const app = mode === 'light' ? LIGHT_APP : DARK_APP;
+    root.style.setProperty('--background', app.bgMain);
+    root.style.setProperty('--foreground', app.textPrimary);
+    root.style.setProperty('--surface-panel', app.bgPanel);
+    root.style.setProperty('--surface-elevated', app.bgElevated);
+    root.style.setProperty('--border-default', app.borderDefault);
+    root.style.setProperty('--border-muted', app.borderMuted);
+    root.style.setProperty('--divider', app.divider);
+    root.style.setProperty('--key--color_accent', theme.palette.primary.main);
+    root.style.setProperty(
+      '--key--color_inside-accent',
+      theme.palette.mode === 'dark' ? '#ffffff' : theme.palette.black.main,
+    );
+  }, [mode, theme]);
   return (
-    <ThemeContext.Provider value={{ toggleTheme, mode }}>
+    <ThemeContext.Provider value={{ toggleTheme, setThemeMode, mode }}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}

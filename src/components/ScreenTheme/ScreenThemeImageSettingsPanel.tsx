@@ -2,8 +2,8 @@
 
 import { Box, Button, Divider, Typography } from "@mui/material";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
-import { screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type Props = {
   fileName: string;
@@ -21,6 +21,8 @@ export default function ScreenThemeImageSettingsPanel({
   isLocked = false,
 }: Props) {
   const { t } = useTranslation("common");
+  const sv = useScreenThemeVisual();
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
 
   return (
     <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2, pl: 1 }}>
@@ -33,7 +35,7 @@ export default function ScreenThemeImageSettingsPanel({
           flexWrap: "nowrap",
         }}
       >
-        <Typography variant="caption" sx={{ color: screenThemeColors.textMuted, lineHeight: 1.65, display: "block" }}>
+        <Typography variant="caption" sx={{ color: sv.textMuted, lineHeight: 1.65, display: "block" }}>
           {t("1626")}
         </Typography>
 
@@ -44,7 +46,7 @@ export default function ScreenThemeImageSettingsPanel({
             disabled={isSaving}
             onClick={onSaveToKeyboard}
             sx={{
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               width: "172px",
               height: "36px",
             }}
@@ -54,10 +56,10 @@ export default function ScreenThemeImageSettingsPanel({
         </Box>
       </Box>
 
-      <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
+      <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />
 
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-        <Typography variant="body2" sx={{ color: screenThemeColors.textDark, fontWeight: 400, fontSize: "16px" }}>
+        <Typography variant="body2" sx={{ color: sv.textDark, fontWeight: 400, fontSize: "16px" }}>
           {t("1610")} {fileName}
         </Typography>
         <Button
@@ -66,7 +68,7 @@ export default function ScreenThemeImageSettingsPanel({
           disabled={isLocked}
           onClick={onSelectFile}
           sx={{
-            ...screenThemeOutlinedPillButtonSx,
+            ...outlinedSx,
             flexShrink: 0,
             width: "172px",
             height: "36px",
@@ -78,4 +80,3 @@ export default function ScreenThemeImageSettingsPanel({
     </Box>
   );
 }
-

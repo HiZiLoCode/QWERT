@@ -1,6 +1,7 @@
 "use client";
 
 import { Box } from "@mui/material";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 
 type Props = {
   themeColor: string;
@@ -9,7 +10,8 @@ type Props = {
   statusColor: string;
 };
 
-export default function ScreenThemeThemeColorPreview({ themeColor, dateColor, powerColor, statusColor }: Props) {
+export default function ScreenThemeThemeColorPreview({ themeColor: _themeColor, dateColor, powerColor, statusColor }: Props) {
+  const sv = useScreenThemeVisual();
   return (
     <Box
       sx={{
@@ -17,12 +19,12 @@ export default function ScreenThemeThemeColorPreview({ themeColor, dateColor, po
         width: "400px",
         minHeight: "400px",
         mx: 36,
-        border: "1px solid rgba(59, 130, 246, 1)",
+        border: `1px solid ${sv.primary}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: "13px",
-        background: "rgba(255, 255, 255, 0.6)",
+        background: sv.previewOuterBg,
         boxShadow: "inset 0 2px 4px rgba(0, 0, 0, 0.25)",
       }}
     >

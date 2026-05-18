@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Typography, styled, TextField } from '@mui/material';
+import { Box, Typography, TextField } from '@mui/material';
+import { alpha, useTheme } from '@mui/material/styles';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getKeyCodeFromWebCode } from '@/keyboard/keycode';
 import { ButtonRem } from '@/styled/ReconstructionRem';
@@ -11,25 +12,6 @@ type CombinationKeyBoardProps = {
     onSave: (params: { modifierMask: number; mainKeyCode: number; mainKey: string; combinationText: string }) => void | Promise<void>;
 };
 
-const KeyInput = styled(TextField)({
-    '& .MuiOutlinedInput-root': {
-        height: '40px',
-        fontSize: '14px',
-        '& fieldset': {
-            borderColor: '#ccc',
-        },
-        '&:hover fieldset': {
-            borderColor: '#999',
-        },
-        '&.Mui-focused fieldset': {
-            borderColor: '#1976d2',
-        },
-    },
-    '& .MuiOutlinedInput-input': {
-        padding: '8px 12px',
-    },
-});
-
 const getDisplayKeyFromCode = (code: string) => {
     if (code.startsWith('Key')) return code.slice(3).toUpperCase();
     if (code.startsWith('Digit')) return code.slice(5);
@@ -38,6 +20,9 @@ const getDisplayKeyFromCode = (code: string) => {
 
 export default function CombinationKeyBoard({ disabled, onSave }: CombinationKeyBoardProps) {
     const { t } = useTranslation('common');
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
+
     const [modifierMask, setModifierMask] = useState(0);
     const [mainKey, setMainKey] = useState('');
     const [mainKeyCode, setMainKeyCode] = useState(0);
@@ -53,40 +38,39 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
             { label: `R${t('1720')}`, value: 0x40 },
             { label: `R${t('1719')}`, value: 0x80 },
         ],
-        [t]
+        [t],
     );
 
     useEffect(() => {
-        const input = inputRef.current
-        if (!input) return
+        const input = inputRef.current;
+        if (!input) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Ignore IME composition events (e.g. Chinese Pinyin) to avoid showing "Process".
             if (e.isComposing || e.key === 'Process' || e.keyCode === 229) return;
-            e.preventDefault()
-            e.stopPropagation()
+            e.preventDefault();
+            e.stopPropagation();
 
-            if (['Control', 'Shift', 'Alt', 'Meta', ' '].includes(e.key)) return
-            if (!e.code || e.code === 'Unidentified') return
+            if (['Control', 'Shift', 'Alt', 'Meta', ' '].includes(e.key)) return;
+            if (!e.code || e.code === 'Unidentified') return;
 
-            const key = getKeyCodeFromWebCode("key", e.code)
+            const key = getKeyCodeFromWebCode('key', e.code);
             if (!key) return;
-            setMainKeyCode(key)
-            setMainKey(getDisplayKeyFromCode(e.code))
-        }
+            setMainKeyCode(key);
+            setMainKey(getDisplayKeyFromCode(e.code));
+        };
 
-        input.addEventListener('keydown', handleKeyDown)
-        return () => input.removeEventListener('keydown', handleKeyDown)
-    }, [])
+        input.addEventListener('keydown', handleKeyDown);
+        return () => input.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const activeModifiers = useMemo(
         () => modifierKeys.filter((item) => (modifierMask & item.value) !== 0).map((item) => item.label),
-        [modifierKeys, modifierMask]
+        [modifierKeys, modifierMask],
     );
 
     const combinationText = useMemo(
         () => [...activeModifiers, mainKey].filter(Boolean).join(' + '),
-        [activeModifiers, mainKey]
+        [activeModifiers, mainKey],
     );
 
     return (
@@ -95,12 +79,29 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                 mt: '4px',
                 p: '16px',
                 borderRadius: '14px',
-                border: '1px solid rgba(99, 116, 145, 0.25)',
-                background: 'linear-gradient(160deg, rgba(245,250,255,0.95) 0%, rgba(236,243,255,0.8) 100%)',
-                boxShadow: '0 10px 30px rgba(52, 90, 160, 0.10)',
+                ...(isDark
+                    ? {
+                          border: `1px solid ${theme.palette.primary.main}`,
+                          bgcolor: theme.palette.background.paper,
+                          boxShadow: 'none',
+                      }
+                    : {
+                          border: '1px solid rgba(99, 116, 145, 0.25)',
+                          background: 'linear-gradient(160deg, rgba(245,250,255,0.95) 0%, rgba(236,243,255,0.8) 100%)',
+                          boxShadow: '0 10px 30px rgba(52, 90, 160, 0.10)',
+                      }),
             }}
         >
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, color: '#3a4a63', mb: '12px' }}>{t('1711')}</Typography>
+            <Typography
+                sx={{
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    color: isDark ? theme.palette.text.primary : '#3a4a63',
+                    mb: '12px',
+                }}
+            >
+                {t('1711')}
+            </Typography>
 
             <Box
                 sx={{
@@ -108,9 +109,17 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                     px: '12px',
                     py: '9.6px',
                     borderRadius: '10px',
-                    border: '1px solid rgba(88, 119, 170, 0.25)',
-                    background: 'rgba(255,255,255,0.72)',
-                    color: combinationText ? '#2d3e57' : '#8090a8',
+                    border: isDark
+                        ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                        : '1px solid rgba(88, 119, 170, 0.25)',
+                    background: isDark ? alpha(theme.palette.common.white, 0.04) : 'rgba(255,255,255,0.72)',
+                    color: combinationText
+                        ? isDark
+                            ? theme.palette.text.primary
+                            : '#2d3e57'
+                        : isDark
+                          ? theme.palette.text.secondary
+                          : '#8090a8',
                     minHeight: '44px',
                     display: 'flex',
                     alignItems: 'center',
@@ -135,13 +144,35 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                                 textTransform: 'none',
                                 fontSize: '14px',
                                 fontWeight: 600,
-                                border: '1px solid #cfe0ff',
-                                color: active ? '#2f6fe8' : '#2d4a75',
-                                backgroundColor: active ? '#f2f7ff' : '#ffffff',
-                                boxShadow: active ? '0 0 0 1px #9fc2ff inset' : '0 2px 6px rgba(63, 115, 197, 0.06)',
+                                border: active
+                                    ? `1px solid ${theme.palette.primary.main}`
+                                    : isDark
+                                      ? `1px solid ${alpha(theme.palette.common.white, 0.12)}`
+                                      : '1px solid #cfe0ff',
+                                color: active
+                                    ? isDark
+                                        ? theme.palette.primary.contrastText
+                                        : '#2f6fe8'
+                                    : isDark
+                                      ? theme.palette.text.secondary
+                                      : '#2d4a75',
+                                backgroundColor: active
+                                    ? theme.palette.primary.main
+                                    : isDark
+                                      ? theme.palette.customed1.main
+                                      : '#ffffff',
+                                boxShadow: active
+                                    ? 'none'
+                                    : isDark
+                                      ? 'none'
+                                      : '0 2px 6px rgba(63, 115, 197, 0.06)',
                                 '&:hover': {
-                                    borderColor: '#9fc2ff',
-                                    backgroundColor: '#f7fbff',
+                                    borderColor: theme.palette.primary.main,
+                                    backgroundColor: active
+                                        ? theme.palette.primary.dark
+                                        : isDark
+                                          ? alpha(theme.palette.common.white, 0.08)
+                                          : '#f7fbff',
                                 },
                             }}
                         >
@@ -152,14 +183,34 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
             </Box>
 
             <Box sx={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <KeyInput
-                    id='mainKey'
+                <TextField
+                    id="mainKey"
                     inputRef={inputRef}
                     value={mainKey}
                     placeholder={t('1713')}
                     variant="outlined"
                     size="small"
-                    sx={{ flex: 1 }}
+                    sx={{
+                        flex: 1,
+                        '& .MuiOutlinedInput-root': {
+                            height: '40px',
+                            fontSize: '14px',
+                            bgcolor: isDark ? theme.palette.customed1.main : undefined,
+                            '& fieldset': {
+                                borderColor: isDark ? alpha(theme.palette.common.white, 0.15) : '#ccc',
+                            },
+                            '&:hover fieldset': {
+                                borderColor: isDark ? alpha(theme.palette.common.white, 0.25) : '#999',
+                            },
+                            '&.Mui-focused fieldset': {
+                                borderColor: isDark ? theme.palette.primary.main : '#1976d2',
+                            },
+                        },
+                        '& .MuiOutlinedInput-input': {
+                            padding: '8px 12px',
+                            color: isDark ? theme.palette.text.primary : undefined,
+                        },
+                    }}
                 />
                 <ButtonRem
                     variant="contained"
@@ -177,10 +228,16 @@ export default function CombinationKeyBoard({ disabled, onSave }: CombinationKey
                         fontWeight: 700,
                         fontSize: '14px',
                         color: '#fff',
-                        background: 'linear-gradient(135deg, #3f8cff 0%, #356df0 100%)',
-                        boxShadow: '0 8px 20px rgba(59,130,246,0.25)',
+                        bgcolor: isDark ? theme.palette.primary.main : undefined,
+                        background: isDark
+                            ? theme.palette.primary.main
+                            : 'linear-gradient(135deg, #3f8cff 0%, #356df0 100%)',
+                        boxShadow: isDark ? 'none' : '0 8px 20px rgba(59,130,246,0.25)',
                         '&:hover': {
-                            background: 'linear-gradient(135deg, #337ef0 0%, #2d62de 100%)',
+                            bgcolor: isDark ? theme.palette.primary.dark : undefined,
+                            background: isDark
+                                ? theme.palette.primary.dark
+                                : 'linear-gradient(135deg, #337ef0 0%, #2d62de 100%)',
                         },
                         '&.Mui-disabled': {
                             color: '#fff',

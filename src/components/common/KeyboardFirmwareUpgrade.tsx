@@ -386,7 +386,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
             minHeight: '40px',
           }}
         >
-          <Typography variant="h6" sx={{ fontSize: '20px', fontWeight: 600, textAlign: 'center' }}>
+          <Typography variant="h6" sx={{ fontSize: '18px', fontWeight: 600, textAlign: 'center', color: 'text.primary' }}>
             {t("1259") || "键盘固件升级"}
           </Typography>
           {!upgradeState.isUpgrading && (
@@ -439,38 +439,38 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
                 }}>
                   <Stack sx={{ '& > *:not(:last-child)': { marginBottom: '10px !important' } }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px' }}>
                         {t("1252")} {/* 设备名称 */}
                       </Typography>
-                      <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600 }}>
+                      <Typography sx={{ color: 'text.primary', fontSize: '14px', fontWeight: 600 }}>
                         {keyboard?.deviceName || connectedKeyboard.productName}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
+                      <Typography sx={{ color: 'text.secondary', fontSize: '14px' }}>
                         VID:PID
                       </Typography>
-                      <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace' }}>
+                      <Typography sx={{ color: 'text.primary', fontSize: '14px', fontWeight: 600, fontFamily: 'monospace' }}>
                         {keyboard?.deviceVID?.toString(16).toUpperCase().padStart(4, '0')}:
                         {keyboard?.devicePID?.toString(16).toUpperCase().padStart(4, '0')}
                       </Typography>
                     </Box>
                     {keyboard?.deviceVersion && (
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
+                        <Typography sx={{ color: 'text.secondary', fontSize: '14px' }}>
                           {t("1206")} {/* 当前版本 */}
                         </Typography>
-                        <Typography sx={{ color: 'text.primary', fontSize: '12px', fontWeight: 600 }}>
+                        <Typography sx={{ color: 'text.primary', fontSize: '14px', fontWeight: 600 }}>
                           v{keyboard.deviceVersion}
                         </Typography>
                       </Box>
                     )}
                     {keyboard?.deviceUpgradeVersion && (
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography sx={{ color: 'text.secondary', fontSize: '12px' }}>
+                        <Typography sx={{ color: 'text.secondary', fontSize: '14px' }}>
                           {t("1207")} {/* 升级版本 */}
                         </Typography>
-                        <Typography sx={{ color: primaryColor, fontSize: '13px', fontWeight: 700 }}>
+                        <Typography sx={{ color: primaryColor, fontSize: '14px', fontWeight: 700 }}>
                           v{keyboard.deviceUpgradeVersion}
                         </Typography>
                       </Box>
@@ -489,7 +489,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
                   color: upgradeState.statusType === 'error' ? 'error.main' :
                     upgradeState.statusType === 'warning' ? 'warning.main' :
                       'text.primary',
-                  fontSize: '13px',
+                  fontSize: '14px',
                   fontWeight: 600,
                 }}
               >
@@ -526,7 +526,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
           {upgradeState.error && (
             <Alert severity="error">
               <AlertTitle sx={{ fontSize: '14px' }}>{t("1219")}</AlertTitle>
-              <Typography sx={{ fontSize: '12px' }}>
+              <Typography sx={{ fontSize: '14px', color: 'text.secondary' }}>
                 {upgradeState.error}
               </Typography>
             </Alert>

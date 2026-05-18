@@ -161,7 +161,7 @@ export default function Content() {
     if (loading) onChangeTab("keyboard");
   }, [loading]);
   return (
-    <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative' }}>
+    <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: 'background.default' }}>
       {loading ? <HeroSection /> : <Main />}
       {viewportMask.show ? (
         <Box

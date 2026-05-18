@@ -1,6 +1,57 @@
 import { Box } from '@mui/material';
 import type { CompositeLayoutKey, PatternKey } from './types';
 
+/** 装饰区（旋钮 / 音量条 / 点阵格等）在深色模式下与主键盘稿一致 */
+export type PatternRenderMode = 'light' | 'dark';
+
+function patternTokens(mode: PatternRenderMode) {
+    const isDark = mode === 'dark';
+    if (!isDark) {
+        return {
+            shellBorder: '1px solid rgba(181,187,196,1)',
+            shellBg: 'rgba(240,240,240,1)',
+            shellInset: 'inset 0 1px 0 rgba(255,255,255,0.92)',
+            stroke: 'rgba(181, 187, 196, 1)',
+            panelBg: 'rgba(240, 240, 240, 1)',
+            knobInnerBg: 'linear-gradient(180deg, rgba(250,251,253,0.98) 0%, rgba(228,232,238,0.95) 100%)',
+            knobInnerBorder: '1px solid rgba(181,187,196,0.55)',
+            knobCircleBorder: '1px solid #bfc6d0',
+            knobCircleBg:
+                'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95) 0%, rgba(240,242,246,1) 45%, rgba(220,224,232,1) 100%)',
+            volBarBg: 'rgba(255,255,255,1)',
+            volBarInset: 'inset 0 0.5px 0 rgba(255,255,255,1)',
+            volKeyBg: 'rgba(255,255,255,1)',
+            volKeyColor: '#5f6c80',
+            volKeyBorder: '1px solid rgba(181,187,196,1)',
+            volKeyInset: 'inset 0 1px 0 rgba(255,255,255,0.95)',
+            matrixDot: 'rgba(255, 255, 255, 0.78)',
+            smallCircleBg: 'linear-gradient(180deg, rgba(252,252,253,1) 0%, rgba(236,238,242,1) 100%)',
+            defaultCircleBorder: 'rgba(181,187,196,0.9)',
+        };
+    }
+    return {
+        shellBorder: '1px solid rgba(255,255,255,0.12)',
+        shellBg: 'rgba(15, 15, 15, 1)',
+        shellInset: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+        stroke: 'rgba(255,255,255,0.14)',
+        panelBg: 'rgba(15, 15, 15, 1)',
+        knobInnerBg: 'linear-gradient(180deg, #353538 0%, #242426 100%)',
+        knobInnerBorder: '1px solid rgba(255,255,255,0.12)',
+        knobCircleBorder: '1px solid rgba(255,255,255,0.2)',
+        knobCircleBg:
+            'radial-gradient(circle at 35% 30%, rgba(80,80,84,0.95) 0%, rgba(45,45,48,1) 55%, rgba(28,28,30,1) 100%)',
+        volBarBg: 'rgba(255,255,255,0.22)',
+        volBarInset: 'none',
+        volKeyBg: '#2a2a2d',
+        volKeyColor: 'rgba(255,255,255,0.82)',
+        volKeyBorder: '1px solid rgba(255,255,255,0.12)',
+        volKeyInset: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+        matrixDot: 'rgba(255, 255, 255, 0.36)',
+        smallCircleBg: 'linear-gradient(180deg, #3a3a3e 0%, #28282c 100%)',
+        defaultCircleBorder: 'rgba(255,255,255,0.18)',
+    };
+}
+
 export const DEFAULT_KEY_UNIT_PX = 64;
 export const DEFAULT_KEY_GAP_PX = 2;
 export const BOARD_EDGE_PAD_PX = 6;
@@ -35,8 +86,14 @@ export function getActuationLabel(rawValue: unknown, fallback: number) {
     return value.toFixed(1);
 }
 
-export function getNameColor(colorMode: boolean, bgColor: string | undefined) {
-    if (!colorMode || !bgColor) return '#6f7f96';
+export function getNameColor(
+    colorMode: boolean,
+    bgColor: string | undefined,
+    mode: PatternRenderMode = 'light',
+) {
+    if (!colorMode || !bgColor) {
+        return mode === 'dark' ? 'rgba(255,255,255,0.88)' : '#6f7f96';
+    }
     const hex = bgColor.trim();
     const fullHex = hex.startsWith('#') ? hex.slice(1) : hex;
     if (fullHex.length !== 6) return '#ffffff';
@@ -103,7 +160,14 @@ export function getPatternVisualBoundsPx(pattern: PatternKey, ku: number, kg: nu
     return { right: left + width, bottom: top + height };
 }
 
-export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: number) {
+export function renderPattern(
+    pattern: PatternKey,
+    idx: number,
+    ku: number,
+    kg: number,
+    mode: PatternRenderMode = 'light',
+) {
+    const tk = patternTokens(mode);
     const left = `${(pattern.x ?? 0) * (ku + kg)}px`;
     const top = `${(pattern.y ?? 0) * (ku + kg)}px`;
     const width = `${(pattern.w ?? 1) * ku + ((pattern.w ?? 1) - 1) * kg}px`;
@@ -117,13 +181,13 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
         width,
         height,
         borderRadius: '8px',
-        border: '1px solid rgba(181,187,196,1)',
-        background: 'rgba(240,240,240,1)',
+        border: tk.shellBorder,
+        background: tk.shellBg,
         boxSizing: 'border-box' as const,
         pointerEvents: 'none' as const,
         zIndex: 0,
         overflow: 'hidden' as const,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.92)',
+        boxShadow: tk.shellInset,
     };
 
     if (pattern.type === 'knob') {
@@ -143,25 +207,37 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                             width: '44%',
                             height: '44%',
                             borderRadius: '5px',
-                            background: 'linear-gradient(180deg, rgba(250,251,253,0.98) 0%, rgba(228,232,238,0.95) 100%)',
-                            border: '1px solid rgba(181,187,196,0.55)',
-                            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.85)',
+                            background: tk.knobInnerBg,
+                            border: tk.knobInnerBorder,
+                            boxShadow:
+                                mode === 'dark' ? 'inset 0 1px 0 rgba(255,255,255,0.06)' : 'inset 0 1px 0 rgba(255,255,255,0.85)',
                         }}
                     />
                 )}
-                <Box sx={{ position: 'absolute', left: 0, right: 0, top: `${lineY}%`, height: '1px', background: 'rgba(181,187,196,1)', borderRadius: '3px' }} />
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        top: `${lineY}%`,
+                        height: '1px',
+                        background: tk.stroke,
+                        borderRadius: '3px',
+                    }}
+                />
                 <Box
                     sx={{
                         position: 'absolute',
                         width: `${circleSize}%`,
                         height: `${circleSize}%`,
                         borderRadius: '50%',
-                        border: '1px solid #bfc6d0',
+                        border: tk.knobCircleBorder,
                         left: `${circleLeft}%`,
                         top: `${circleTop}%`,
                         transform: 'translate(-50%, -50%)',
-                        background: 'radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95) 0%, rgba(240,242,246,1) 45%, rgba(220,224,232,1) 100%)',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9)',
+                        background: tk.knobCircleBg,
+                        boxShadow:
+                            mode === 'dark' ? 'inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.9)',
                     }}
                 />
             </Box>
@@ -191,8 +267,8 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                                 minWidth: "11px",
                                 height: '6px',
                                 borderRadius: '3px',
-                                background: 'rgba(255,255,255,1)',
-                                boxShadow: 'inset 0 0.5px 0 rgba(255,255,255,1)',
+                                background: tk.volBarBg,
+                                boxShadow: tk.volBarInset,
                             }}
                         />
                     ))}
@@ -204,20 +280,20 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                             sx={{
                                 flex: 1,
                                 minWidth: 0,
-                                border: '1px solid rgba(181,187,196,1)',
-                                background: 'rgba(255,255,255,1)',
+                                border: tk.volKeyBorder,
+                                background: tk.volKeyBg,
                                 borderRadius: i === 0 ? '4px 0 0 4px' : i === buttons.length - 1 ? '0 4px 4px 0' : '0',
                                 marginLeft: i > 0 ? '-1px' : 0,
                                 position: 'relative',
                                 zIndex: i,
-                                color: '#5f6c80',
+                                color: tk.volKeyColor,
                                 fontSize: 'clamp(7px, 1.1vw, 9px)',
                                 fontWeight: 500,
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 lineHeight: 1,
-                                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95)',
+                                boxShadow: tk.volKeyInset,
                                 height:"20px"
                             }}
                         >
@@ -236,7 +312,10 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                 sx={{
                     ...shellSx,
                     borderRadius: '16px',
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(0,0,0,0.03)',
+                    boxShadow:
+                        mode === 'dark'
+                            ? 'inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.35)'
+                            : 'inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(0,0,0,0.03)',
                 }}
             />
         );
@@ -256,14 +335,14 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
         const totalHPx = hPx + extraTopPx;
         const circleSizePx = legacyRemToPx(getFunctionPanelCircleSizeRem(pattern));
         const circleGapPx = legacyRemToPx(getFunctionPanelCircleGapRem(pattern));
-        const defaultPanelCircleBorderColor = 'rgba(181,187,196,0.9)';
+        const defaultPanelCircleBorderColor = mode === 'dark' ? tk.defaultCircleBorder : 'rgba(181,187,196,0.9)';
         const panelCircleBorderColor = pattern.style?.panelCircleBorderColor ?? defaultPanelCircleBorderColor;
         const panelCircleBorderColors = pattern.style?.panelCircleBorderColors;
         const matrixRows = Math.max(1, pattern.style?.matrixRows ?? 6);
         const matrixCols = Math.max(1, pattern.style?.matrixCols ?? 6);
         const matrixDotGapPx = Math.max(1, legacyRemToPx(Math.max(0.02, pattern.style?.matrixDotGapRem ?? 0.0625)));
-        const panelStroke = 'rgba(181, 187, 196, 1)';
-        const panelBg = 'rgba(240, 240, 240, 1)';
+        const panelStroke = tk.stroke;
+        const panelBg = tk.panelBg;
 
         return (
             <Box
@@ -292,9 +371,10 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                                     width: `${circleSizePx}px`,
                                     height: `${circleSizePx}px`,
                                     borderRadius: '50%',
-                                    background: 'linear-gradient(180deg, rgba(252,252,253,1) 0%, rgba(236,238,242,1) 100%)',
+                                    background: tk.smallCircleBg,
                                     border: `1px solid ${panelCircleBorderColors?.[i] ?? panelCircleBorderColor}`,
-                                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95)',
+                                    boxShadow:
+                                        mode === 'dark' ? 'inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.95)',
                                 }}
                             />
                         ))}
@@ -375,7 +455,7 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
                                         aspectRatio: '1 / 1',
                                         height: '5px',
                                         borderRadius: '2px',
-                                        background: 'rgba(255, 255, 255, 0.6)',
+                                        background: tk.matrixDot,
                                     }}
                                 />
                             ))}
@@ -407,6 +487,21 @@ export function renderPattern(pattern: PatternKey, idx: number, ku: number, kg: 
     }
 
     return (
-        <Box key={key} sx={{ position: 'absolute', left, top, width, height, borderRadius: '8px', border: '1px solid rgba(181,187,196,1)', background: 'rgba(240,240,240,1)', boxSizing: 'border-box', pointerEvents: 'none', zIndex: 0 }} />
+        <Box
+            key={key}
+            sx={{
+                position: 'absolute',
+                left,
+                top,
+                width,
+                height,
+                borderRadius: '8px',
+                border: tk.shellBorder,
+                background: tk.shellBg,
+                boxSizing: 'border-box',
+                pointerEvents: 'none',
+                zIndex: 0,
+            }}
+        />
     );
 }

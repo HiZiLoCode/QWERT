@@ -8,6 +8,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { alpha, useTheme } from "@mui/material/styles";
 
 export type UnifiedConfirmDialogProps = {
   open: boolean;
@@ -32,6 +33,9 @@ export default function UnifiedConfirmDialog({
   onCancel,
   confirmOnly = false,
 }: UnifiedConfirmDialogProps) {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const handleDialogClose = (
     _event: unknown,
     reason: "backdropClick" | "escapeKeyDown" | "closeClick"
@@ -52,24 +56,42 @@ export default function UnifiedConfirmDialog({
       disableEscapeKeyDown={confirmOnly}
       maxWidth="xs"
       fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: "14px",
+          bgcolor: theme.palette.background.paper,
+          ...(isDark
+            ? {
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.45)}`,
+                boxShadow: "0 20px 48px rgba(0,0,0,0.5)",
+              }
+            : {
+                border: "1px solid rgba(15, 23, 42, 0.08)",
+                boxShadow: "0 16px 40px rgba(15, 23, 42, 0.1)",
+              }),
+        },
+      }}
     >
       <DialogTitle
         sx={{
-          pb: 10,
-          fontSize: "16px",
-          fontWeight: 600,
-          color: "#0f172a",
+          pt: '20px',
+          px: '24px',
+          pb: '8px',
+          fontSize: '18px',
+          fontWeight: 700,
+          lineHeight: 1.4,
+          color: isDark ? alpha(theme.palette.common.white, 0.92) : '#0f172a',
         }}
       >
         {title}
       </DialogTitle>
-      <DialogContent sx={{ pt: "6px !important" }}>
+      <DialogContent sx={{ pt: '4px !important', px: '24px !important', pb: '8px !important' }}>
         <Typography
           sx={{
-            fontSize: "15px",
-            color: "#334155",
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
+            fontSize: '15px',
+            color: isDark ? alpha(theme.palette.common.white, 0.72) : '#334155',
+            lineHeight: 1.75,
+            whiteSpace: 'pre-wrap',
           }}
         >
           {content}
@@ -77,11 +99,11 @@ export default function UnifiedConfirmDialog({
       </DialogContent>
       <DialogActions
         sx={{
-          px: 16,
-          pb: 16,
-          pt: 5,
+          px: '24px',
+          pb: '20px',
+          pt: '12px',
           gap: 10,
-          justifyContent: confirmOnly ? "flex-end" : undefined,
+          justifyContent: confirmOnly ? 'flex-end' : undefined,
         }}
       >
         {!confirmOnly ? (
@@ -89,9 +111,17 @@ export default function UnifiedConfirmDialog({
             onClick={onCancel}
             color="inherit"
             sx={{
-              minWidth: "80px",
-              textTransform: "none",
-              borderRadius: "10px",
+              minWidth: '88px',
+              textTransform: 'none',
+              borderRadius: '10px',
+              fontSize: '15px',
+              fontWeight: 500,
+              ...(isDark
+                ? {
+                    color: alpha(theme.palette.common.white, 0.75),
+                    border: `1px solid ${alpha(theme.palette.common.white, 0.2)}`,
+                  }
+                : {}),
             }}
           >
             {cancelText}
@@ -100,10 +130,16 @@ export default function UnifiedConfirmDialog({
         <Button
           onClick={onConfirm}
           variant="contained"
+          color="primary"
           sx={{
-            minWidth: "80px",
-            textTransform: "none",
-            borderRadius: "10px",
+            minWidth: '96px',
+            px: '20px',
+            py: '9px',
+            textTransform: 'none',
+            borderRadius: '10px',
+            fontSize: '16px',
+            fontWeight: 600,
+            lineHeight: 1.35,
           }}
         >
           {confirmText}

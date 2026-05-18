@@ -11,25 +11,28 @@ import {
   type SelectChangeEvent,
   Typography,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
+import { getComfortableScrollbarSx } from "@/utils/comfortableScrollbarSx";
 import { useTranslation } from "@/app/i18n";
-import { screenThemeColors } from "./theme";
-import { screenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
+import { getScreenThemeOutlinedPillButtonSx } from "./screenThemeButtonSx";
 import {
   SCREEN_THEME_SELECT_CORNER,
-  screenThemeSelectMenuItemSx,
-  screenThemeSelectMenuProps,
-  screenThemeSelectSx,
+  getScreenThemeSelectMenuItemSx,
+  getScreenThemeSelectMenuProps,
+  getScreenThemeSelectSx,
 } from "./screenThemeSelectStyles";
+import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
+import type { ScreenThemeVisualColors } from "./theme";
 
 const CHAR_OPTIONS = [
   { value: "cat", labelKey: "2552" },
-  { value: "cat-glasses", labelKey: "2553" },
+  // { value: "cat-glasses", labelKey: "2553" },
 ] as const;
 export type TypingCharacterValue = (typeof CHAR_OPTIONS)[number]["value"];
 
 const TYPING_CHAR_SRC: Record<TypingCharacterValue, string> = {
   cat: "/typing-theme-cat.svg",
-  "cat-glasses": "/typing-theme-cat-glasses.png",
+  // "cat-glasses": "/typing-theme-cat-glasses.png",
 };
 
 function typingCharSrc(value: string): string {
@@ -74,14 +77,15 @@ function TypingPreviewCard({
   caption,
   frameWidth,
   frameHeight,
+  sv,
 }: {
   imageSrc: string;
   caption: string;
   frameWidth: number;
   frameHeight: number;
+  sv: ScreenThemeVisualColors;
 }) {
-  /** 稿图：标题在蓝框上方、左对齐；蓝框为实线圆角饱和蓝边，内为渐变衬底 + 居中预览 */
-  const blueFrame = screenThemeColors.primary;
+  const frameColor = sv.primary;
   const innerPreviewSx = {
     position: "relative" as const,
     width: frameWidth,
@@ -91,7 +95,6 @@ function TypingPreviewCard({
     background: "linear-gradient(165deg, #fff5fb 0%, #f3f7ff 42%, #faf3ff 100%)",
     boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55), inset 0 0 36px rgba(255, 182, 220, 0.1)",
     margin: "34px 95px 34px 128px",
-
   };
 
   return (
@@ -105,14 +108,14 @@ function TypingPreviewCard({
         maxWidth: "100%",
         margin: "0px 43px",
         height: "100%",
-        justifyContent: "space-around"
+        justifyContent: "space-around",
       }}
     >
       <Typography
         sx={{
           fontSize: "18px",
           fontWeight: 400,
-          color: "#5c6470",
+          color: sv.textMuted,
           lineHeight: 1.35,
           letterSpacing: "0.01em",
           alignSelf: "stretch",
@@ -124,10 +127,10 @@ function TypingPreviewCard({
         sx={{
           p: "10px",
           borderRadius: "12px",
-          border: `2px solid ${blueFrame}`,
-          bgcolor: "#fafbfd",
+          border: `2px solid ${frameColor}`,
+          bgcolor: sv.cardBg,
           boxSizing: "border-box",
-          boxShadow: "0 2px 10px rgba(37, 99, 235, 0.08)",
+          boxShadow: `0 2px 10px ${sv.primaryGlow}`,
         }}
       >
         <Box sx={innerPreviewSx}>
@@ -165,6 +168,12 @@ export default function ScreenThemeTypingPanel({
   isLocked = false,
 }: Props) {
   const { t } = useTranslation("common");
+  const theme = useTheme();
+  const sv = useScreenThemeVisual();
+  const outlinedSx = getScreenThemeOutlinedPillButtonSx(sv);
+  const selectSx = getScreenThemeSelectSx(sv);
+  const selectMenuProps = getScreenThemeSelectMenuProps(sv);
+  const menuItemSx = getScreenThemeSelectMenuItemSx(sv);
   const frame = useMemo(() => typingPreviewFramePixels(screenWidth, screenHeight), [screenWidth, screenHeight]);
 
   return (
@@ -180,8 +189,9 @@ export default function ScreenThemeTypingPanel({
         gap: 0,
         boxSizing: "border-box",
         borderRadius: "20px",
-        backgroundColor: screenThemeColors.cardBg,
-        border: "1px solid rgba(181,187,196,0.32)",
+        backgroundColor: sv.cardBg,
+        border: `1px solid ${sv.panelBorder}`,
+        ...getComfortableScrollbarSx(theme.palette.mode === "dark"),
       }}
     >
       <Box
@@ -192,9 +202,6 @@ export default function ScreenThemeTypingPanel({
           alignItems: "center",
           justifyContent: "center",
           gap: 126,
-
-
-
         }}
       >
         <TypingPreviewCard
@@ -203,14 +210,8 @@ export default function ScreenThemeTypingPanel({
           caption={t("2550")}
           frameWidth={frame.width}
           frameHeight={frame.height}
+          sv={sv}
         />
-        {/* <TypingPreviewCard
-          key={`c2-${char2}`}
-          imageSrc={typingCharSrc(char2)}
-          caption={t("2551")}
-          frameWidth={frame.width}
-          frameHeight={frame.height}
-        /> */}
       </Box>
 
       <Divider orientation="vertical" variant="middle" flexItem sx={{ my: 12 }} />
@@ -231,7 +232,7 @@ export default function ScreenThemeTypingPanel({
               component="p"
               sx={{
                 m: 0,
-                color: screenThemeColors.textMuted,
+                color: sv.textMuted,
                 fontSize: "18px",
                 lineHeight: 1.55,
               }}
@@ -244,7 +245,7 @@ export default function ScreenThemeTypingPanel({
               sx={{
                 m: 0,
                 mt: "6px",
-                color: screenThemeColors.textMuted,
+                color: sv.textMuted,
                 fontSize: "18px",
                 lineHeight: 1.55,
               }}
@@ -258,7 +259,7 @@ export default function ScreenThemeTypingPanel({
             disabled={isSaving || isLocked || !onSaveToKeyboard}
             onClick={() => void onSaveToKeyboard?.()}
             sx={{
-              ...screenThemeOutlinedPillButtonSx,
+              ...outlinedSx,
               flexShrink: 0,
               px: 2.5,
               py: 0.75,
@@ -270,13 +271,13 @@ export default function ScreenThemeTypingPanel({
           </Button>
         </Box>
 
-        <Divider sx={{ borderColor: screenThemeColors.borderLight, mt: 19, mb: 36 }} />
+        <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 61 }}>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
             <Typography
               variant="body2"
-              sx={{ color: screenThemeColors.textDark, fontWeight: 500, fontSize: "18px", minWidth: "72px" }}
+              sx={{ color: sv.textDark, fontWeight: 500, fontSize: "18px", minWidth: "72px" }}
             >
               {t("2550")}：
             </Typography>
@@ -285,11 +286,11 @@ export default function ScreenThemeTypingPanel({
                 value={char1}
                 disabled={isLocked}
                 onChange={(e: SelectChangeEvent) => onChar1Change(e.target.value as TypingCharacterValue)}
-                sx={screenThemeSelectSx}
-                MenuProps={screenThemeSelectMenuProps}
+                sx={selectSx}
+                MenuProps={selectMenuProps}
               >
                 {CHAR_OPTIONS.map((o) => (
-                  <MenuItem key={o.value} value={o.value} sx={screenThemeSelectMenuItemSx}>
+                  <MenuItem key={o.value} value={o.value} sx={menuItemSx}>
                     {t(o.labelKey)}
                   </MenuItem>
                 ))}
@@ -300,7 +301,7 @@ export default function ScreenThemeTypingPanel({
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
             <Typography
               variant="body2"
-              sx={{ color: screenThemeColors.textDark, fontWeight: 400, fontSize: "18px", minWidth: "72px" }}
+              sx={{ color: sv.textDark, fontWeight: 400, fontSize: "18px", minWidth: "72px" }}
             >
               {t("2551")}：
             </Typography>
@@ -317,9 +318,9 @@ export default function ScreenThemeTypingPanel({
                 borderRadius: SCREEN_THEME_SELECT_CORNER,
                 fontSize: "14px",
                 fontWeight: 500,
-                color: screenThemeColors.textMuted,
-                bgcolor: "#ffffff",
-                border: `1px solid ${screenThemeColors.borderLight}`,
+                color: sv.textMuted,
+                bgcolor: sv.selectBg,
+                border: `1px solid ${sv.borderLight}`,
                 userSelect: "none",
               }}
               aria-disabled
