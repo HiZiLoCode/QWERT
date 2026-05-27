@@ -17,6 +17,9 @@ const KEYBOARD_IMG = '/screen-auth-keyboard-source.png';
 /** 与 `screen-auth-keyboard-source.png` 像素尺寸一致（避免 flex 挤压导致「看起来没变」） */
 const KEYBOARD_W = 751;
 const KEYBOARD_H = 466;
+const SCREEN_PREVIEW_IMG = '/youbian.png';
+const SCREEN_PREVIEW_W = 244;
+const SCREEN_PREVIEW_H = 466;
 
 type HomePageProps = {
     onAuthorized?: () => void;
@@ -177,35 +180,35 @@ export default function HomePage({ onAuthorized }: HomePageProps) {
 
                     <Box
                         sx={{
-                            position: 'relative',
                             flexShrink: 0,
-                            width: '244px',
-                            height: '466px',
+                            width: `${SCREEN_PREVIEW_W}px`,
+                            height: `${SCREEN_PREVIEW_H}px`,
                             borderRadius: '22px',
                             overflow: 'hidden',
                             ...(isDark
                                 ? {
                                       border: `1px solid ${alpha(theme.palette.common.white, 0.14)}`,
                                       boxShadow: `0 12px 40px ${alpha('#000', 0.5)}`,
-                                      background:
-                                          'linear-gradient(145deg, #4a6bb8 0%, #2d3340 32%, #8b5348 55%, #1e1e24 72%, #3d5588 100%)',
                                   }
                                 : {
                                       border: '1px solid rgba(255, 255, 255, 0.95)',
                                       boxShadow: '0 10px 36px rgba(100, 116, 139, 0.2)',
-                                      background:
-                                          'linear-gradient(145deg, #6B93F0 0%, #E8ECF4 28%, #F6A08E 52%, #FDFDFE 68%, #5A82E8 100%)',
                                   }),
                         }}
                     >
                         <Box
+                            component="img"
+                            src={SCREEN_PREVIEW_IMG}
+                            alt=""
+                            aria-hidden
+                            width={SCREEN_PREVIEW_W}
+                            height={SCREEN_PREVIEW_H}
                             sx={{
-                                position: 'absolute',
-                                inset: 0,
-                                opacity: isDark ? 0.32 : 0.38,
-                                backgroundImage:
-                                    'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-                                mixBlendMode: isDark ? 'soft-light' : 'overlay',
+                                width: `${SCREEN_PREVIEW_W}px`,
+                                height: `${SCREEN_PREVIEW_H}px`,
+                                display: 'block',
+                                objectFit: 'cover',
+                                userSelect: 'none',
                                 pointerEvents: 'none',
                             }}
                         />

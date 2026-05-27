@@ -29,16 +29,17 @@ import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import {
     findFirmwareRelease,
     getScreenFirmwareReleasesForDevice,
+    pickFirmwareReleaseChanges,
     type FirmwareRelease,
 } from '@/config/firmwareChangelog';
 import type { KeyboardDevice } from '@/devices/KeyboardDevice';
 import { connectScreenLcdWebHid } from '@/lib/screenLcdWebHidConnect';
 import { notifyFirmwareUpdateAfterScreenConnect } from '@/utils/postScreenConnectFirmwareHint';
 import type { ConnectScreenHidResult, FilterDevice } from '@/types/types';
+import { getHiddenScrollbarSx } from '@/utils/comfortableScrollbarSx';
 
 function pickChanges(release: FirmwareRelease, lang: string): string[] {
-    if (lang.startsWith('en')) return release.changes.en.length ? release.changes.en : release.changes.zh;
-    return release.changes.zh.length ? release.changes.zh : release.changes.en;
+    return pickFirmwareReleaseChanges(release.changes, lang);
 }
 
 export type ScreenFirmwareChangelogSectionProps = {
@@ -367,7 +368,7 @@ export default function ScreenFirmwareChangelogSection({
                 PaperProps={{ sx: { borderRadius: '12px' } }}
             >
                 <DialogTitle sx={{ ...getSettingsRowTitleSx(theme), pb: 10 }}>{t('2842')}</DialogTitle>
-                <DialogContent dividers sx={{ maxHeight: '50vh' }}>
+                <DialogContent dividers sx={{ maxHeight: '50vh', ...getHiddenScrollbarSx() }}>
                     {releases.map((release) => {
                         const items = pickChanges(release, lang);
                         const isCurrent = release.version.toUpperCase() === deviceVersion.trim().toUpperCase();

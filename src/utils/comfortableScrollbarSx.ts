@@ -1,6 +1,23 @@
 import type { SxProps, Theme } from "@mui/material/styles";
 
 /**
+ * 隐藏滚动条，仍可用滚轮/触控板/触摸滑动；用于版本历史等弹窗列表。
+ */
+export function getHiddenScrollbarSx(): SxProps<Theme> {
+  return {
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+    scrollbarWidth: "none",
+    msOverflowStyle: "none",
+    "&::-webkit-scrollbar": {
+      display: "none",
+      width: 0,
+      height: 0,
+    },
+  };
+}
+
+/**
  * 加宽 WebKit 滚动条、配 Firefox scrollbar-color，避免系统「极细条」难拖。
  * 用于设置侧栏、屏幕主题工作区等纵向滚动容器。
  */

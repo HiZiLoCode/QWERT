@@ -31,6 +31,10 @@ import type { WebHidDevice } from "../types/types";
 import _ from "lodash";
 import { hexToRgb } from "@mui/material";
 import { CMD_V2, CMD_V1, CMD_V3 } from "./cmdVersions";
+import {
+  checkWebHIDSupport,
+  WEBHID_RECOMMENDED_BROWSERS,
+} from "@/utils/checkWebHIDSupport";
 
 export const shiftTo24Bit = ([lo, mid, hi]: [number, number, number]): number =>
   (hi << 16) | (mid << 8) | lo;
@@ -44,43 +48,12 @@ export const shiftFrom24Bit = (value: number): [number, number, number] => [
 /** V2 功能区：0x3059 为 76 字节有效载荷（含 LCD tail + NumLockMode 等），与标准 59 字节 V2 区分 */
 const PID_FUNCINFO_V2_LAYOUT_71 = 0x3059;
 
-// WebHID 支持检测接口
-interface BrowserSupport {
-  isSupported: boolean;
-  browserName: string;
-  recommendedBrowser: string;
-}
 interface lightSpeed {
   lightMaxSpeed: number,
   logoLightMaxSpeed: number,
   sideLightMaxSpeed: number,
   matrixScreenLightMaxSpeed?: number
 }
-/**
- * 检查浏览器是否支持 WebHID
- * @returns BrowserSupport 对象
- */
-const checkWebHIDSupport = (): BrowserSupport => {
-  // 检测当前浏览器
-  const getBrowser = (): string => {
-    const userAgent = navigator.userAgent;
-    if (userAgent.indexOf("Chrome") > -1) return "Chrome";
-    if (userAgent.indexOf("Firefox") > -1) return "Firefox";
-    if (userAgent.indexOf("Safari") > -1) return "Safari";
-    if (userAgent.indexOf("Edge") > -1) return "Edge";
-    return "Unknown";
-  };
-
-  const browserName = getBrowser();
-  const isSupported = "hid" in navigator;
-
-  return {
-    isSupported,
-    browserName,
-    recommendedBrowser: "Chrome 89+ 或 Edge 89+",
-  };
-};
-
 /**
  * 连接HID设备
  * @param mode 连接模式
@@ -95,7 +68,7 @@ export const connectHID = async (
   const support = checkWebHIDSupport();
 
   if (!support.isSupported) {
-    const errorMessage = `您的浏览器 (${support.browserName}) 不支持 WebHID。\n请使用 ${support.recommendedBrowser} 访问。`;
+    const errorMessage = `您的浏览器 (${support.browserName}) 不支持 WebHID。\n请使用 ${WEBHID_RECOMMENDED_BROWSERS} 访问。`;
     throw new Error(errorMessage);
   }
 
@@ -152,7 +125,7 @@ export class KeyboardDevice {
     const support = checkWebHIDSupport();
     if (!support.isSupported) {
       throw new Error(
-        `您的浏览器 (${support.browserName}) 不支持 WebHID。\n请使用 ${support.recommendedBrowser} 访问。`
+        `您的浏览器 (${support.browserName}) 不支持 WebHID。\n请使用 ${WEBHID_RECOMMENDED_BROWSERS} 访问。`
       );
     }
 

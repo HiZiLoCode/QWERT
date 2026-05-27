@@ -7,6 +7,7 @@ import { EditorContext } from '@/providers/EditorProvider';
 import { useContext, useState } from 'react';
 import packageInfo from '../../package.json';
 import { languages } from '@/app/i18n/setting';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 
 /** 与 ticktype0407CodeNew `configure/side/sidebar.tsx`、`common/menu.tsx`、`Lang.tsx` 对齐（本文件使用 px） */
 const SIDE = {
@@ -167,8 +168,7 @@ export default function Sidebar() {
                         justifyContent: 'center',
                     }}
                 >
-                    <Box
-                        component="img"
+                    <PublicAssetImage
                         src="/QKlogo.png.svg"
                         alt="Logo"
                         sx={{
@@ -247,8 +247,7 @@ export default function Sidebar() {
                                     },
                                 }}
                             >
-                                <Box
-                                    component="img"
+                                <PublicAssetImage
                                     src={SIDEBAR_MENU_ICON_SRC[item.id]}
                                     alt=""
                                     aria-hidden

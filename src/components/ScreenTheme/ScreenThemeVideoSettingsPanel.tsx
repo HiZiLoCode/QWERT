@@ -57,7 +57,7 @@ export default function ScreenThemeVideoSettingsPanel({
             sx={{
               m: 0,
               color: sv.textMuted,
-              fontSize: "12px",
+              fontSize: "16px",
               lineHeight: 1.55,
             }}
           >
@@ -70,7 +70,7 @@ export default function ScreenThemeVideoSettingsPanel({
               m: 0,
               mt: "6px",
               color: sv.textMuted,
-              fontSize: "12px",
+              fontSize: "16px",
               lineHeight: 1.55,
             }}
           >

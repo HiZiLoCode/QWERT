@@ -9,6 +9,7 @@ import customKeys from '@/data/customkeys.json';
 import { useTranslation } from '@/app/i18n';
 import { alpha, useTheme } from '@mui/material/styles';
 import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 
 const iconPathToNameMap: Record<string, string> = (customKeys as any[])
     .flatMap((group) => group?.keycodes ?? [])
@@ -240,8 +241,7 @@ export default function KeyboardKeys({
                                     mb: showActuation ? '4px' : 0,
                                 }}
                             >
-                                <Box
-                                    component="img"
+                                <PublicAssetImage
                                     src={keyDisplay.trim()}
                                     alt={keyName || keyDisplay}
                                     sx={{

@@ -1,6 +1,21 @@
 import { HidDeivce } from "./WebHid";
 
-type CommandQueueArgs = ['send' | 'get' | 'send_report', Array<number>] | (() => Promise<void>);
+/** 0x19 传图：只 OUT 不等 IN（设备仍会回显，由每包前清缓冲丢弃） */
+const LCD_WRITE19_OUT_ONLY_NO_WAIT_IN = true;
+
+export type LcdStreamWrite19Opts = {
+  data: Uint8Array;
+  baseAddress: number;
+  islandMode: 0 | 1;
+  onPacket?: (transferred: number, total: number) => void;
+};
+
+type CommandQueueArgs =
+  | ['send' | 'get' | 'send_report', Array<number>]
+  | ['bulk19', number[][]]
+  | ['stream19', LcdStreamWrite19Opts]
+  | (() => Promise<void>);
+
 type CommandQueueEntry = {
   res: (val?: any) => void;
   rej: (error?: any) => void;
@@ -110,6 +125,38 @@ export class LCDScreenAPI {
       }
     });
   }
+
+  /** 0x19 批量写 FLASH：只 OUT，单队列项内连发多包 */
+  async sendBulkWrite19Packets(packets: number[][]): Promise<void> {
+    if (!packets.length) return;
+    if (this.test) return;
+    return new Promise((res, rej) => {
+      this.commandQueueWrapper.commandQueue.push({
+        res,
+        rej,
+        args: ['bulk19', packets],
+      });
+      if (!this.commandQueueWrapper.isFlushing) {
+        this.flushQueue();
+      }
+    });
+  }
+
+  /** 0x19 整段传图：单队列项、一次 HID 锁、复用缓冲（最快路径） */
+  async streamWrite19Payload(opts: LcdStreamWrite19Opts): Promise<void> {
+    if (!opts.data.length) return;
+    if (this.test) return;
+    return new Promise((res, rej) => {
+      this.commandQueueWrapper.commandQueue.push({
+        res,
+        rej,
+        args: ['stream19', opts],
+      });
+      if (!this.commandQueueWrapper.isFlushing) {
+        this.flushQueue();
+      }
+    });
+  }
   
   async flushQueue() {
     if (this.commandQueueWrapper.isFlushing === true) {
@@ -130,6 +177,22 @@ export class LCDScreenAPI {
           res(ans)
         } catch (error) {
          rej(error) 
+        }
+
+      } else if (args[0] === 'bulk19') {
+        try {
+          await this.webhid_write19_burst(args[1]);
+          res(undefined);
+        } catch (e: any) {
+          rej(e);
+        }
+
+      } else if (args[0] === 'stream19') {
+        try {
+          await this.webhid_stream_write19(args[1]);
+          res(undefined);
+        } catch (e: any) {
+          rej(e);
         }
 
       } else {
@@ -196,36 +259,105 @@ export class LCDScreenAPI {
     this.clearOtaStaleBuffers();
   }
 
-  async webhid_read_command(sinceTime = 0): Promise<Uint8Array> {
-    return this.getHID().readP(sinceTime);
+  async webhid_read_command(sinceTime = 0, timeoutMs = 10000): Promise<Uint8Array> {
+    return this.getHID().readPWithTimeout(sinceTime, timeoutMs);
   }
   // 通过WebHID发送数据到键盘
+  private packLcd19OutPayload(bytes: number[]): { reportId: number; payload: Uint8Array } {
+    const commandBytes = [...bytes];
+    const paddedArray = new Array(Math.max(33, commandBytes.length)).fill(0);
+    commandBytes.forEach((val, idx) => {
+      paddedArray[idx] = val;
+    });
+    return {
+      reportId: paddedArray[0] ?? 0,
+      payload: new Uint8Array(paddedArray.slice(1)),
+    };
+  }
+
+  async webhid_stream_write19(opts: LcdStreamWrite19Opts): Promise<void> {
+    if (!LCD_WRITE19_OUT_ONLY_NO_WAIT_IN) {
+      const step = 56;
+      let addr = opts.baseAddress;
+      for (let i = 0; i < opts.data.length; i += step) {
+        const n = Math.min(step, opts.data.length - i);
+        const buf = new Uint8Array(65);
+        buf[1] = 0xaa;
+        buf[2] = 0x19;
+        buf[3] = addr & 0xff;
+        buf[4] = (addr >> 8) & 0xff;
+        buf[5] = (addr >> 16) & 0xff;
+        buf[6] = n;
+        buf[7] = opts.islandMode;
+        buf.set(opts.data.subarray(i, i + n), 9);
+        await this.webhid_write_command(Array.from(buf));
+        addr += n;
+      }
+      opts.onPacket?.(opts.data.length, opts.data.length);
+      return;
+    }
+    await this.getHID().writeLcd19PayloadFast(
+      0,
+      opts.data,
+      opts.baseAddress,
+      opts.islandMode,
+      56,
+      opts.onPacket,
+      128,
+    );
+  }
+
+  async webhid_write19_burst(packets: number[][]): Promise<void> {
+    if (!LCD_WRITE19_OUT_ONLY_NO_WAIT_IN) {
+      for (const bytes of packets) {
+        await this.webhid_write_command(bytes);
+      }
+      return;
+    }
+    const hid = this.getHID();
+    const payloads = packets.map((b) => this.packLcd19OutPayload(b).payload);
+    const reportId = this.packLcd19OutPayload(packets[0]!).reportId;
+    hid.beginBulkWrite19();
+    try {
+      await hid.writeReportsOutOnlyBurst(reportId, payloads);
+    } finally {
+      hid.endBulkWrite19();
+    }
+  }
+
   async webhid_write_command(
     bytes: Array<number> = []
   ): Promise<any> {
     const commandBytes = [...bytes];
-    const paddedArray = new Array(33).fill(0);
-    commandBytes.forEach((val, idx) => {
-      paddedArray[idx] = val;
-    });
+    const isBulkWrite19 = commandBytes[1] === 0xaa && commandBytes[2] === 0x19;
+    let buffer: number[];
 
-    const commandTime = Date.now();
-    try {
+    if (isBulkWrite19) {
+      const { reportId, payload } = this.packLcd19OutPayload(commandBytes);
+      if (LCD_WRITE19_OUT_ONLY_NO_WAIT_IN) {
+        await this.getHID().writeReportOutOnly(reportId, payload);
+        buffer = [...commandBytes];
+      } else {
+        buffer = Array.from(
+          await this.getHID().writeReportAndWaitInput(reportId, payload, 3000),
+        );
+      }
+    } else {
+      const paddedArray = new Array(Math.max(33, commandBytes.length)).fill(0);
+      commandBytes.forEach((val, idx) => {
+        paddedArray[idx] = val;
+      });
+      const commandMark = Date.now();
       await this.getHID().hid_write(paddedArray);
-    } catch (error) {
-        console.log(error)
+      const readSince = Math.max(0, commandMark - 100);
+      buffer = Array.from(await this.webhid_read_command(readSince, 10000));
+      console.debug(
+        `Command for ${this.address}`,
+        commandBytes,
+        "Correct Resp:",
+        buffer
+      );
     }
-
-    // console.log("webhid_write_command", paddedArray);
-    const buffer = Array.from(await this.webhid_read_command(commandTime));
-    // console.log("webhid_read_command", buffer);
-    
-    console.debug(
-      `Command for ${this.address}`,
-      commandBytes,
-      "Correct Resp:",
-      buffer
-    );
     return buffer;
   }
 

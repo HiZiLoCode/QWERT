@@ -1846,148 +1846,214 @@
                 "icon": "/KeyType/custom_batt_status.svg"
             },
             {
-                "name": "6K/NK Toggle",
-                "code": "NK_TOGGLE",
+                "name": "BATT_NUM",
+                "code": "BATT_NUM",
                 "type": 80,
                 "code1": 58,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_six_nch.svg"
+                "langid": "90058",
+                "icon": "/KeyType/custom_batt_status.svg"
             },
             {
-                "name": "MAC/Win Toggle",
-                "code": "MACWIN_TOGGLE",
+                "name": "KYE_SIX_N_CH",
+                "code": "KYE_SIX_N_CH",
                 "type": 80,
                 "code1": 59,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_macwin_toggle.svg"
+                "langid": "90059",
+                "icon": "/KeyType/custom_kye_six_nch.svg"
             },
             {
-                "name": "Win Lock Toggle",
-                "code": "WIN_LOCK_TOGGLE",
+                "name": "KYE_MAC_WIN_CH",
+                "code": "KYE_MAC_WIN_CH",
                 "type": 80,
                 "code1": 60,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_win_lock_set.svg"
+                "langid": "90060",
+                "icon": "/KeyType/custom_kye_macwin_toggle.svg"
             },
             {
-                "name": "WASD Toggle",
-                "code": "WASD_TOGGLE",
+                "name": "KYE_WIN_LOCK_SET",
+                "code": "KYE_WIN_LOCK_SET",
                 "type": 80,
                 "code1": 61,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_wasd_toggle.svg"
+                "langid": "90061",
+                "icon": "/KeyType/custom_kye_win_lock_set.svg"
             },
             {
-                "name": "Key Delay Toggle",
-                "code": "KEY_DELAY_TOGGLE",
+                "name": "KYE_WASD_SET",
+                "code": "KYE_WASD_SET",
                 "type": 80,
                 "code1": 62,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_key_delay_toggle.svg"
+                "langid": "90062",
+                "icon": "/KeyType/custom_kye_wasd_toggle.svg"
             },
             {
-                "name": "F-Row Mode Toggle",
-                "code": "FROW_MODE_TOGGLE",
+                "name": "KYE_SCAK_DELAY_SET",
+                "code": "KYE_SCAK_DELAY_SET",
                 "type": 80,
                 "code1": 63,
                 "code2": 0,
                 "code3": 0,
-                "icon": "/KeyType/custom_kye_frow_mode_toggle.svg"
+                "langid": "90063",
+                "icon": "/KeyType/custom_kye_key_delay_toggle.svg"
             },
             {
-                "name": "Wheel Function Toggle",
-                "code": "WHEEL_FUNCTION_TOGGLE",
+                "name": "KYE_F_CHANGE_SET",
+                "code": "KYE_F_CHANGE_SET",
                 "type": 80,
                 "code1": 64,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🎡"
+                "langid": "90064",
+                "icon": "/KeyType/custom_kye_frow_mode_toggle.svg"
             },
             {
-                "name": "All Power Toggle",
-                "code": "ALL_POWER_TOGGLE",
+                "name": "WHEEL_FUCN_SET",
+                "code": "WHEEL_FUCN_SET",
                 "type": 80,
                 "code1": 65,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⚡"
+                "langid": "90065",
+                "icon": "🎡"
             },
             {
-                "name": "LCD Power Toggle",
-                "code": "LCD_POWER_TOGGLE",
+                "name": "KYE_TEST_LED_SET",
+                "code": "KYE_TEST_LED_SET",
                 "type": 80,
                 "code1": 66,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📺🔌"
+                "langid": "90066",
+                "icon": "/KeyType/custom_test_led_set.svg"
             },
             {
-                "name": "LCD Mode Toggle",
-                "code": "LCD_MODE_TOGGLE",
+                "name": "KEY_ALL_POWER_SET",
+                "code": "KEY_ALL_POWER_SET",
                 "type": 80,
                 "code1": 67,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📺⚙️"
+                "langid": "90067",
+                "icon": "⚡"
             },
             {
-                "name": "LCD GIF Mode Toggle",
-                "code": "LCD_GIF_MODE_TOGGLE",
+                "name": "LCD_POWER_SET",
+                "code": "LCD_POWER_SET",
                 "type": 80,
                 "code1": 68,
                 "code2": 0,
                 "code3": 0,
-                "icon": "🎞️"
+                "langid": "90068",
+                "icon": "/KeyType/custom_lcd_power.svg"
             },
             {
-                "name": "LCD USB Toggle",
-                "code": "LCD_USB_TOGGLE",
+                "name": "LCD_MODE_SET",
+                "code": "LCD_MODE_SET",
                 "type": 80,
                 "code1": 69,
                 "code2": 0,
                 "code3": 0,
-                "icon": "📺🔌"
+                "langid": "90069",
+                "icon": "📺⚙️"
             },
             {
-                "name": "Wheel Left",
-                "code": "WHEEL_LEFT",
+                "name": "LCD_GIF_MODE_SET",
+                "code": "LCD_GIF_MODE_SET",
                 "type": 80,
                 "code1": 70,
                 "code2": 0,
                 "code3": 0,
-                "icon": "⬅️🎡"
+                "langid": "90070",
+                "icon": "🎞️"
             },
             {
-                "name": "Wheel Right",
-                "code": "WHEEL_RIGHT",
+                "name": "LCD_USB_SET",
+                "code": "LCD_USB_SET",
                 "type": 80,
                 "code1": 71,
                 "code2": 0,
                 "code3": 0,
-                "icon": "➡️🎡"
+                "langid": "90071",
+                "icon": "📺🔌"
             },
             {
-                "name": "Wheel Confirm",
-                "code": "WHEEL_CONFIRM",
+                "name": "LCD_ISLAND_SET",
+                "code": "LCD_ISLAND_SET",
                 "type": 80,
                 "code1": 72,
                 "code2": 0,
                 "code3": 0,
-                "icon": "✔️🎡"
+                "langid": "90072",
+                "icon": "🏝️"
             },
             {
-                "name": "Test Mode",
-                "code": "TEST_MODE",
+                "name": "WHEEL_LEFT_SET",
+                "code": "WHEEL_LEFT_SET",
                 "type": 80,
                 "code1": 73,
                 "code2": 0,
                 "code3": 0,
+                "langid": "90073",
+                "icon": "⬅️🎡"
+            },
+            {
+                "name": "WHEEL_RIGHT_SET",
+                "code": "WHEEL_RIGHT_SET",
+                "type": 80,
+                "code1": 74,
+                "code2": 0,
+                "code3": 0,
+                "langid": "90074",
+                "icon": "➡️🎡"
+            },
+            {
+                "name": "WHEEL_DOWN_SET",
+                "code": "WHEEL_DOWN_SET",
+                "type": 80,
+                "code1": 75,
+                "code2": 0,
+                "code3": 0,
+                "langid": "90075",
+                "icon": "✔️🎡"
+            },
+            {
+                "name": "KYE_TEST_SET",
+                "code": "KYE_TEST_SET",
+                "type": 80,
+                "code1": 76,
+                "code2": 0,
+                "code3": 0,
+                "langid": "90076",
                 "icon": "🧪"
+            },
+            {
+                "name": "BL_LIGHT_MOD",
+                "code": "BL_LIGHT_MOD",
+                "type": 80,
+                "code1": 77,
+                "code2": 0,
+                "code3": 0,
+                "langid": "90077",
+                "icon": "/KeyType/custom_bl_tog.svg"
+            },
+            {
+                "name": "WWW_DRIVE",
+                "code": "WWW_DRIVE",
+                "type": 80,
+                "code1": 78,
+                "code2": 0,
+                "code3": 0,
+                "langid": "90078",
+                "icon": "/KeyType/custom_www_drive.svg"
             }
         ]
     },
@@ -3060,37 +3126,130 @@
         "label": "CustomUiLayout",
         "width": "label",
         "keycodes": [
-            { "uiKind": "section", "sectionTitleKey": "7731" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_TOGGLE" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_MODE_MINUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_MODE_PLUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_SPEED_MINUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_SPEED_PLUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_HUE_MINUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_HUE_PLUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_BRIGHT_MINUS" },
-            { "uiKind": "ref", "refCode": "LOGO_LIGHT_BRIGHT_PLUS" },
-            { "uiKind": "section", "sectionTitleKey": "7732" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_TOGGLE" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_MODE_MINUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_MODE_PLUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_SPEED_MINUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_SPEED_PLUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_HUE_MINUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_HUE_PLUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_BRIGHT_MINUS" },
-            { "uiKind": "ref", "refCode": "MATRIX_LIGHT_BRIGHT_PLUS" },
-            { "uiKind": "section", "sectionTitleKey": "7733" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_TOGGLE" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_MODE_PLUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_MODE_MINUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_HUE_PLUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_HUE_MINUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_BRIGHT_PLUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_BRIGHT_MINUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_SPEED_PLUS" },
-            { "uiKind": "ref", "refCode": "KEY_LIGHT_SPEED_MINUS" },
-            { "uiKind": "ref", "refCode": "CUSTOM_LIGHT_1" }
+            {
+                "uiKind": "section",
+                "sectionTitleKey": "7731"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_TOGGLE"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_MODE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_MODE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_SPEED_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_SPEED_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_HUE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_HUE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_BRIGHT_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LOGO_LIGHT_BRIGHT_PLUS"
+            },
+            {
+                "uiKind": "section",
+                "sectionTitleKey": "7732"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_TOGGLE"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_MODE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_MODE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_SPEED_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_SPEED_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_HUE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_HUE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_BRIGHT_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MATRIX_LIGHT_BRIGHT_PLUS"
+            },
+            {
+                "uiKind": "section",
+                "sectionTitleKey": "7733"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_TOGGLE"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_MODE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_MODE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_HUE_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_HUE_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_BRIGHT_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_BRIGHT_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_SPEED_PLUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KEY_LIGHT_SPEED_MINUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CUSTOM_LIGHT_1"
+            }
         ]
     },
     {
@@ -3098,32 +3257,123 @@
         "label": "ShortcutUiLayout",
         "width": "label",
         "keycodes": [
-            { "uiKind": "section", "sectionTitleKey": "103" },
-            { "uiKind": "ref", "refCode": "CTRL_A" },
-            { "uiKind": "ref", "refCode": "CTRL_C" },
-            { "uiKind": "ref", "refCode": "CTRL_V" },
-            { "uiKind": "ref", "refCode": "CTRL_S" },
-            { "uiKind": "ref", "refCode": "CTRL_G" },
-            { "uiKind": "ref", "refCode": "CTRL_Z" },
-            { "uiKind": "ref", "refCode": "Power" },
-            { "uiKind": "ref", "refCode": "Sleep" },
-            { "uiKind": "ref", "refCode": "Wakeup" },
-            { "uiKind": "ref", "refCode": "WIN_LOCK_TOGGLE" },
-            { "uiKind": "ref", "refCode": "BATTERY_STATUS" },
-            { "uiKind": "ref", "refCode": "NK_TOGGLE" },
-            { "uiKind": "ref", "refCode": "RESET" },
-            { "uiKind": "ref", "refCode": "BLE_MODE_1" },
-            { "uiKind": "ref", "refCode": "BLE_MODE_2" },
-            { "uiKind": "ref", "refCode": "BLE_MODE_3" },
-            { "uiKind": "ref", "refCode": "MODE_24G" },
-            { "uiKind": "ref", "refCode": "USB_MODE" },
-            { "uiKind": "ref", "refCode": "MACWIN_TOGGLE" },
-            { "uiKind": "ref", "refCode": "WASD_TOGGLE" },
-            { "uiKind": "ref", "refCode": "KEY_DELAY_TOGGLE" },
-            { "uiKind": "ref", "refCode": "FROW_MODE_TOGGLE" },
-            { "uiKind": "ref", "refCode": "FN_1" },
-            { "uiKind": "ref", "refCode": "FN_2" },
-            { "uiKind": "ref", "refCode": "FN_3" }
+            {
+                "uiKind": "section",
+                "sectionTitleKey": "103"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_A"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_C"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_V"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_S"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_G"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "CTRL_Z"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "Power"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "Sleep"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "Wakeup"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_WIN_LOCK_SET"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "BATTERY_STATUS"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "BATT_NUM"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_SIX_N_CH"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "RESET"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "BLE_MODE_1"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "BLE_MODE_2"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "BLE_MODE_3"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "MODE_24G"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "USB_MODE"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_MAC_WIN_CH"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_WASD_SET"
+            },
+
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_F_CHANGE_SET"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "KYE_TEST_LED_SET"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "LCD_POWER_SET"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "WWW_DRIVE"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "FN_1"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "FN_2"
+            },
+            {
+                "uiKind": "ref",
+                "refCode": "FN_3"
+            }
         ]
     },
     {
@@ -3131,34 +3381,145 @@
         "label": "MediaUiLayout",
         "width": "label",
         "keycodes": [
-            { "uiKind": "section", "sectionTitleKey": "1501" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Volume +" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Volume -" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Mute" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Play/Pause" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Stop" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Prev Track" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Next Track" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Multimedia" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Calculator" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "My Computer" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Mail" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Screen Bright+" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Screen Bright-" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Homepage" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Refresh" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Stop" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Forward" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Backward" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Favorites" },
-            { "uiKind": "ref", "refGroup": "Media", "refName": "Web-Search" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Left Button" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Right Button" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Middle Button" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Forward" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Backward" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Scroll Up" },
-            { "uiKind": "ref", "refGroup": "Mouse", "refName": "Scroll Down" }
+            {
+                "uiKind": "section",
+                "sectionTitleKey": "1501"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Volume +"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Volume -"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Mute"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Play/Pause"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Stop"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Prev Track"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Next Track"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Multimedia"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Calculator"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "My Computer"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Mail"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Screen Bright+"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Screen Bright-"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Homepage"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Refresh"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Stop"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Forward"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Backward"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Favorites"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Media",
+                "refName": "Web-Search"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Left Button"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Right Button"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Middle Button"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Forward"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Backward"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Scroll Up"
+            },
+            {
+                "uiKind": "ref",
+                "refGroup": "Mouse",
+                "refName": "Scroll Down"
+            }
         ]
     }
 ]

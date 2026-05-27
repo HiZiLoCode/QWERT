@@ -80,6 +80,26 @@ export class DeviceComm {
     return this.api.sendDeviceData(data);
   }
 
+  /** 0x19 批量写图：只 OUT，单次队列 flush 内连发 */
+  async sendBulkWrite19Packets(packets: number[][]) {
+    return this.api.sendBulkWrite19Packets(packets);
+  }
+
+  /** 0x19 整段传图最快路径（单 HID 锁 + 复用缓冲） */
+  async streamWrite19Payload(
+    data: Uint8Array,
+    baseAddress: number,
+    islandMode: 0 | 1,
+    onPacket?: (transferred: number, total: number) => void,
+  ) {
+    return this.api.streamWrite19Payload({
+      data,
+      baseAddress,
+      islandMode,
+      onPacket,
+    });
+  }
+
   /** 已打开的屏幕 WebHID，可与 OTA 传输共用同一设备（不再 request 0x1919） */
   getScreenHidDevice(): HIDDevice | undefined {
     try {

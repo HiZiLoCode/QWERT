@@ -29,31 +29,55 @@ export default function ScreenThemeImageSettingsPanel({
       <Box
         sx={{
           display: "flex",
+          flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          flexWrap: "nowrap",
         }}
       >
-        <Typography variant="caption" sx={{ color: sv.textMuted, lineHeight: 1.65, display: "block" }}>
-          {t("1626")}
-        </Typography>
-
-        <Box sx={{ display: "flex", justifyContent: "flex-end", width: "100%" }}>
-          <Button
-            variant="text"
-            disableElevation
-            disabled={isSaving}
-            onClick={onSaveToKeyboard}
+        <Box sx={{ flex: 1, minWidth: 0, maxWidth: "calc(100% - 192px)" }}>
+          <Typography
+            variant="caption"
+            component="p"
             sx={{
-              ...outlinedSx,
-              width: "172px",
-              height: "36px",
+              m: 0,
+              color: sv.textMuted,
+              fontSize: "16px",
+              lineHeight: 1.55,
             }}
           >
-            {isSaving ? t("1645") : t("1609")}
-          </Button>
+            {t("1631")}
+          </Typography>
+          <Typography
+            variant="caption"
+            component="p"
+            sx={{
+              m: 0,
+              mt: "6px",
+              color: sv.textMuted,
+              fontSize: "16px",
+              lineHeight: 1.55,
+            }}
+          >
+            {t("1632")}
+          </Typography>
         </Box>
+        <Button
+          variant="text"
+          disableElevation
+          disabled={isSaving}
+          onClick={onSaveToKeyboard}
+          sx={{
+            ...outlinedSx,
+            flexShrink: 0,
+            px: 2.5,
+            py: 0.75,
+            width: "172px",
+            minWidth: "172px",
+          }}
+        >
+          {isSaving ? t("1645") : t("1609")}
+        </Button>
       </Box>
 
       <Divider sx={{ borderColor: sv.borderLight, mt: 19, mb: 36 }} />

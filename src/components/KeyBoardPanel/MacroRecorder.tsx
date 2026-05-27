@@ -9,6 +9,7 @@ import { ButtonRem } from '@/styled/ReconstructionRem';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import type { MacroProfile as V1MacroProfile, MacroAction as V1MacroAction } from '@/types/types_v1';
 import { useTranslation } from '@/app/i18n';
+import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
 import { alpha, useTheme } from '@mui/material/styles';
 
 // ─── 本地 UI 类型（与原来保持一致）───────────────────────────────────────────
@@ -111,6 +112,7 @@ const MacroRecorder: React.FC = () => {
 
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const macroScrollbarSx = getComfortableScrollbarSx(isDark);
 
     const surfaceCardSx = useMemo(
         () =>
@@ -450,6 +452,8 @@ const MacroRecorder: React.FC = () => {
                     flex: 1,
                     minHeight: 0,
                     width: '100%',
+                    overflow: 'auto',
+                    ...macroScrollbarSx,
                 }}
             >
                 {/* 左：宏槽位 M0–M15（示意：未选为白底浅灰边，选中为蓝底白字） */}
@@ -563,6 +567,9 @@ const MacroRecorder: React.FC = () => {
                             gap: '14px',
                             flex: 1,
                             minHeight: 0,
+                            overflowY: 'auto',
+                            overflowX: 'hidden',
+                            ...macroScrollbarSx,
                         }}
                     >
                         <Box

@@ -67,7 +67,7 @@ function MainProvider({ children }: { children: ReactNode }) {
   // 编辑状态
   const [selectedScreen, setSelectedScreen] = useState<number | null>(null);
   // 软件版本
-  const [softwareVersion, setSoftwareVersion] = useState("1.0.1");
+  const [softwareVersion, setSoftwareVersion] = useState("1.0.2");
   const [deviceComm, setDeviceComm] = useState<DeviceComm>();
   const [downLoad, setDownLoadState] = useState(false);
   const downLoadRef = useRef(false);

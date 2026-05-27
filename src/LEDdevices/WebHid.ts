@@ -1,5 +1,9 @@
 import { FilterDevice, WebHidDevice} from "../types/types";
-import { hidSendReportWithRetry, withHidOutputWriteLock } from "../lib/hidOutputWriteLock";
+import {
+  hidSendReportFast,
+  hidSendReportWithRetry,
+  withHidOutputWriteLock,
+} from "../lib/hidOutputWriteLock";
 
 const globalBuffer: {
   [path: string]: { currTime: number; message: Uint8Array }[];
@@ -119,6 +123,8 @@ export const WebHid = {
 export class HidDeivce {
 
   _hidDevice: WebHidDevice | undefined;
+  /** 0x19 连续 OUT：丢弃设备回显 IN，避免 globalBuffer 膨胀（不等 IN） */
+  private _bulkWrite19DropIn = false;
   /** 避免 close 后再 open 时重复 addEventListener 导致同一条 IN 被多次入队 */
   private _internalInputReportHandler: ((e: HIDInputReportEvent) => void) | null = null;
   interface: number = -1;
@@ -192,6 +198,9 @@ export class HidDeivce {
       if (looksLikeScreenOtaStatusReport(msg)) {
         return;
       }
+      if (this._bulkWrite19DropIn) {
+        return;
+      }
       if (eventWaitBuffer[this.address].length !== 0) {
         (eventWaitBuffer[this.address].shift() as any)(msg);
       } else {
@@ -213,25 +222,210 @@ export class HidDeivce {
     eventWaitBuffer[this.address].length = 0;
   }
 
+  /** 每包 0x19 前丢弃未配对的 IN，避免 read(0) 误消费上一包应答后本包不再发 OUT */
+  drainAllInputReports() {
+    this.clearOtaStaleBuffers();
+  }
+
+  beginBulkWrite19() {
+    this._bulkWrite19DropIn = true;
+    globalBuffer[this.address] = globalBuffer[this.address] || [];
+    eventWaitBuffer[this.address] = eventWaitBuffer[this.address] || [];
+    globalBuffer[this.address].length = 0;
+    eventWaitBuffer[this.address].length = 0;
+  }
+
+  endBulkWrite19() {
+    this._bulkWrite19DropIn = false;
+    globalBuffer[this.address] = globalBuffer[this.address] || [];
+    eventWaitBuffer[this.address] = eventWaitBuffer[this.address] || [];
+    globalBuffer[this.address].length = 0;
+    eventWaitBuffer[this.address].length = 0;
+  }
+
+  /**
+   * 0x19 写 FLASH：只 OUT 不等 IN（设备仍会 IN 回显，由 drain 丢弃，避免堵死传图）。
+   */
+  async writeReportOutOnly(reportId: number, data: BufferSource): Promise<void> {
+    await this.open();
+    const dev = this._hidDevice?._device;
+    if (!dev) throw new Error("HID device not open");
+    if (!this._bulkWrite19DropIn) {
+      globalBuffer[this.address] = globalBuffer[this.address] || [];
+      eventWaitBuffer[this.address] = eventWaitBuffer[this.address] || [];
+      globalBuffer[this.address].length = 0;
+      eventWaitBuffer[this.address].length = 0;
+    }
+    await withHidOutputWriteLock(dev, async () => {
+      await hidSendReportFast(dev, reportId & 0xff, data);
+    });
+  }
+
+  /** 单次持锁连续 OUT，减少包间 Promise/清缓冲开销（对齐 OTA 图传 bulk 思路） */
+  async writeReportsOutOnlyBurst(
+    reportId: number,
+    payloads: BufferSource[],
+  ): Promise<void> {
+    if (!payloads.length) return;
+    await this.open();
+    const dev = this._hidDevice?._device;
+    if (!dev) throw new Error("HID device not open");
+    const rid = reportId & 0xff;
+    await withHidOutputWriteLock(dev, async () => {
+      for (const data of payloads) {
+        await hidSendReportFast(dev, rid, data);
+      }
+    });
+  }
+
+  /**
+   * 0x19 整段传图：一次持锁 + 复用 64B OUT 缓冲 + 无每包数组分配（目标 ~2–3ms/包）。
+   */
+  async writeLcd19PayloadFast(
+    reportId: number,
+    data: Uint8Array,
+    baseAddress: number,
+    islandMode: 0 | 1,
+    step = 56,
+    onPacket?: (transferred: number, total: number) => void,
+    progressEveryPackets = 64,
+  ): Promise<void> {
+    if (!data.length) return;
+    await this.open();
+    const dev = this._hidDevice?._device;
+    if (!dev) throw new Error("HID device not open");
+    const rid = reportId & 0xff;
+    const payload = new Uint8Array(64);
+    const total = data.length;
+    let addr = baseAddress;
+    let transferred = 0;
+    let sinceProgress = 0;
+
+    this.beginBulkWrite19();
+    try {
+      await withHidOutputWriteLock(dev, async () => {
+        for (let i = 0; i < data.length; i += step) {
+          const n = Math.min(step, data.length - i);
+          payload[0] = 0xaa;
+          payload[1] = 0x19;
+          payload[2] = addr & 0xff;
+          payload[3] = (addr >> 8) & 0xff;
+          payload[4] = (addr >> 16) & 0xff;
+          payload[5] = n;
+          payload[6] = islandMode;
+          if (n < step) {
+            payload.fill(0, 8 + n, 64);
+          }
+          payload.set(data.subarray(i, i + n), 8);
+          await hidSendReportFast(dev, rid, payload);
+          addr += n;
+          transferred += n;
+          sinceProgress += 1;
+          if (onPacket && sinceProgress >= progressEveryPackets) {
+            sinceProgress = 0;
+            onPacket(transferred, total);
+          }
+        }
+      });
+    } finally {
+      this.endBulkWrite19();
+    }
+    onPacket?.(total, total);
+  }
+
+  /**
+   * 0x19 专用：为本包单独挂 inputreport 监听，不用共享 eventWaitBuffer（shift 会丢掉等待器）。
+   * 抓包 IN 已秒回仍 timeout → 旧路径 IN 进了 globalBuffer 但没进本包 Promise。
+   */
+  async writeReportAndWaitInput(
+    reportId: number,
+    data: BufferSource,
+    timeoutMs = 3000,
+  ): Promise<Uint8Array> {
+    await this.open();
+    const dev = this._hidDevice?._device;
+    if (!dev) throw new Error("HID device not open");
+
+    return new Promise((res, rej) => {
+      let settled = false;
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        dev.removeEventListener("inputreport", onReport);
+      };
+
+      const onReport = (e: HIDInputReportEvent) => {
+        const msg = new Uint8Array(e.data.buffer);
+        if (looksLikeScreenOtaStatusReport(msg)) return;
+        if (settled) return;
+        settled = true;
+        cleanup();
+        res(msg);
+      };
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        rej(new Error("HID read timeout"));
+      }, timeoutMs);
+
+      dev.addEventListener("inputreport", onReport);
+
+      void withHidOutputWriteLock(dev, async () => {
+        await hidSendReportWithRetry(dev, reportId & 0xff, data);
+      }).catch((e) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        rej(e);
+      });
+    });
+  }
+
   read(fn: (err?: Error, data?: ArrayBuffer) => void, sinceTime = 0) {
-    eventWaitBuffer[this.address] = [];
     if (sinceTime > 0) this.fastForwardGlobalBuffer(sinceTime);
     if (globalBuffer[this.address].length > 0) {
-      // this should be a noop normally
-      fn(undefined, globalBuffer[this.address].shift()?.message as any);
-    } else {
-      eventWaitBuffer[this.address].push((data) => fn(undefined, data as any));
+      const msg = globalBuffer[this.address].shift()?.message as ArrayBuffer;
+      eventWaitBuffer[this.address] = [];
+      fn(undefined, msg);
+      return;
     }
+    eventWaitBuffer[this.address] = [];
+    eventWaitBuffer[this.address].push((data) => fn(undefined, data as any));
   }
 
   readP = promisify((arg: any, sinceTime?: number) => this.read(arg, sinceTime ?? 0));
 
-  fastForwardGlobalBuffer(time: number) {
+  /** 0x19 写 FLASH 时片内应答可能远超 10s，须单独加长超时 */
+  readPWithTimeout(sinceTime = 0, timeoutMs = 10000): Promise<Uint8Array> {
+    return new Promise((res, rej) => {
+      let settled = false;
+      const t = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        rej(new Error("HID read timeout"));
+      }, timeoutMs);
+      this.read((err, data) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(t);
+        if (err) rej(err);
+        else res(new Uint8Array(data as ArrayBuffer));
+      }, sinceTime);
+    });
+  }
+
+  /**
+   * 丢弃「明显早于本次 OUT」的残留 IN。
+   * slackMs：IN 常在 hid_write 完成前就进缓冲，若 cutoff=time 会把刚到的应答误删 → read 超时、下一包 OUT 发不出。
+   */
+  fastForwardGlobalBuffer(time: number, slackMs = 80) {
+    const cutoff = Math.max(0, time - slackMs);
     let messagesLeft = globalBuffer[this.address].length;
     while (messagesLeft) {
       messagesLeft--;
-      // message in buffer happened before requested time
-      if (globalBuffer[this.address][0].currTime < time) {
+      if (globalBuffer[this.address][0].currTime < cutoff) {
         globalBuffer[this.address].shift();
       } else {
         break;

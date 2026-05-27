@@ -11,6 +11,8 @@ import { startMonitoring, usbDetect } from "@/keyboard/usb-hid";
 import { MainContext } from '@/providers/MainProvider';
 import { VIEWPORT_HOME_COPY_REM } from '@/constants/viewportHomeCopyRem';
 import { useContext, useEffect, useRef, type ReactNode } from 'react';
+import { CRITICAL_UI_ICON_PATHS, KEY_TYPE_ICON_PATHS } from '@/constants/publicAssetIconPaths';
+import { preloadPublicAssets } from '@/utils/preloadPublicAssets';
 
 /** 视窗过小提示标题中的产品名（与首页品牌一致） */
 const VIEWPORT_MASK_APP_NAME = 'QWERTYKEYS';
@@ -160,6 +162,24 @@ export default function Content() {
   useEffect(() => {
     if (loading) onChangeTab("keyboard");
   }, [loading]);
+
+  // 应用启动后即预加载图标（含连接前首页），减轻首屏 / 键位池图标空白
+  useEffect(() => {
+    const run = () =>
+      preloadPublicAssets(KEY_TYPE_ICON_PATHS, {
+        priority: CRITICAL_UI_ICON_PATHS,
+        concurrency: 8,
+      });
+
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(run, { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const timer = window.setTimeout(run, 50);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: 'background.default' }}>
       {loading ? <HeroSection /> : <Main />}

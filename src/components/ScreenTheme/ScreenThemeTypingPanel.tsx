@@ -233,7 +233,7 @@ export default function ScreenThemeTypingPanel({
               sx={{
                 m: 0,
                 color: sv.textMuted,
-                fontSize: "18px",
+                fontSize: "16px",
                 lineHeight: 1.55,
               }}
             >
@@ -246,7 +246,7 @@ export default function ScreenThemeTypingPanel({
                 m: 0,
                 mt: "6px",
                 color: sv.textMuted,
-                fontSize: "18px",
+                fontSize: "16px",
                 lineHeight: 1.55,
               }}
             >

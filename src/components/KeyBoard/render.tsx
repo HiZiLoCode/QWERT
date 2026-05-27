@@ -24,7 +24,7 @@ function patternTokens(mode: PatternRenderMode) {
             volKeyColor: '#5f6c80',
             volKeyBorder: '1px solid rgba(181,187,196,1)',
             volKeyInset: 'inset 0 1px 0 rgba(255,255,255,0.95)',
-            matrixDot: 'rgba(255, 255, 255, 0.78)',
+            matrixDot: 'rgba(255, 255, 255, 0.6)',
             smallCircleBg: 'linear-gradient(180deg, rgba(252,252,253,1) 0%, rgba(236,238,242,1) 100%)',
             defaultCircleBorder: 'rgba(181,187,196,0.9)',
         };
@@ -46,7 +46,7 @@ function patternTokens(mode: PatternRenderMode) {
         volKeyColor: 'rgba(255,255,255,0.82)',
         volKeyBorder: '1px solid rgba(255,255,255,0.12)',
         volKeyInset: 'inset 0 1px 0 rgba(255,255,255,0.06)',
-        matrixDot: 'rgba(255, 255, 255, 0.36)',
+        matrixDot: 'rgba(255, 255, 255, 0.28)',
         smallCircleBg: 'linear-gradient(180deg, #3a3a3e 0%, #28282c 100%)',
         defaultCircleBorder: 'rgba(255,255,255,0.18)',
     };

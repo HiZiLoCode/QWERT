@@ -615,7 +615,9 @@ export default function ScreenFirmwareUpgrade({
             {upgradeState.isUpgrading ? (
               <Typography
                 sx={{
-                  fontSize: '20px',
+                  px: '14px',
+                  mb: '8px',
+                  fontSize: '18px',
                   fontWeight: 500,
                   lineHeight: 1.55,
                   color: 'text.secondary',
@@ -625,13 +627,7 @@ export default function ScreenFirmwareUpgrade({
               </Typography>
             ) : null}
             <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'stretch', minHeight: 44 }}>
-              <Box
-                sx={{
-                  width: 3,
-                  flexShrink: 0,
-                  borderRadius: '0 2px 2px 0',
-                }}
-              />
+
               <Box
                 sx={{
                   flex: 1,
@@ -648,7 +644,7 @@ export default function ScreenFirmwareUpgrade({
                 <Typography
                   sx={{
                     color: progressRowTextColor,
-                    fontSize: '20px',
+                    fontSize: '18px',
                     fontWeight: 500,
                     lineHeight: 1.45,
                     flex: 1,
@@ -660,7 +656,7 @@ export default function ScreenFirmwareUpgrade({
                 <Typography
                   sx={{
                     color: progressRowTextColor,
-                    fontSize: '20px',
+                    fontSize: '18px',
                     fontWeight: 500,
                     lineHeight: 1.45,
                     flexShrink: 0,

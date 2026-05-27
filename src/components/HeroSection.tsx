@@ -3,6 +3,7 @@
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
 import { useTranslation } from '@/app/i18n';
 import { Box, Button, Typography, createSvgIcon } from '@mui/material';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 import { alpha, useTheme } from '@mui/material/styles';
 import { CSSProperties, useContext } from 'react';
 
@@ -127,8 +128,7 @@ export default function HeroSection() {
                     willChange: "opacity, transform",
                     opacity: 1
                 }}>
-                    <Box
-                        component="img"
+                    <PublicAssetImage
                         src="/qk-text-logo.svg"
                         alt="QWERTYKEYS"
                         sx={{

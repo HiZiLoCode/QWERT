@@ -25,12 +25,13 @@ import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import {
     findFirmwareRelease,
     getFirmwareReleasesForDevice,
+    pickFirmwareReleaseChanges,
     type FirmwareRelease,
 } from '@/config/firmwareChangelog';
+import { getHiddenScrollbarSx } from '@/utils/comfortableScrollbarSx';
 
 function pickChanges(release: FirmwareRelease, lang: string): string[] {
-    if (lang.startsWith('en')) return release.changes.en.length ? release.changes.en : release.changes.zh;
-    return release.changes.zh.length ? release.changes.zh : release.changes.en;
+    return pickFirmwareReleaseChanges(release.changes, lang);
 }
 
 export type FirmwareChangelogSectionProps = {
@@ -250,7 +251,7 @@ export default function FirmwareChangelogSection({
                 PaperProps={{ sx: { borderRadius: '12px' } }}
             >
                 <DialogTitle sx={{ ...getSettingsRowTitleSx(theme), pb: 10 }}>{t('2530')}</DialogTitle>
-                <DialogContent dividers sx={{ maxHeight: '50vh' }}>
+                <DialogContent dividers sx={{ maxHeight: '50vh', ...getHiddenScrollbarSx() }}>
                     {releases.map((release) => {
                         const items = pickChanges(release, lang);
                         const isCurrent = release.version.toUpperCase() === deviceVersion.trim().toUpperCase();

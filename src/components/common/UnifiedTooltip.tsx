@@ -23,6 +23,9 @@ const lightTooltipSx = {
     border: '1px solid rgba(197,211,232,0.9)',
     bgcolor: 'rgba(255,255,255,0.98)',
     boxShadow: '0 4px 14px rgba(128,155,197,0.24)',
+    textAlign: 'center',
+    lineHeight: 1.45,
+    maxWidth: 280,
 } as const;
 
 export default function UnifiedTooltip({
@@ -47,6 +50,9 @@ export default function UnifiedTooltip({
               border: 'none',
               bgcolor: theme.palette.primary.main,
               boxShadow: 'none',
+              textAlign: 'center',
+              lineHeight: 1.45,
+              maxWidth: 280,
           }
         : lightTooltipSx;
 

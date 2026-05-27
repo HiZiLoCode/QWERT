@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 "use client";
 
 import { createContext, useState, useCallback, useEffect, useRef } from "react";
@@ -43,8 +43,15 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
+  DialogActions,
+  Button,
   Box
 } from "@mui/material";
+import {
+  checkWebHIDSupport,
+  getWebHIDUnsupportedMessageKey,
+  type WebHIDSupportInfo,
+} from "@/utils/checkWebHIDSupport";
 import useMatrix from "@/hooks/useMatrix";
 import { DEFAULT_KEYBOARD_CONFIG, type KeyboardConfig } from '../types/leyout'
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
@@ -337,7 +344,22 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   }, [showMessage, t]);
 
   const [showWebHIDError, setShowWebHIDError] = useState(false);
+  const [webHidSupportInfo, setWebHidSupportInfo] = useState<WebHIDSupportInfo | null>(null);
   const matrixData = useMatrix(keyboard);
+
+  const openWebHIDUnsupportedDialog = useCallback((support: WebHIDSupportInfo) => {
+    setWebHidSupportInfo(support);
+    setShowWebHIDError(true);
+  }, []);
+
+  /** 进入页面即检测（微信等内置浏览器不会走「新设备」点击才提示） */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const support = checkWebHIDSupport();
+    if (!support.isSupported) {
+      openWebHIDUnsupportedDialog(support);
+    }
+  }, [openWebHIDUnsupportedDialog]);
 
   // 监听音效设置变化，保存到 localStorage
   useEffect(() => {
@@ -722,9 +744,10 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         }
         return success;
       }
-      if (!("hid" in navigator)) {
-        setShowWebHIDError(true);
-        return;
+      const webHidSupport = checkWebHIDSupport();
+      if (!webHidSupport.isSupported) {
+        openWebHIDUnsupportedDialog(webHidSupport);
+        return false;
       }
       try {
         // 🔍 统一的 IAP 模式检测和处理（连接前）
@@ -774,7 +797,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         throw e;
       }
     },
-    [keyboard, notifyKeyboardConnected]
+    [keyboard, notifyKeyboardConnected, openWebHIDUnsupportedDialog]
   );
   // 设置连接键盘状态
   const setConnectKeyboardStauts = async (connectedKeyboard, item?, kbType?: string) => {
@@ -1561,13 +1584,27 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   return (
     <ConnectKbContext.Provider value={connectKb}>
       {children}
-      <Dialog open={showWebHIDError} onClose={() => setShowWebHIDError(false)}>
-        <DialogTitle>浏览器不支持</DialogTitle>
+      <Dialog
+        open={showWebHIDError}
+        onClose={() => setShowWebHIDError(false)}
+        sx={{ zIndex: 14000 }}
+      >
+        <DialogTitle>{t("2850")}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            您的浏览器不支持 WebHID 功能，请使用 Chrome 或 Edge 浏览器。
+            {t(getWebHIDUnsupportedMessageKey(webHidSupportInfo?.reason))}
           </DialogContentText>
+          {webHidSupportInfo?.browserName ? (
+            <DialogContentText sx={{ mt: 1.5, color: "text.secondary" }}>
+              {t("2851", { browser: webHidSupportInfo.browserName })}
+            </DialogContentText>
+          ) : null}
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button variant="contained" onClick={() => setShowWebHIDError(false)}>
+            {t("2569")}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* QMK 配置文件管理器 */}

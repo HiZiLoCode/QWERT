@@ -17,6 +17,7 @@ import { expandKeyedPool, type KeyPoolItem } from '@/utils/customkeysUiLayout';
 import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 
 /**
  * 与配置页截图：侧栏约为主键盘区宽度的 15%–20%；大块留白与浅灰底卡片。
@@ -81,39 +82,31 @@ function isCustomKeyVisibleForDevice(item: KeyItem, caps: DeviceLightCaps): bool
     return true;
 }
 
-/** 灯光键位池：轴灯分区外的「尾部」里不再展示这些键（与产品稿红框一致）。 */
-function isHiddenFromCustomLightingKeyedPool(item: KeyItem): boolean {
-    const c = String(item.code || '');
-    if (c.startsWith('FN_')) return true;
-    if (c.startsWith('TO_')) return true;
-    if (c.startsWith('CUSTOM_LIGHT_') && c !== 'CUSTOM_LIGHT_1') return true;
-    if (c === 'COLOR_BOARD') return true;
-    if (c.startsWith('SIDE_LIGHT_')) return true;
-    if (c === 'RESET') return true;
-    if (c.startsWith('BLE_MODE_')) return true;
-    if (c === 'MODE_24G' || c === 'USB_MODE' || c === 'BATTERY_STATUS') return true;
-    if (
-        c === 'NK_TOGGLE' ||
-        c === 'MACWIN_TOGGLE' ||
-        c === 'WIN_LOCK_TOGGLE' ||
-        c === 'WASD_TOGGLE' ||
-        c === 'KEY_DELAY_TOGGLE' ||
-        c === 'FROW_MODE_TOGGLE' ||
-        c === 'WHEEL_FUNCTION_TOGGLE' ||
-        c === 'ALL_POWER_TOGGLE'
-    ) {
-        return true;
-    }
-    if (c.startsWith('LCD_')) return true;
-    if (c === 'WHEEL_LEFT' || c === 'WHEEL_RIGHT' || c === 'WHEEL_CONFIRM') return true;
-    if (c === 'TEST_MODE') return true;
-    return false;
-}
-
 function isSectionPoolItem(
     item: KeyPoolItem,
 ): item is { isSectionHeader: true; sectionTitleKey: string; code: string } {
     return 'isSectionHeader' in item && item.isSectionHeader === true;
+}
+
+/** 功能池仅展示 SVG 图标键，过滤 emoji 占位（避免缩成小点）。 */
+function isSvgPoolIcon(icon: string | undefined): boolean {
+    const value = String(icon ?? '').trim();
+    return value.startsWith('/KeyType/') || value.endsWith('.svg') || value.endsWith('.png');
+}
+
+/** Fn1–Fn3 无图标，以文字展示，需保留在功能 Tab。 */
+function isFnLayerPoolKey(code: string | undefined): boolean {
+    return /^FN_[1-3]$/.test(String(code || '').toUpperCase());
+}
+
+function filterFunctionPoolItems(items: KeyPoolItem[]): KeyPoolItem[] {
+    return items.filter((item) => {
+        if (isSectionPoolItem(item)) return true;
+        const key = item as KeyItem;
+        if (isFnLayerPoolKey(key.code)) return true;
+        if (key.type === 80) return isSvgPoolIcon(key.icon);
+        return isSvgPoolIcon(key.icon) || !key.icon;
+    });
 }
 
 type KeyItem = {
@@ -236,8 +229,7 @@ const KeyButton = ({
                                     flexShrink: 0,
                                 }}
                             >
-                                <Box
-                                    component="img"
+                                <PublicAssetImage
                                     src={iconValue}
                                     alt={displayLabel}
                                     sx={{
@@ -362,11 +354,6 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
         };
     }, [keyboardLayout, keyboard?.deviceBaseInfo, connectedKeyboard?.deviceBaseInfo]);
 
-    const filteredCustomList = useMemo(
-        () => rawCustomList.filter((item) => isCustomKeyVisibleForDevice(item, deviceLightCaps)),
-        [rawCustomList, deviceLightCaps],
-    );
-
     const refPools = useMemo(
         () => ({
             Custom: rawCustomList,
@@ -377,30 +364,33 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
         [rawCustomList, shortcutList, mediaList, mouseList],
     );
 
+    /** 灯光：仅 CustomUiLayout 分区，不再追加 Custom 全表尾部（避免侧灯/常亮/层切换等混入）。 */
     const customDisplayList = useMemo(
         () =>
             expandKeyedPool({
                 data: customKeys as unknown[],
                 layoutLabel: 'CustomUiLayout',
                 pools: refPools,
-                tailList: filteredCustomList,
-                itemFilter: (k) =>
-                    isCustomKeyVisibleForDevice(k, deviceLightCaps) &&
-                    !isHiddenFromCustomLightingKeyedPool(k),
-            }),
-        [filteredCustomList, refPools, deviceLightCaps],
-    );
-
-    const shortcutDisplayList = useMemo(
-        () =>
-            expandKeyedPool({
-                data: customKeys as unknown[],
-                layoutLabel: 'ShortcutUiLayout',
-                pools: refPools,
-                tailList: shortcutList,
+                tailList: [],
                 itemFilter: (k) => isCustomKeyVisibleForDevice(k, deviceLightCaps),
             }),
-        [shortcutList, refPools, deviceLightCaps],
+        [refPools, deviceLightCaps],
+    );
+
+    /** 功能：仅 ShortcutUiLayout（已在布局中的组合键 + 设备功能），不追加尾部列表。 */
+    const shortcutDisplayList = useMemo(
+        () =>
+            filterFunctionPoolItems(
+                expandKeyedPool({
+                    data: customKeys as unknown[],
+                    layoutLabel: 'ShortcutUiLayout',
+                    pools: refPools,
+                    tailList: [],
+                    itemFilter: (k) =>
+                        k.type === 80 ? isCustomKeyVisibleForDevice(k, deviceLightCaps) : true,
+                }),
+            ),
+        [refPools, deviceLightCaps],
     );
 
     const mediaDisplayList = useMemo(
@@ -732,7 +722,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                             ) : category === 'combination' ? (
                                 <CombinationKeyBoard disabled={selectedIndex < 0} onSave={applyCombination} />
                             ) : category === 'macro' ? (
-                                <Box sx={{ width: '100%', height: '100%' }}>
+                                <Box sx={{ width: '100%', height: '100%', minHeight: 0, overflow: 'hidden' }}>
                                     <MacroRecorder />
                                 </Box>
                             ) : (

@@ -15,6 +15,12 @@ import ScreenThemeSettingsPanel from "./ScreenThemeSettingsPanel";
 import ScreenThemeImageSettingsPanel from "./ScreenThemeImageSettingsPanel";
 import ScreenThemeVideoSettingsPanel from "./ScreenThemeVideoSettingsPanel";
 import ScreenThemeTypingPanel, { type TypingCharacterValue } from "./ScreenThemeTypingPanel";
+import ScreenThemeLoopAnimationPanel from "./ScreenThemeLoopAnimationPanel";
+import {
+  DEFAULT_LOOP_ANIMATION_ID,
+  LOOP_ANIMATION_PRESETS,
+  type LoopAnimationPresetId,
+} from "./loopAnimationPresets";
 import ScreenThemeKeyboardLegend from "./ScreenThemeKeyboardLegend";
 import ScreenThemeThemeColorPanel from "./ScreenThemeThemeColorPanel";
 import ScreenThemeThemeColorPreview from "./ScreenThemeThemeColorPreview";
@@ -26,6 +32,7 @@ import { VIDEO_SPEED_OPTIONS } from "./options";
 import type { ImportSource, ScreenThemeTab, TransitionKind } from "./types";
 import { findLeftShiftKeyIndex } from "./screenThemeLayout";
 import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
+import { getPublicAssetUrlCandidates } from "@/utils/resolvePublicAssetUrl";
 import { getFileById, saveFile } from "@/utils/indexeddb-storage";
 import { countGifFrames, isGifFile } from "@/utils/gifFrameCount";
 import { compressPngFramesToQgifWithinPayloadLimit } from "@/utils/compressQgifUnderByteLimit";
@@ -35,7 +42,10 @@ import { GIF_UPLOAD_MAX_BYTES, shrinkGifArrayBufferToLimit } from "@/utils/shrin
 import { useTranslation } from "@/app/i18n";
 import { getScreenThemeGifPlaybackFps, isNativeGifPlaybackSpeed } from "./screenThemeGifPlaybackFps";
 import {
+  assertLcdPayloadMatchesWorkAreaSize,
   buildDualIslandWorkLogical15FromReadPatch,
+  lcdEraseBlocksForTransfer,
+  logLcdTransferSizeDiag,
   encodeLcdImageMetaByte,
   extractLcdWorkTailThemeRgbFrom14Read,
   lcdEraseIslandModeFromMediaIsland,
@@ -43,7 +53,8 @@ import {
   readMergeSendLcdWorkAreaScreenTail,
   sendLcdEraseAndWait,
   sendLcdScreenWorkAreaSave16,
-  settleBetweenLcd19Packets,
+  settleAfterLcd19BurstBeforeStop,
+  transferLcd19Payload,
   type LcdScreenTransferMeta,
   secondsToLcdIntervalCode,
   sendScreenWorkParam15Packets,
@@ -236,26 +247,13 @@ async function rgbaToRgb565SwappedChunked(rgba: Uint8ClampedArray, pixelCount: n
  * 解析 `public/` 下资源的 fetch 候选 URL。`assetPrefix: "./"` 静态导出时，仅用根路径 `/x` 可能 404，
  * 需补充相对当前页面的 `./x`。
  */
-function resolvePublicFetchUrls(absolutePath: string): string[] {
-  const attempts: string[] = [];
-  if (typeof window !== "undefined" && absolutePath.startsWith("/")) {
-    attempts.push(`${window.location.origin}${absolutePath}`);
-    try {
-      attempts.push(new URL(`.${absolutePath}`, window.location.href).href);
-    } catch {
-      /* ignore */
-    }
-  }
-  attempts.push(absolutePath);
-  return [...new Set(attempts)];
-}
 
 /**
  * 从 `public/` 拉取静态资源并转为 data URL。静态导出且 `assetPrefix` 为相对路径时，
  * 仅用 `fetch("/x")` 可能失败，故优先使用 `origin + path` 与相对当前页路径。
  */
 async function fetchPublicFileAsMediaAsset(absolutePath: string, displayName: string): Promise<MediaAsset> {
-  const attempts = resolvePublicFetchUrls(absolutePath);
+  const attempts = getPublicAssetUrlCandidates(absolutePath);
 
   let lastError: unknown;
   for (const url of attempts) {
@@ -326,7 +324,10 @@ function isLikelyTimeoutError(error: unknown): boolean {
   return /timeout|timed out|no response|did not return/i.test(msg);
 }
 
-async function sendLcdStopCommands(deviceComm: { setData: (data: number[]) => Promise<unknown> }) {
+async function sendLcdStopCommands(
+  deviceComm: { setData: (data: number[]) => Promise<unknown>; clearOtaStaleBuffers?: () => void },
+) {
+  deviceComm.clearOtaStaleBuffers?.();
   const resetBuffer = new Uint8Array(65);
   resetBuffer[1] = 0xaa;
   resetBuffer[2] = 0x1a;
@@ -410,7 +411,13 @@ export default function ScreenThemePage() {
   const [typingChar1, setTypingChar1] = useState<TypingCharacterValue>("cat");
   const [typingChar2, setTypingChar2] = useState<TypingCharacterValue>("cat-glasses");
   const [personalThemeColors, setPersonalThemeColors] = useState<PersonalThemePalette>(DEFAULT_PERSONAL_THEME_COLORS);
-  const [savingSource, setSavingSource] = useState<ImportSource | "typing" | null>(null);
+  const [savingSource, setSavingSource] = useState<ImportSource | "typing" | "loopAnimation" | null>(null);
+  const [loopSelectedId, setLoopSelectedId] = useState<LoopAnimationPresetId>(DEFAULT_LOOP_ANIMATION_ID);
+  const [loopPreviewUrl, setLoopPreviewUrl] = useState<string | null>(null);
+  const [loopIntervalSec, setLoopIntervalSec] = useState("5");
+  const loopPreviewDataUrlCacheRef = useRef<Map<LoopAnimationPresetId, string>>(new Map());
+  const showMessageRef = useRef(showMessage);
+  showMessageRef.current = showMessage;
   const [fileName] = useState("XXXX.png");
   const [restored, setRestored] = useState(false);
   const [trimConfirmDialog, setTrimConfirmDialog] = useState<{ open: boolean; frameCount: number }>({
@@ -823,46 +830,48 @@ export default function ScreenThemePage() {
           `QGIF 0x15 功能区超限：${logical15.length} 字节（上限 ${W15_LOGICAL_MAX}），请减少张数`,
         );
       }
+      assertLcdPayloadMatchesWorkAreaSize(logical15, lcdMeta.islandMode, totalSize);
       try {
         await sendScreenWorkParam15Packets(deviceComm, logical15);
         await sendLcdScreenWorkAreaSave16(deviceComm);
 
-        const eraseBlocks = Math.max(
-          1,
-          qgifData.reduce((sum, data) => sum + Math.ceil(data.length / (64 * 1024)), 0),
-        );
+        const eraseBlocks = lcdEraseBlocksForTransfer(totalSize, logical15, lcdMeta.islandMode);
+        logLcdTransferSizeDiag("0x19 传图", totalSize, read14, logical15, lcdMeta.islandMode, eraseBlocks);
         updateTransferStage("erase");
         await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
 
+        deviceComm.clearOtaStaleBuffers?.();
+
         let totalBytesTransferred = 0;
-        const step = 56;
         updateTransferStage("download");
         for (let screenIndex = 0; screenIndex < qgifData.length; screenIndex++) {
           const data = qgifData[screenIndex];
-          // 对齐 drive_app：当前会话内 0x19 地址从 0 开始，按分片顺序累加。
           let currentAddress = 0;
           for (let i = 0; i < screenIndex; i++) {
             currentAddress += Math.ceil(qgifData[i].length / (64 * 1024)) * (64 * 1024);
           }
-          for (let i = 0; i < data.length; i += step) {
-            const writeBuffer = new Uint8Array(65);
-            writeBuffer[1] = 0xaa;
-            writeBuffer[2] = 0x19;
-            writeBuffer[3] = currentAddress & 0xff;
-            writeBuffer[4] = (currentAddress >> 8) & 0xff;
-            writeBuffer[5] = (currentAddress >> 16) & 0xff;
-            const bytesToSend = Math.min(step, data.length - i);
-            writeBuffer[6] = bytesToSend;
-            writeBuffer[7] = lcdMeta.islandMode;
-            writeBuffer.set(data.slice(i, i + bytesToSend), 9);
-            await deviceComm.setData(Array.from(writeBuffer));
-            await settleBetweenLcd19Packets();
-            currentAddress += bytesToSend;
-            totalBytesTransferred += bytesToSend;
-            updateTransferProgress(Math.round((totalBytesTransferred / Math.max(totalSize, 1)) * 100));
+          const xferBase = totalBytesTransferred;
+          try {
+            await transferLcd19Payload(deviceComm, data, {
+              baseAddress: currentAddress,
+              islandMode: lcdMeta.islandMode,
+              onChunkSent: (n) => {
+                totalBytesTransferred = xferBase + n;
+                updateTransferProgress(
+                  Math.round((totalBytesTransferred / Math.max(totalSize, 1)) * 100),
+                );
+              },
+            });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            throw new Error(
+              `LCD 0x19 中断于 ${totalBytesTransferred}/${totalSize} 字节 (FLASH 偏移 0x${currentAddress.toString(16)}): ${msg}`,
+            );
           }
+          totalBytesTransferred = xferBase + data.length;
         }
         updateTransferProgress(100);
+        await settleAfterLcd19BurstBeforeStop();
       } finally {
         try {
           // 0x19 成功/失败都要尝试收尾。
@@ -902,29 +911,16 @@ export default function ScreenThemePage() {
         updateTransferStage("erase");
         await sendLcdEraseAndWait(deviceComm, eraseBlocks, lcdMeta.islandMode);
 
-        const step = 56;
-        // 对齐 drive_app：当前会话内 0x19 地址从 0 开始。
-        let currentAddress = 0;
-        let totalBytesTransferred = 0;
         updateTransferStage("download");
-        for (let i = 0; i < data.length; i += step) {
-          const writeBuffer = new Uint8Array(65);
-          writeBuffer[1] = 0xaa;
-          writeBuffer[2] = 0x19;
-          writeBuffer[3] = currentAddress & 0xff;
-          writeBuffer[4] = (currentAddress >> 8) & 0xff;
-          writeBuffer[5] = (currentAddress >> 16) & 0xff;
-          const bytesToSend = Math.min(step, data.length - i);
-          writeBuffer[6] = bytesToSend;
-          writeBuffer[7] = lcdMeta.islandMode;
-          writeBuffer.set(data.slice(i, i + bytesToSend), 9);
-          await deviceComm.setData(Array.from(writeBuffer));
-          await settleBetweenLcd19Packets();
-          currentAddress += bytesToSend;
-          totalBytesTransferred += bytesToSend;
-          updateTransferProgress(Math.round((totalBytesTransferred / Math.max(totalSize, 1)) * 100));
-        }
+        await transferLcd19Payload(deviceComm, data, {
+          baseAddress: 0,
+          islandMode: lcdMeta.islandMode,
+          onChunkSent: (n, total) => {
+            updateTransferProgress(Math.round((n / Math.max(total, 1)) * 100));
+          },
+        });
         updateTransferProgress(100);
+        await settleAfterLcd19BurstBeforeStop();
       } finally {
         try {
           await sendLcdStopCommands(deviceComm);
@@ -1187,6 +1183,157 @@ export default function ScreenThemePage() {
     askMediaOversizeConfirm,
   ]);
 
+  /** 循环动画：与基础灵动岛「导入视频」相同 QGIF 下发流程，固定写入基础岛 */
+  const saveLoopAnimationToKeyboard = useCallback(async () => {
+    if (!loopPreviewUrl) {
+      showMessage({ type: "warning", message: t("1649") });
+      return;
+    }
+    if (!deviceComm) {
+      showMessage({ type: "error", message: t("1660") });
+      return;
+    }
+    try {
+      setSavingSource("loopAnimation");
+      setDownLoad(true);
+      openTransferDialog();
+      updateTransferStage("convert");
+      const targetW = Math.max(1, Number(screenWidth) || 240);
+      const targetH = Math.max(1, Number(screenHeight) || 136);
+      const rotate = Number((screenInfo as unknown as { rotate?: number } | undefined)?.rotate ?? 0);
+      const interval = Math.max(1, parseInt(loopIntervalSec, 10) || 5);
+
+      const startBuffer = new Uint8Array(65);
+      startBuffer[1] = 0xaa;
+      startBuffer[2] = 0x1b;
+      startBuffer[6] = 0x38;
+      await deviceComm.setData(Array.from(startBuffer));
+
+      const { frames, fpsFromGif } = await decomposeGifDataUrlToPngFrames(loopPreviewUrl, targetW, targetH, rotate);
+      console.info(`[ScreenTheme] 循环动画 GIF 帧数: ${frames.length}`);
+      const fps = fpsFromGif;
+      let qgifBin: Uint8Array;
+      let qgifTrimmedForLimit = false;
+      try {
+        const capped = await compressPngFramesToQgifWithinPayloadLimit(
+          frames,
+          fps,
+          GIF_UPLOAD_MAX_BYTES,
+          compressPngFramesToQgif,
+        );
+        qgifBin = capped.bin;
+        qgifTrimmedForLimit = capped.trimmed;
+        if (capped.trimmed) {
+          console.info(
+            `[ScreenTheme] QGIF 超过 ${GIF_UPLOAD_MAX_BYTES} 字节，已按 ${capped.usedFrames}/${frames.length} 帧下发`,
+          );
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === "QGIF_SINGLE_FRAME_EXCEEDS_PAYLOAD_LIMIT") {
+          showMessage({ type: "error", message: t("2587") });
+          return;
+        }
+        throw e;
+      }
+      if (qgifTrimmedForLimit) {
+        const proceedSave = await askMediaOversizeConfirm("save-qgif");
+        if (!proceedSave) {
+          try {
+            await sendLcdStopCommands(deviceComm);
+          } catch (stopErr) {
+            console.warn("[ScreenTheme] 取消保存循环动画时 LCD 收尾失败", stopErr);
+          }
+          return;
+        }
+      }
+      const metaByte = encodeLcdImageMetaByte({
+        imageSlotCount: 1,
+        animType: 0,
+        intervalCode: secondsToLcdIntervalCode(interval),
+      });
+      await downloadQgifToDevice([qgifBin], {
+        metaByte,
+        islandMode: lcdEraseIslandModeFromMediaIsland("basic"),
+        ...lcdFpsMetaPatch("video"),
+      });
+      showMessage({ type: "success", message: qgifTrimmedForLimit ? t("2586") : t("1650") });
+    } catch (err) {
+      console.error("[ScreenTheme] 保存循环动画到键盘失败", err);
+      if (
+        err instanceof Error &&
+        (err.message === "GIF_INPUT_TOO_LARGE" ||
+          err.message === "GIF_DECODE_BUDGET_EXCEEDED" ||
+          err.message === "GIF_WORKER_TIMEOUT" ||
+          err.message === "GIF_WORKER_RUNTIME_ERROR" ||
+          err.message === "GIF_WORKER_UNAVAILABLE" ||
+          err.message === "QGIF_MODULE_SCRIPT_NOT_FOUND" ||
+          err.message === "QGIF_MODULE_FACTORY_INVALID" ||
+          err.message === "QGIF_MODULE_NOT_READY" ||
+          err.message === "QGIF_COMPRESS_FAILED" ||
+          err.message === "QGIF_WORKER_TIMEOUT" ||
+          err.message === "QGIF_WORKER_RUNTIME_ERROR" ||
+          err.message === "QGIF_WORKER_UNAVAILABLE")
+      ) {
+        showMessage({ type: "error", message: t("2584") });
+      } else {
+        showMessage({ type: "error", message: t("1651") });
+      }
+    } finally {
+      closeTransferDialog();
+      setDownLoad(false);
+      setSavingSource(null);
+    }
+  }, [
+    loopPreviewUrl,
+    loopIntervalSec,
+    closeTransferDialog,
+    openTransferDialog,
+    updateTransferStage,
+    deviceComm,
+    setDownLoad,
+    t,
+    screenWidth,
+    screenHeight,
+    screenInfo,
+    decomposeGifDataUrlToPngFrames,
+    lcdFpsMetaPatch,
+    compressPngFramesToQgif,
+    downloadQgifToDevice,
+    showMessage,
+    setSavingSource,
+    askMediaOversizeConfirm,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== "loopAnimation") return;
+    const preset = LOOP_ANIMATION_PRESETS.find((p) => p.id === loopSelectedId);
+    if (!preset?.gifPath) {
+      setLoopPreviewUrl(null);
+      return;
+    }
+    const cached = loopPreviewDataUrlCacheRef.current.get(loopSelectedId);
+    if (cached) {
+      setLoopPreviewUrl(cached);
+      return;
+    }
+    let cancelled = false;
+    void fetchPublicFileAsMediaAsset(preset.gifPath, preset.gifPath.split("/").pop() || "loop.gif")
+      .then((asset) => {
+        if (cancelled) return;
+        loopPreviewDataUrlCacheRef.current.set(loopSelectedId, asset.dataUrl);
+        setLoopPreviewUrl(asset.dataUrl);
+      })
+      .catch((e) => {
+        console.warn("[ScreenTheme] 循环动画资源预加载失败", e);
+        if (!cancelled) {
+          showMessageRef.current({ type: "error", message: t("2574") });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, loopSelectedId]);
+
   const convertImageDataUrlToRgb565Swap = useCallback(
     async (dataUrl: string, targetWidth: number, targetHeight: number, rotate: number) => {
       const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -1360,7 +1507,6 @@ export default function ScreenThemePage() {
             `Subject write timeout (cmd=0x1E, slot=${subjectSlot}, addr=${addr}, len=${bytesToSend})`,
           );
         }
-        await settleBetweenLcd19Packets();
         addr += bytesToSend;
         const pct = Math.round(Math.min(100, ((i + bytesToSend) / payload.length) * 100));
         onWriteProgress?.(pct);
@@ -2073,6 +2219,24 @@ export default function ScreenThemePage() {
   const renderPanelByTab = () => {
     if (activeTab === "basic" || activeTab === "personal") {
       return renderMediaWorkspace(activeTab === "personal");
+    }
+    if (activeTab === "loopAnimation") {
+      return (
+        <ScreenThemeLoopAnimationPanel
+          selectedId={loopSelectedId}
+          onSelect={setLoopSelectedId}
+          previewDataUrl={loopPreviewUrl}
+          intervalSec={loopIntervalSec}
+          onIntervalChange={setLoopIntervalSec}
+          isSaving={savingSource === "loopAnimation"}
+          isLocked={isTransferLocked}
+          onSaveToKeyboard={async () => {
+            const ok = await confirmSaveToKeyboard();
+            if (!ok) return;
+            void saveLoopAnimationToKeyboard();
+          }}
+        />
+      );
     }
     return (
       <ScreenThemeTypingPanel

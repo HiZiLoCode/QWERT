@@ -73,10 +73,20 @@ function resolveLightEffectLabel(
   return `Effect ${fallbackIndex + 1}`;
 }
 
-function getGroupTypeByContentId(contentId: string): 'backlight' | 'logo' | null {
-  if (contentId.startsWith('id_qmk_rgb_matrix_')) return 'backlight';
-  if (contentId.startsWith('id_qmk_rgblight_')) return 'logo';
-  return null;
+
+function toRgb(hex: string) {
+  const clean = hex.replace('#', '');
+  const value = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
+  const num = Number.parseInt(value, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+}
+
+function toHex(value: number) {
+  return value.toString(16).padStart(2, '0');
 }
 
 /** 自定义灯色点涂提示：左/右键高亮的小鼠标图标 */
@@ -115,49 +125,6 @@ function CustomPaintMouseHintIcon({
   );
 }
 
-function findMenuContentId(
-  menus: any[] | undefined,
-  lightType: string,
-  matcher: (item: any) => boolean
-): [number, number] | null {
-  const lightingMenu = menus?.find((m: any) => m.label === 'Lighting');
-  if (!lightingMenu) return null;
-
-  const targetType = lightType === 'backlight' ? 'backlight' : 'logo';
-
-  for (const group of lightingMenu.content ?? []) {
-    const allItems: any[] = group.content ?? [];
-    const probe = allItems.find(
-      (i: any) => Array.isArray(i.content) && i.content.length >= 3 && typeof i.content[0] === 'string'
-    );
-    if (!probe) continue;
-
-    const groupType = getGroupTypeByContentId(probe.content[0] as string);
-    if (groupType !== targetType) continue;
-
-    const item = allItems.find(matcher);
-    if (!item || !Array.isArray(item.content) || item.content.length < 3) return null;
-    return [item.content[1] as number, item.content[2] as number];
-  }
-
-  return null;
-}
-
-function toRgb(hex: string) {
-  const clean = hex.replace('#', '');
-  const value = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean;
-  const num = Number.parseInt(value, 16);
-  return {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255,
-  };
-}
-
-function toHex(value: number) {
-  return value.toString(16).padStart(2, '0');
-}
-
 const EYEDROPPER_LONG_PRESS_MS = 220;
 
 type LightSettingPanelProps = {
@@ -182,7 +149,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   );
 
   const isQMK = keyboard?.keyboardType === 'QMK';
-  const menus: any[] | undefined = keyboardLayout?.menus;
 
   const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
   const [openLight, setOpenLight] = useState(true);
@@ -223,39 +189,18 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const lightType = forcedLightType ?? keyboard?.lightType ?? 'backlight';
   const isPickupLightingModule = forcedLightType === 'logolight';
   const legacyPrefix = lightType === 'logolight' ? 'logoLight' : lightType === 'sidelight' ? 'sideLight' : 'light';
-  const qmkGroupType = lightType === 'backlight' ? 'backlight' : 'logo';
+  const maxBrightness = useMemo(() => keyboard?.deviceBaseInfo?.lightMaxBrightness ?? 255, [keyboard?.deviceBaseInfo?.lightMaxBrightness]);
 
-  const maxBrightness = useMemo(() => {
-    if (isQMK) {
-      return keyboardLayout?.lighting?.maxBrightness?.[qmkGroupType]?.[1] ?? keyboard?.deviceBaseInfo?.lightMaxBrightness ?? 255;
-    }
-    return keyboard?.deviceBaseInfo?.lightMaxBrightness ?? 255;
-  }, [isQMK, keyboardLayout, keyboard?.deviceBaseInfo?.lightMaxBrightness, qmkGroupType]);
-
-  const maxSpeed = useMemo(() => {
-    if (isQMK) {
-      return keyboardLayout?.lighting?.maxSpeed?.[qmkGroupType]?.[1] ?? keyboard?.deviceBaseInfo?.lightMaxSpeed ?? 255;
-    }
-    return keyboard?.deviceBaseInfo?.lightMaxSpeed ?? 255;
-  }, [isQMK, keyboardLayout, keyboard?.deviceBaseInfo?.lightMaxSpeed, qmkGroupType]);
+  const maxSpeed = useMemo(() => keyboard?.deviceBaseInfo?.lightMaxSpeed ?? 255, [keyboard?.deviceBaseInfo?.lightMaxSpeed]);
 
   const lightEffects = useMemo(() => {
-    if (isQMK) {
-      const effects = keyboardLayout?.lighting?.effects?.[qmkGroupType] ?? [];
-      return effects.map((effect: any, idx: number) => ({
-        ...effect,
-        value: effect.value ?? idx,
-        label: resolveLightEffectLabel(effect, idx, t),
-      }));
-    }
-
     const list = keyboardLayout?.lighting?.[lightType] ?? [];
     return list.map((effect: any, idx: number) => ({
       ...effect,
       value: effect.value ?? idx,
       label: resolveLightEffectLabel(effect, idx, t),
     }));
-  }, [isQMK, keyboardLayout, qmkGroupType, lightType, t]);
+  }, [keyboardLayout, lightType, t]);
 
   const selectedEffect = useMemo(() => {
     const mode = keyboard?.deviceFuncInfo?.[`${legacyPrefix}Mode`] ?? 0;
@@ -603,7 +548,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   };
 
   const syncCustomKeyColors = async (effectId: number) => {
-    if (isQMK || lightType !== 'backlight' || effectId < 253) return;
+    if (lightType !== 'backlight' || effectId < 253) return;
     const customIndex = effectId - 253;
 
     try {
@@ -670,12 +615,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     setBrightnessInput(String(v));
     const raw = Math.round((v / 100) * maxBrightness);
 
-    if (isQMK) {
-      const ci = findMenuContentId(menus, qmkGroupType, (i) => i.type === 'range' && i.label === 'Brightness');
-      if (ci) await connectedKeyboard?.setLightingValue(ci[0], ci[1], raw);
-      return;
-    }
-
     updateFuncInfo({ [`${legacyPrefix}Brightness`]: raw });
   };
 
@@ -689,27 +628,10 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     const v = Array.isArray(value) ? value[0] : value;
     setSpeed(v);
 
-    if (isQMK) {
-      const ci = findMenuContentId(menus, qmkGroupType, (i) => i.type === 'range' && i.label === 'Effect Speed');
-      if (ci) await connectedKeyboard?.setLightingValue(ci[0], ci[1], v);
-      return;
-    }
-
     updateFuncInfo({ [`${legacyPrefix}Speed`]: v });
   };
 
   const handleEffectChange = async (effectId: number) => {
-    if (isQMK) {
-      const ci = findMenuContentId(menus, qmkGroupType, (i) => i.type === 'dropdown');
-      if (ci) await connectedKeyboard?.setLightingValue(ci[0], ci[1], effectId);
-      keyboard?.setDeviceFuncInfo?.({
-        ...(keyboard?.deviceFuncInfo ?? {}),
-        [`${legacyPrefix}Mode`]: effectId,
-        lightCustomIndex: 0,
-      });
-      return;
-    }
-
     // 拾音灯：动态灯效或全灭时关闭音频响应（字节 63 = 0）
     const effectMeta = effectId >= 253 ? null : lightEffects.find((e: any) => e.value === effectId);
     let closePickupAudio = false;
@@ -778,12 +700,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
     const { r, g, b } = toRgb(hex);
 
-    if (isQMK) {
-      const ci = findMenuContentId(menus, qmkGroupType, (i) => i.type === 'color');
-      if (ci) await connectedKeyboard?.setLightingValue(ci[0], ci[1], r, g, b);
-      return;
-    }
-
     updateFuncInfo({
       [`${legacyPrefix}RValue`]: r,
       [`${legacyPrefix}GValue`]: g,
@@ -798,7 +714,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
 
     setSingleColorMode(!checked);
 
-    if (isQMK) return;
 
     updateFuncInfo({
       [`${legacyPrefix}MixColor`]: checked ? 1 : 0,
@@ -808,7 +723,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const handleDirectionChange = async (dir: 0 | 1) => {
     if (!canAdjustDirection) return;
     setPlayDirection(dir);
-    if (isQMK) return;
     const firmwareDir = isPickupLightingModule ? (dir === 1 ? 0 : 1) : dir;
     updateFuncInfo({
       ...(isPickupLightingModule
@@ -838,7 +752,6 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const handlePickupAudioSwitch = async (checked: boolean) => {
     if (isPickupLightingModule && (isPickupDynamicLighting || isPickupAllOff)) return;
     setOpenLight(checked);
-    if (isQMK) return;
     const switchByte = isPickupLightingModule
       ? (checked ? 1 : 0) // 拾音：1=开，0=关
       : checked

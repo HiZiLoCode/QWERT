@@ -226,6 +226,56 @@ export function parseTwoIslandWorkEntriesFromWorkLogical(logical: Uint8Array): [
   return [e0, e1];
 }
 
+export function lcdEraseBlocksForBytes(byteLength: number): number {
+  return Math.max(1, Math.ceil(Math.max(0, byteLength) / (64 * 1024)));
+}
+
+/** 擦除块数：按本次载荷与 0x15 登记 size 取大，避免只擦 6 块却登记 0x170E32 导致写到 ~404936 后设备无应答 */
+export function lcdEraseBlocksForTransfer(
+  payloadBytes: number,
+  logical15: Uint8Array,
+  islandMode: 0 | 1,
+): number {
+  const [e0, e1] = parseTwoIslandWorkEntriesFromWorkLogical(logical15);
+  const saved = islandMode === 0 ? e0 : e1;
+  return Math.max(lcdEraseBlocksForBytes(payloadBytes), lcdEraseBlocksForBytes(saved.size));
+}
+
+export function logLcdTransferSizeDiag(
+  label: string,
+  payloadBytes: number,
+  read14: LcdWorkParam14ReadResult | null,
+  logical15: Uint8Array,
+  islandMode: 0 | 1,
+  eraseBlocks: number,
+): void {
+  const [e0, e1] = parseTwoIslandWorkEntriesFromWorkLogical(logical15);
+  const saved = islandMode === 0 ? e0 : e1;
+  const readEntries = read14?.parsed.entries ?? [];
+  const fmt = (n: number) => `0x${(n >>> 0).toString(16)} (${n})`;
+  const flashBlocks14 = read14?.parsed.flashBlocks ?? "?";
+  console.info(
+    `[LCD] ${label}: payload=${fmt(payloadBytes)} 0x15登记(本次岛)=${fmt(saved.size)} ` +
+      `eraseBlocks(0x18[9])=${eraseBlocks}(0x${eraseBlocks.toString(16)}) ` +
+      `0x14[2]两岛合计块=${flashBlocks14} 条目size=[${readEntries.map((e) => fmt(e.size)).join(", ")}]`,
+  );
+}
+
+/** 0x15 登记 size 须与本次 0x19 实际写入字节一致，否则固件可能在某一偏移后不再应答 */
+export function assertLcdPayloadMatchesWorkAreaSize(
+  logical15: Uint8Array,
+  islandBeingSaved: 0 | 1,
+  payloadBytes: number,
+): void {
+  const [e0, e1] = parseTwoIslandWorkEntriesFromWorkLogical(logical15);
+  const saved = islandBeingSaved === 0 ? e0 : e1;
+  if (saved.size !== payloadBytes) {
+    throw new Error(
+      `LCD 0x15 登记大小(${saved.size}) 与待写入载荷(${payloadBytes}) 不一致，传图会在约 ${saved.size} 字节处异常`,
+    );
+  }
+}
+
 /**
  * 同一侧多张 QGIF（相册）合并为协议里的一条 5 字节：共用首条的 meta/type，size 为各文件字节数之和。
  */
@@ -339,7 +389,12 @@ export function fillLcdEraseBuffer(flashBlocks: number, islandMode: 0 | 1): Uint
 
 const LCD_ERASE_SETTLE_MIN_MS = 2000;
 const LCD_ERASE_SETTLE_MS_PER_64K_BLOCK = 650;
-const LCD_WRITE19_PACKET_INTERVAL_MS = 1;
+/** 0x19 仅 OUT 时包间无需 sleep（片内写 FLASH 与下一包 OUT 可并行） */
+const LCD_WRITE19_PACKET_INTERVAL_MS = 0;
+/** 连续 0x19 OUT 的批量大小（对齐 OTA bulk，减少 JS/队列开销） */
+export const LCD_WRITE19_BURST_PACKETS = 48;
+/** 全部 0x19 发完后、0x1A 前：片内写完 FLASH 的额外等待 */
+const LCD_POST_WRITE19_BEFORE_STOP_MS = 500;
 
 /**
  * 在 `await deviceComm.setData(fillLcdEraseBuffer(...))` 之后、任何 0x19 之前调用。
@@ -368,9 +423,104 @@ export async function sendLcdEraseAndWait(
   return [...resp];
 }
 
-/** 0x19 分包节流：协议要求每包至少 1.1ms 间隔，这里按 2ms 保守执行。 */
-export async function settleBetweenLcd19Packets(): Promise<void> {
-  await new Promise((r) => setTimeout(r, LCD_WRITE19_PACKET_INTERVAL_MS));
+/**
+ * 0x19 包间节流（仅 OUT 模式应为 0；保留 API 供旧调用点）。
+ */
+export async function settleBetweenLcd19Packets(
+  _flashWriteOffset?: number,
+  _bytesJustWritten?: number,
+): Promise<void> {
+  if (LCD_WRITE19_PACKET_INTERVAL_MS > 0) {
+    await new Promise((r) => setTimeout(r, LCD_WRITE19_PACKET_INTERVAL_MS));
+  }
+}
+
+export type Lcd19TransferComm = {
+  setData: (data: number[]) => Promise<unknown>;
+  sendBulkWrite19Packets?: (packets: number[][]) => Promise<void>;
+  streamWrite19Payload?: (
+    data: Uint8Array,
+    baseAddress: number,
+    islandMode: 0 | 1,
+    onPacket?: (transferred: number, total: number) => void,
+  ) => Promise<void>;
+};
+
+/**
+ * 0x19 写 FLASH 热路径：整段一次 HID 锁、无包间 sleep、进度回调节流。
+ */
+export async function transferLcd19Payload(
+  deviceComm: Lcd19TransferComm,
+  data: Uint8Array,
+  options: {
+    baseAddress?: number;
+    islandMode: 0 | 1;
+    onChunkSent?: (transferred: number, total: number) => void;
+  },
+): Promise<void> {
+  const baseAddress = options.baseAddress ?? 0;
+  const islandMode = options.islandMode;
+  const onChunkSent = options.onChunkSent;
+
+  if (deviceComm.streamWrite19Payload) {
+    await deviceComm.streamWrite19Payload(
+      data,
+      baseAddress,
+      islandMode,
+      onChunkSent
+        ? (transferred, total) => onChunkSent(transferred, total)
+        : undefined,
+    );
+    return;
+  }
+
+  const total = data.length;
+  let currentAddress = baseAddress;
+  let transferred = 0;
+  let batch: number[][] = [];
+  const buildPacket = (addr: number, chunk: Uint8Array) => {
+    const writeBuffer = new Uint8Array(65);
+    writeBuffer[1] = 0xaa;
+    writeBuffer[2] = 0x19;
+    writeBuffer[3] = addr & 0xff;
+    writeBuffer[4] = (addr >> 8) & 0xff;
+    writeBuffer[5] = (addr >> 16) & 0xff;
+    writeBuffer[6] = chunk.length;
+    writeBuffer[7] = islandMode;
+    writeBuffer.set(chunk, 9);
+    return Array.from(writeBuffer);
+  };
+
+  const flushBatch = async () => {
+    if (!batch.length) return;
+    if (deviceComm.sendBulkWrite19Packets) {
+      await deviceComm.sendBulkWrite19Packets(batch);
+    } else {
+      for (const packet of batch) {
+        await deviceComm.setData(packet);
+      }
+    }
+    batch = [];
+  };
+
+  for (let i = 0; i < data.length; i += 56) {
+    const bytesToSend = Math.min(56, data.length - i);
+    batch.push(buildPacket(currentAddress, data.subarray(i, i + bytesToSend)));
+    currentAddress += bytesToSend;
+    transferred += bytesToSend;
+    if (batch.length >= LCD_WRITE19_BURST_PACKETS) {
+      await flushBatch();
+      onChunkSent?.(transferred, total);
+    }
+  }
+
+  await flushBatch();
+  onChunkSent?.(transferred, total);
+}
+
+/** 最后一包 0x19 的 IN 已回 ≠ 写 FLASH 结束；收尾 0x1A/0x11 前须额外等待。 */
+export async function settleAfterLcd19BurstBeforeStop(): Promise<void> {
+  await new Promise((r) => setTimeout(r, LCD_POST_WRITE19_BEFORE_STOP_MS));
 }
 
 export async function sendScreenWorkParam15Packets(

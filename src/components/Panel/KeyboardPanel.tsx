@@ -43,6 +43,7 @@ import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
 import { MainContext } from '@/providers/MainProvider';
 import { useTranslation } from '@/app/i18n';
 import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 import { alpha, useTheme } from '@mui/material/styles';
 
 /** 来自 `图标.zip` →「机械轴驱动示例 (4)」，见 `public/sidebar/setting-*.svg` */
@@ -71,8 +72,7 @@ function KeyboardPanelSettingIcon({
     if (!src) return null;
     const size = collapsed ? 20 : 18;
     return (
-        <Box
-            component="img"
+        <PublicAssetImage
             src={src}
             alt=""
             aria-hidden
@@ -1152,37 +1152,38 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                         transition: 'padding 0.2s ease-out, gap 0.2s ease-out',
                     }}
                 >
-                    <Box sx={{ width: '100%' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: settingsMenuCollapsed ? 'center' : 'flex-start', height: 30 }}>
+                    {!settingsMenuCollapsed ? (
+                        <Box sx={{ width: '100%' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', height: 30 }}>
+                                <Typography
+                                    sx={{
+                                        ...KP.titleFont,
+                                        color: isDark ? theme.palette.text.primary : KP.titleColor,
+                                        fontSize: '20px',
+                                        fontWeight: 400,
+                                        p: '0px 10px',
+                                    }}
+                                >
+                                    {t('2711')}
+                                </Typography>
+                            </Box>
                             <Typography
                                 sx={{
-                                    ...KP.titleFont,
-                                    color: isDark ? theme.palette.text.primary : KP.titleColor,
-                                    visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
-                                    fontSize: "20px",
-                                    fontWeight: "400",
-                                    p:"0px 10px"
+                                    ...KP.tipsFont,
+                                    color: isDark ? theme.palette.text.secondary : KP.tipsColor,
+                                    mt: '6px',
+                                    fontSize: '16px',
+                                    fontWeight: 400,
+                                    lineHeight: 1.4,
+                                    p: '0px 10px',
+                                    whiteSpace: 'normal',
+                                    wordBreak: 'break-word',
                                 }}
                             >
-                                {t('2711')}
+                                {t('2710')}
                             </Typography>
                         </Box>
-                        <Typography
-                            sx={{
-                                ...KP.tipsFont,
-                                color: isDark ? theme.palette.text.secondary : KP.tipsColor,
-                                mt: '6px',
-                                height: '20px',
-                                visibility: settingsMenuCollapsed ? 'hidden' : 'visible',
-                                overflow: 'hidden',
-                                fontSize: "16px",
-                                fontWeight: "400",
-                                p:"0px 10px"
-                            }}
-                        >
-                            {t('2710')}
-                        </Typography>
-                    </Box>
+                    ) : null}
 
                     <Stack
                         spacing={0}

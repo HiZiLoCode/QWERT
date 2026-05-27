@@ -8,7 +8,8 @@ import {
   sendLcdEraseAndWait,
   sendLcdScreenWorkAreaSave16,
   sendScreenWorkParam15Packets,
-  settleBetweenLcd19Packets,
+  settleAfterLcd19BurstBeforeStop,
+  transferLcd19Payload,
 } from "@/components/ScreenTheme/lcdIslandProtocol";
 
 // GIF转换结果类型
@@ -550,38 +551,24 @@ async function downloadQgifToDevice(
       message: `${t('173')} ${screenIndex + 1} ${t('174')}`
     });
 
-    const step = 56;
-    for (let i = 0; i < data.length; i += step) {
-      const writeBuffer = new Uint8Array(65);
-      writeBuffer[1] = 0xAA;
-      writeBuffer[2] = 0x19;
-
-      writeBuffer[3] = currentAddress & 0xff;
-      writeBuffer[4] = (currentAddress >> 8) & 0xff;
-      writeBuffer[5] = (currentAddress >> 16) & 0xff;
-
-      const bytesToSend = Math.min(step, data.length - i);
-      writeBuffer[6] = bytesToSend;
-      writeBuffer[7] = LCD_ERASE_ISLAND_PERSONAL;
-
-      writeBuffer.set(data.slice(i, i + bytesToSend), 9);
-
-      await deviceComm.setData(Array.from(writeBuffer));
-      await settleBetweenLcd19Packets();
-
-      currentAddress += bytesToSend;
-      totalBytesTransferred += bytesToSend;
-
-      onProgress({
-        status: TransferStatus.TRANSFERRING,
-        currentScreen: screenIndex + 1,
-        totalScreens: qgifData.length,
-        bytesTransferred: totalBytesTransferred,
-        totalBytes: totalSize,
-        percentage: Math.round((totalBytesTransferred / totalSize) * 100),
-        message: `${t('173')} ${screenIndex + 1} ${t('174')} ${Math.round((totalBytesTransferred / totalSize) * 100)}%`
-      });
-    }
+    const screenXferBase = totalBytesTransferred;
+    await transferLcd19Payload(deviceComm, data, {
+      baseAddress: currentAddress,
+      islandMode: LCD_ERASE_ISLAND_PERSONAL,
+      onChunkSent: (screenTransferred) => {
+        const bytesTransferred = screenXferBase + screenTransferred;
+        onProgress({
+          status: TransferStatus.TRANSFERRING,
+          currentScreen: screenIndex + 1,
+          totalScreens: qgifData.length,
+          bytesTransferred,
+          totalBytes: totalSize,
+          percentage: Math.round((bytesTransferred / totalSize) * 100),
+          message: `${t('173')} ${screenIndex + 1} ${t('174')} ${Math.round((bytesTransferred / totalSize) * 100)}%`
+        });
+      },
+    });
+    totalBytesTransferred = screenXferBase + data.length;
   }
 
   onProgress({
@@ -594,6 +581,7 @@ async function downloadQgifToDevice(
     message: t('175')
   });
 
+  await settleAfterLcd19BurstBeforeStop();
 
   const resetBuffer = new Uint8Array(65);
   resetBuffer[1] = 0xAA;

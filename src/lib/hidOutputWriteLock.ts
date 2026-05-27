@@ -31,6 +31,21 @@ export function resetHidOutputWriteLockChain(device: HIDDevice): void {
   writeChains.set(device, Promise.resolve());
 }
 
+/** 0x19 连续 OUT 热路径：成功即返回，失败再走重试退避 */
+export async function hidSendReportFast(
+  device: HIDDevice,
+  reportId: number,
+  data: BufferSource,
+): Promise<void> {
+  try {
+    await device.sendReport(reportId, data);
+    return;
+  } catch (e) {
+    if (!isRetriableWriteError(e)) throw e;
+  }
+  return hidSendReportWithRetry(device, reportId, data);
+}
+
 export async function hidSendReportWithRetry(
   device: HIDDevice,
   reportId: number,

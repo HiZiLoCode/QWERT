@@ -11,6 +11,7 @@ const NAV_ITEMS: { id: ScreenThemeTab; labelKey: string }[] = [
   // 个性化灵动岛（选项暂隐藏）
   // { id: "personal", labelKey: "1602" },
   { id: "typing", labelKey: "1603" },
+  { id: "loopAnimation", labelKey: "2940" },
 ];
 
 type Props = {

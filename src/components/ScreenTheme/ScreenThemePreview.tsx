@@ -8,6 +8,7 @@ import { MainContext } from "@/providers/MainProvider";
 import { useTranslation } from "@/app/i18n";
 import { useScreenThemeVisual } from "./ScreenThemeVisualContext";
 import ScreenThemeGifCanvasPlayer from "./ScreenThemeGifCanvasPlayer";
+import { resolvePublicAssetUrl } from "@/utils/resolvePublicAssetUrl";
 
 type AlbumCarouselProps = {
   index: number;
@@ -36,17 +37,6 @@ type Props = {
   videoEmptyFallbackPublicPath?: string | null;
 };
 
-function resolvePublicImgSrc(absolutePath: string | null | undefined): string | null {
-  if (!absolutePath) return null;
-  if (typeof window === "undefined") return absolutePath;
-  if (!absolutePath.startsWith("/")) return absolutePath;
-  try {
-    return new URL(`.${absolutePath}`, window.location.href).href;
-  } catch {
-    return absolutePath;
-  }
-}
-
 const toCssPx = (v: number) => `${v}px`;
 
 const PLACEHOLDER_BG =
@@ -66,7 +56,10 @@ export default function ScreenThemePreview({
   const [gifEngineFallback, setGifEngineFallback] = useState(false);
 
   const resolvedVideoFallbackSrc = useMemo(
-    () => resolvePublicImgSrc(videoEmptyFallbackPublicPath ?? null),
+    () =>
+      videoEmptyFallbackPublicPath
+        ? resolvePublicAssetUrl(videoEmptyFallbackPublicPath)
+        : null,
     [videoEmptyFallbackPublicPath],
   );
 

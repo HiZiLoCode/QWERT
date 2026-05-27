@@ -23,14 +23,15 @@ import {
 } from '@/constants/settingsPanelTypography';
 import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import packageJson from '../../../package.json';
+import { pickFirmwareReleaseChanges } from '@/config/firmwareChangelog';
 import {
     WEB_DRIVER_RELEASES,
     type WebDriverRelease,
 } from '@/config/webDriverChangelog';
+import { getHiddenScrollbarSx } from '@/utils/comfortableScrollbarSx';
 
 function pickChanges(release: WebDriverRelease, lang: string): string[] {
-    if (lang.startsWith('en')) return release.changes.en.length ? release.changes.en : release.changes.zh;
-    return release.changes.zh.length ? release.changes.zh : release.changes.en;
+    return pickFirmwareReleaseChanges(release.changes, lang);
 }
 
 export default function WebDriverChangelogSection() {
@@ -114,7 +115,7 @@ export default function WebDriverChangelogSection() {
                 PaperProps={{ sx: { borderRadius: '12px' } }}
             >
                 <DialogTitle sx={{ ...getSettingsRowTitleSx(theme), pb: 10 }}>{t('2524')}</DialogTitle>
-                <DialogContent dividers sx={{ maxHeight: '50vh' }}>
+                <DialogContent dividers sx={{ maxHeight: '50vh', ...getHiddenScrollbarSx() }}>
                     {WEB_DRIVER_RELEASES.map((release) => {
                         const items = pickChanges(release, lang);
                         const isCurrent = release.version === appVersion;

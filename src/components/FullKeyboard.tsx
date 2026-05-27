@@ -9,6 +9,7 @@ import keyboardLayoutDe from '@/data/keyboardLayout/full_keyboard_de.json';
 import { getKeyByKeyNameValue, getKeyName } from '@/keyboard/keycode';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
+import PublicAssetImage from '@/components/common/PublicAssetImage';
 
 const KEY_UNIT_PX = 3.5 * 16;
 const KEY_GAP_PX = 0.2 * 16;
@@ -195,8 +196,7 @@ const FullKeyboard: FC<FullKeyboardProps> = ({ disabled = false, onSelectKey }) 
                     }}
                   >
                     {isImageIcon(keyLabel) ? (
-                      <Box
-                        component="img"
+                      <PublicAssetImage
                         src={String(keyLabel).trim()}
                         alt={keyCodeLabel || keyLabel}
                         sx={{

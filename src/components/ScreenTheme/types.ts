@@ -1,4 +1,4 @@
-export type ScreenThemeTab = "basic" | "personal" | "typing";
+export type ScreenThemeTab = "basic" | "personal" | "typing" | "loopAnimation";
 
 export type ImportSource = "theme" | "image" | "album" | "video";
 
