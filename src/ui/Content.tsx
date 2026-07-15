@@ -8,6 +8,11 @@ import { EditorContext } from '@/providers/EditorProvider';
 import { useViewportMask } from '@/hooks/useViewportMask';
 import { useTranslation } from '@/app/i18n';
 import { startMonitoring, usbDetect } from "@/keyboard/usb-hid";
+import {
+  isKeyboardAuthorizePickerOpen,
+  releaseKeyboardHidSessionForDisconnect,
+} from '@/utils/keyboardHidSession';
+import { hidDeviceMatchesConnectedKeyboard } from '@/devices/WebHid';
 import { MainContext } from '@/providers/MainProvider';
 import { VIEWPORT_HOME_COPY_REM } from '@/constants/viewportHomeCopyRem';
 import { useContext, useEffect, useRef, type ReactNode } from 'react';
@@ -50,42 +55,36 @@ export default function Content() {
   const { screenFirmwareOtaBlocking } = useContext(MainContext);
   const {
     loading,
-    setLoading,
+    initDataLoaded,
     updateMode,
     setKeyboardData,
     connectedKeyboard,
-    setConnectedKeyboard,
-    setConnectState,
-    // 获取升级窗口状态
+    disconnectCurrentKeyboardAndReturnHome,
     isUpgradeWindowOpen,
   } = useContext(ConnectKbContext);
   const updateRef = useRef<boolean>(false);
   const { onChangeTab, currentTab } = useContext(EditorContext);
-  // 升级窗口状态的 ref
   const upgradeWindowRef = useRef<boolean>(false);
-  // 当前已连接键盘地址（仅此设备断开时回到首页）
-  const connectedKeyboardAddressRef = useRef<string | null>(null);
-  const demoKeyboardRef = useRef(false);
+  const connectedKeyboardRef = useRef(connectedKeyboard);
+  const disconnectHomeRef = useRef(disconnectCurrentKeyboardAndReturnHome);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  /** 首页（未连接）与「设置」页：同一套 visualViewport / inner 最小宽高阈值（见 useViewportMask） */
   const viewportMask = useViewportMask({
     containerRef: contentRef,
     isAuthView: false,
     enabled: true,
     homeContentOverflowMode: loading || currentTab === 'settings',
   });
-  // 避免不必要的触发
   const changeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    const init = async () => {
-      // await initState();
-      startMonitoring();
-    };
+    startMonitoring();
+  }, []);
 
-    init();
-
+  useEffect(() => {
     const handleUsbChange = async () => {
-      // 🔑 关键：升级窗口打开时，不处理设备连接事件
+      if (isKeyboardAuthorizePickerOpen()) {
+        return;
+      }
       if (upgradeWindowRef.current) {
         console.log('[USB Change] 升级窗口已打开，跳过设备连接处理');
         return;
@@ -93,77 +92,93 @@ export default function Content() {
 
       if (changeTimeoutRef.current) clearTimeout(changeTimeoutRef.current);
       changeTimeoutRef.current = setTimeout(async () => {
-        // await initState();
         changeTimeoutRef.current = null;
       }, 300);
     };
 
-    // 监听 USB 设备移除事件
-    const handleUsbRemove = (device: any) => {
-      // 🔑 关键：升级窗口打开时，不处理设备断开事件
+    const handleUsbRemove = (device: HIDDevice | { _device?: HIDDevice; _address?: string }) => {
+      if (isKeyboardAuthorizePickerOpen()) {
+        console.log('[USB Remove] 授权弹窗等待中，跳过断开处理');
+        return;
+      }
       if (upgradeWindowRef.current) {
         console.log('[USB Remove] 升级窗口已打开，跳过设备断开处理');
         return;
       }
       if (screenFirmwareOtaBlocking) {
-        console.log('[USB Remove] 屏幕固件 OTA 进行中，跳过 remove 对键盘列表的处理（避免与 MainProvider 误清空叠加）');
+        console.log('[USB Remove] 屏幕固件 OTA 进行中，跳过 remove 对键盘列表的处理');
         return;
       }
-
       if (updateRef.current) return;
-      console.log('[USB Remove] 设备断开:', device);
-      const removedAddress = device?._address;
-      const isCurrentKeyboardRemoved =
-        !!removedAddress &&
-        connectedKeyboardAddressRef.current != null &&
-        connectedKeyboardAddressRef.current === removedAddress;
-      // 如果设备断开，清除连接状态
+
+      const physical = ('_device' in device && device._device) ? device._device : device as HIDDevice;
+      const connected = connectedKeyboardRef.current;
+      const connectedAddress = connected?.api?.address ?? null;
+
+      console.log('[USB Remove] 设备断开:', physical?.productName, physical?.vendorId, physical?.productId);
+
+      releaseKeyboardHidSessionForDisconnect(physical);
+
+      const isCurrentKeyboardRemoved = hidDeviceMatchesConnectedKeyboard(
+        physical,
+        connectedAddress,
+        connected?.vendorId,
+        connected?.productId,
+      );
+
+      const removedAddress =
+        (physical as { _address?: string })._address
+        ?? (('_address' in device) ? device._address : undefined);
+
       setKeyboardData((prevData: any[]) => {
-        const index = prevData.findIndex(
-          (item: any) => item.address === removedAddress
-        );
-        if (index !== -1) {
-          const newData = [...prevData];
-          console.log(newData, removedAddress, prevData[index]?.address);
+        const index = removedAddress
+          ? prevData.findIndex((item: any) => item.address === removedAddress)
+          : prevData.findIndex(
+            (item: any) =>
+              physical
+              && item.vendorId === physical.vendorId
+              && item.productId === physical.productId,
+          );
 
-          if (isCurrentKeyboardRemoved && !demoKeyboardRef.current) {
-            setConnectState(true);
-            setConnectedKeyboard(null);
+        if (index === -1) {
+          if (isCurrentKeyboardRemoved) {
+            disconnectHomeRef.current();
           }
-          newData.splice(index, 1);
-
-          // 仅“当前连接键盘”断开时才回 HeroSection；屏幕设备断开不影响 loading。
-          if (isCurrentKeyboardRemoved && !demoKeyboardRef.current) {
-            setLoading(true);
-            setConnectedKeyboard(null);
-          }
-
-          return newData;
+          return prevData;
         }
-        return prevData;
+
+        const newData = [...prevData];
+        newData.splice(index, 1);
+
+        if (isCurrentKeyboardRemoved) {
+          disconnectHomeRef.current();
+        }
+
+        return newData;
       });
     };
 
-    usbDetect.on('change', handleUsbChange)
-    usbDetect.on("remove", handleUsbRemove);
+    usbDetect.on('change', handleUsbChange);
+    usbDetect.on('remove', handleUsbRemove);
 
     return () => {
-      usbDetect.off("remove", handleUsbRemove);
-      usbDetect.off('change', handleUsbChange)
+      if (changeTimeoutRef.current) clearTimeout(changeTimeoutRef.current);
+      usbDetect.off('remove', handleUsbRemove);
+      usbDetect.off('change', handleUsbChange);
     };
-  }, [setLoading, screenFirmwareOtaBlocking]);
+  }, [setKeyboardData, screenFirmwareOtaBlocking]);
+
   updateRef.current = updateMode;
   upgradeWindowRef.current = isUpgradeWindowOpen;
-  connectedKeyboardAddressRef.current = connectedKeyboard?.api?.address ?? null;
-  demoKeyboardRef.current = !!(
-    connectedKeyboard?.test ||
-    connectedKeyboard?.api?.address === 'demo'
-  );
-  useEffect(() => {
-    if (loading) onChangeTab("keyboard");
-  }, [loading]);
+  connectedKeyboardRef.current = connectedKeyboard;
+  disconnectHomeRef.current = disconnectCurrentKeyboardAndReturnHome;
 
-  // 应用启动后即预加载图标（含连接前首页），减轻首屏 / 键位池图标空白
+  useEffect(() => {
+    if (loading || !initDataLoaded) onChangeTab('keyboard');
+  }, [loading, initDataLoaded]);
+
+  const showMain = !loading && initDataLoaded;
+
   useEffect(() => {
     const run = () =>
       preloadPublicAssets(KEY_TYPE_ICON_PATHS, {
@@ -182,7 +197,7 @@ export default function Content() {
 
   return (
     <Box ref={contentRef} sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: 'background.default' }}>
-      {loading ? <HeroSection /> : <Main />}
+      {showMain ? <Main /> : <HeroSection />}
       {viewportMask.show ? (
         <Box
           sx={{

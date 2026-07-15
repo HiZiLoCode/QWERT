@@ -1,4 +1,6 @@
 type USBMonitorEvent = "remove" | "change";
+import { areNavigatorHidNativeEventsSuspended } from "@/utils/hidNativeEventGate";
+
 export class usbDetect {
   static _listeners: { change: Function[]; remove: Function[] } = {
     change: [],
@@ -11,18 +13,26 @@ export class usbDetect {
     if (!this.hasMonitored && navigator.hid) {
       navigator.hid.addEventListener("connect", usbDetect.onConnect);
       navigator.hid.addEventListener("disconnect", usbDetect.onDisconnect);
+      this.hasMonitored = true;
     }
   }
   static stopMonitoring() {
     this.shouldMonitor = false;
+    if (this.hasMonitored && navigator.hid) {
+      navigator.hid.removeEventListener("connect", usbDetect.onConnect);
+      navigator.hid.removeEventListener("disconnect", usbDetect.onDisconnect);
+      this.hasMonitored = false;
+    }
   }
   private static onConnect = ({ device }: HIDConnectionEvent) => {
+    if (areNavigatorHidNativeEventsSuspended()) return;
     console.log("Detected Connection");
     if (usbDetect.shouldMonitor) {
       usbDetect._listeners.change.forEach((f) => f(device));
     }
   };
   private static onDisconnect = ({ device }: HIDConnectionEvent) => {
+    if (areNavigatorHidNativeEventsSuspended()) return;
     console.log("Detected Disconnection", device);
     if (usbDetect.shouldMonitor) {
       // usbDetect._listeners.change.forEach((f) => f(device));

@@ -1,0 +1,67 @@
+{
+  "LightMode": [
+    {
+      "name": "爱心",
+      "lang": "808",
+      "value": 1,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "扫描",
+      "lang": "802",
+      "value": 2,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "打字",
+      "lang": "803",
+      "value": 3,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "雨滴",
+      "lang": "804",
+      "value": 4,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "终端",
+      "lang": "805",
+      "value": 5,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "自定义",
+      "lang": "806",
+      "value": 6,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    }
+  ],
+  "close": 8,
+  "custom": 6,
+  "order": 0
+}

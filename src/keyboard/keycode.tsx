@@ -15,6 +15,10 @@ import {
 import { KeyboardKey } from "../types/types_v1";
 import customKeysCatalog from "../data/customkeys.json";
 
+/** 与 vendor91683AnyKey 保持一致，避免 keycode ↔ vendor 循环依赖 */
+const VENDOR_KEY_TYPE_ANY = 0x62;
+const VENDOR_ANY_MACRO_BASE_INDEX = 16;
+
 // 德语键名称映射
 const germanKeyNames: Record<number, string> = {
   41: "Esc",
@@ -789,6 +793,8 @@ const evtToKeyByte = {
   Backquote: basicKeyToByte.KC_GRV,
   Slash: basicKeyToByte.KC_SLSH,
   Backslash: basicKeyToByte.KC_BSLS,
+  /** 欧版 LShift–Z 间键；布局 JSON 使用 code 100，非 QMK KC_NUHS(50) */
+  IntlBackslash: 100,
   Minus: basicKeyToByte.KC_MINS,
   Equal: basicKeyToByte.KC_EQL,
   IntlRo: basicKeyToByte.KC_RO,
@@ -2812,7 +2818,29 @@ export const getKeyName = (key: any): KeyNameResult => {
     }
     return { name: localizedKeyName, icon: shortcutIcon };
   }
+  else if (key.type === VENDOR_KEY_TYPE_ANY) {
+    return { name: key.name || 'ANY' };
+  }
   else if (key.type === 0x60 || key.type === 0x61) {
+    if ((key.code1 ?? -1) >= VENDOR_ANY_MACRO_BASE_INDEX) {
+      if (typeof window !== 'undefined') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const storageKey = localStorage.key(i);
+          if (!storageKey?.startsWith('vendor91683_any_macros_')) continue;
+          try {
+            const map = JSON.parse(localStorage.getItem(storageKey) || '{}') as Record<
+              string,
+              { displayName?: string }
+            >;
+            const entry = map[String(key.code1)];
+            if (entry?.displayName) return { name: entry.displayName };
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      return { name: 'ANY' };
+    }
     return { name: "M" + (key.code1 + 1) };
   }
   else if (key.type === 0x20) {

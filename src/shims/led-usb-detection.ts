@@ -3,6 +3,8 @@
  * 基于WebHID API监控USB设备的连接和断开事件
  */
 
+import { areNavigatorHidNativeEventsSuspended } from '@/utils/hidNativeEventGate';
+
 // 定义HID设备事件类型，用于WebHID API的类型补充
 interface HIDConnectionEvent extends Event {
   device: HIDDevice;
@@ -88,6 +90,7 @@ export class USBDetect {
    * 设备连接事件处理器
    */
   private static onConnect = (event: HIDConnectionEvent): void => {
+    if (areNavigatorHidNativeEventsSuspended()) return;
     if (!this._isMonitoring) return;
     
     const { device } = event;
@@ -98,6 +101,7 @@ export class USBDetect {
    * 设备断开事件处理器
    */
   private static onDisconnect = (event: HIDConnectionEvent): void => {
+    if (areNavigatorHidNativeEventsSuspended()) return;
     if (!this._isMonitoring) return;
     
     const { device } = event;

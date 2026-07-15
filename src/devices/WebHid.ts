@@ -1,8 +1,12 @@
 import { WebHidDevice } from "../types/types";
 import { deviceInfo } from "../config/deviceInfo";
+import { hidSendReportWithRetry, withHidOutputWriteLock } from "../lib/hidOutputWriteLock";
 const globalBuffer: {
   [path: string]: { currTime: number; message: Uint8Array }[];
 } = {};
+
+/** 防止 notify 洪泛时 globalBuffer 无限膨胀导致 tab OOM */
+const GLOBAL_BUFFER_MAX = 128;
 
 const eventWaitBuffer: {
   [path: string]: ((a: Uint8Array) => void)[];
@@ -30,14 +34,44 @@ const USAGE_VENDOR = 0x0061;
 const USAGE_PAGE_CONSUMER = 0x000c;
 const USAGE_CONSUMER = 0x0001;
 
-// 过滤通信端点设备 (原有)
-const filterHIDDevices = (devices: HIDDevice[]) =>
-  devices.filter((device) =>
+export function hasVendorHidCollection(device: HIDDevice): boolean {
+  return (
     device.collections?.some(
       (collection) =>
-        collection.usagePage === USAGE_PAGE_VENDOR && collection.usage === USAGE_VENDOR
-    )
+        collection.usagePage === USAGE_PAGE_VENDOR && collection.usage === USAGE_VENDOR,
+    ) ?? false
   );
+}
+
+// 过滤通信端点设备 (原有)
+const filterHIDDevices = (devices: HIDDevice[]) =>
+  devices.filter((device) => hasVendorHidCollection(device));
+
+function parseHexId(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return 0;
+  const parsed = parseInt(value.replace(/^0x/i, ''), 16);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** 授权弹窗可能选中标准键盘输入接口；解析为同 VID/PID 的 vendor 通信接口 */
+export async function resolveVendorCommHidDevice(preferred: HIDDevice): Promise<HIDDevice> {
+  if (hasVendorHidCollection(preferred)) {
+    return preferred;
+  }
+  const all = await navigator.hid.getDevices();
+  const resolved = all.find(
+    (d) =>
+      d.vendorId === preferred.vendorId &&
+      d.productId === preferred.productId &&
+      hasVendorHidCollection(d),
+  );
+  if (resolved) {
+    tagDevice(resolved);
+    return resolved;
+  }
+  return preferred;
+}
 
 // 过滤通知端点设备 (新增)
 const filterNotifyDevices = (devices: HIDDevice[]) =>
@@ -83,57 +117,65 @@ const generateHIDFilters = (vid: number, pidStart: number, pidEnd: number) => {
   }
   return filters;
 };
-const generateHIDFiltersV2 = (deviceInfo) => {
-  const filters = deviceInfo.map((device) => {
-    return {
-      vendorId: device.vendorId, // VID 固定值
-      productId: device.productId, // PID 在指定区间内
-      usagePage: 0xff60, // usagePage
-      usage: 0x0061, // usage
-    };
-  });
+const generateHIDFiltersV2 = (deviceInfoList: Array<{ vendorId: unknown; productId: unknown }>) => {
+  const seen = new Set<string>();
+  const filters: Array<{ vendorId: number; productId: number; usagePage: number; usage: number }> = [];
+  for (const device of deviceInfoList) {
+    const vendorId = parseHexId(device.vendorId);
+    const productId = parseHexId(device.productId);
+    if (!vendorId || !productId) continue;
+    const key = `${vendorId}:${productId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    filters.push({
+      vendorId,
+      productId,
+      usagePage: USAGE_PAGE_VENDOR,
+      usage: USAGE_VENDOR,
+    });
+  }
   return filters;
 };
 export const WebHid = {
   _cache: {} as { [address: string]: WebHidDevice },
   _notifyCache: {} as { [address: string]: HIDDevice },  // 通知端点缓存
 
-  requestDevice: async () => {
-    // 固定 VID 和 PID 区间
-    const vendorId = 0x36b0; // 键盘 VID
-    const pidStart = 0x2000; // 起始 PID
-    const pidEnd = 0x352f; // 结束 PID
-    // 生成过滤器
-    let filters;
-    if (Object.values(deviceInfo).length > 0) {
-      console.log(deviceInfo);
-
-      filters = generateHIDFiltersV2(Object.values(deviceInfo));
-    } else {
-      filters = generateHIDFilters(vendorId, pidStart, pidEnd);
-    }
-    // 额外追加一个“通用过滤器”：不限制 VID/PID，只按 usagePage/usage 匹配
-    // 这样即使设备不在 deviceInfo 列表里，也能在授权弹窗里被选到
-    //（仍然会被 usage 约束，不会把无关 HID 设备全放出来）
-    filters = [
-      ...filters,
-      { usagePage: USAGE_PAGE_VENDOR, usage: USAGE_VENDOR },
+  /**
+   * 与固件升级授权一致：弹窗等待期间仅调用 requestDevice，不做 getDevices / 监听开关。
+   * 单一 VID+usage 过滤器，避免全量 deviceInfo 枚举导致 Chrome 在插线等待时崩溃。
+   */
+  requestDeviceForPicker: async (options?: { includeIapBoot?: boolean }): Promise<HIDDevice | null> => {
+    const filters: Array<{ vendorId?: number; productId?: number; usagePage: number; usage: number }> = [
+      { vendorId: 0x36b0, usagePage: USAGE_PAGE_VENDOR, usage: USAGE_VENDOR },
     ];
-    // 请求设备
+    if (options?.includeIapBoot) {
+      filters.push({
+        vendorId: 0x36b0,
+        productId: 0x33ff,
+        usagePage: 0xff00,
+        usage: 0x0001,
+      });
+    }
     const devices = await navigator.hid.requestDevice({ filters });
+    return devices.length > 0 ? devices[0] : null;
+  },
 
-    if (devices.length === 0) {
+  requestDevice: async (options?: { includeIapBoot?: boolean }) => {
+    const picked = await WebHid.requestDeviceForPicker(options);
+    if (!picked) {
       return null;
     }
-    devices.forEach(tagDevice);
-    return devices[0];
+    tagDevice(picked);
+    if (picked.vendorId === 0x36b0 && picked.productId === 0x33ff) {
+      return picked;
+    }
+    return resolveVendorCommHidDevice(picked);
   },
 
   getFilteredDevices: async () => {
     try {
-      const result = await navigator.hid.getDevices();
-      const hidDevices = filterHIDDevices(await navigator.hid.getDevices());
-      return hidDevices;
+      const allDevices = await navigator.hid.getDevices();
+      return filterHIDDevices(allDevices);
     } catch (e) {
       return [];
     }
@@ -187,6 +229,8 @@ export const WebHid = {
 export class HidDeivce {
   _hidDevice: WebHidDevice | undefined;
   _notifyDevice: HIDDevice | undefined;  // 通知端点设备
+  /** 避免 close/open 后重复 addEventListener，同一条 IN 被多次入队 */
+  private _internalInputReportHandler: ((e: HIDInputReportEvent) => void) | null = null;
   interface: number = -1;
   vendorId: number = -1;
   productId: number = -1;
@@ -267,23 +311,28 @@ export class HidDeivce {
   }
 
   setupListeners() {
-    if (this._hidDevice) {
-      this._hidDevice._device.addEventListener("inputreport", (e) => {
-        if (eventWaitBuffer[this.address].length !== 0) {
-          // It should be impossible to have a handler in the buffer
-          // that has a ts that happened after the current message
-          // came in
-          (eventWaitBuffer[this.address].shift() as any)(
-            new Uint8Array(e.data.buffer)
-          );
-        } else {
-          globalBuffer[this.address].push({
-            currTime: Date.now(),
-            message: new Uint8Array(e.data.buffer),
-          });
-        }
-      });
+    if (!this._hidDevice) return;
+    const dev = this._hidDevice._device;
+    if (this._internalInputReportHandler) {
+      dev.removeEventListener("inputreport", this._internalInputReportHandler);
+      this._internalInputReportHandler = null;
     }
+    this._internalInputReportHandler = (e: HIDInputReportEvent) => {
+      const message = new Uint8Array(e.data.buffer);
+      if (eventWaitBuffer[this.address].length !== 0) {
+        (eventWaitBuffer[this.address].shift() as any)(message);
+        return;
+      }
+      const queue = globalBuffer[this.address] ?? (globalBuffer[this.address] = []);
+      if (queue.length >= GLOBAL_BUFFER_MAX) {
+        queue.shift();
+      }
+      queue.push({
+        currTime: Date.now(),
+        message,
+      });
+    };
+    dev.addEventListener("inputreport", this._internalInputReportHandler);
   }
 
   read(fn: (err?: Error, data?: ArrayBuffer) => void) {
@@ -312,19 +361,106 @@ export class HidDeivce {
 
   async write(arr: number[]) {
     await this.openPromise;
+    const device = this._hidDevice?._device;
+    if (!device) return;
     const data = new Uint8Array(arr.slice(1));
     this.fastForwardGlobalBuffer(Date.now());
     eventWaitBuffer[this.address] = [];
-    await this._hidDevice?._device.sendReport(0, data);
+    await withHidOutputWriteLock(device, () => hidSendReportWithRetry(device, 0, data));
   }
 
   async writeMany(packets: number[][]) {
     await this.openPromise;
+    const device = this._hidDevice?._device;
+    if (!device) return;
     this.fastForwardGlobalBuffer(Date.now());
     eventWaitBuffer[this.address] = [];
     for (const packet of packets) {
       const data = new Uint8Array(packet.slice(1));
-      await this._hidDevice?._device.sendReport(0, data);
+      await withHidOutputWriteLock(device, () => hidSendReportWithRetry(device, 0, data));
     }
   }
+
+  /** 断开连接时移除 inputreport 监听并清空缓冲，防止重插后旧回调堆积 */
+  release() {
+    const dev = this._hidDevice?._device;
+    if (this._internalInputReportHandler && dev) {
+      try {
+        dev.removeEventListener('inputreport', this._internalInputReportHandler);
+      } catch {
+        /* ignore */
+      }
+      this._internalInputReportHandler = null;
+    }
+    if (dev) {
+      try {
+        dev.oninputreport = null;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (this.address) {
+      delete globalBuffer[this.address];
+      eventWaitBuffer[this.address] = [];
+    }
+  }
+}
+
+/** 按物理 HID 句柄或逻辑 address 释放 vendor 通信缓存 */
+export function releaseVendorHidSessionsForPhysicalDevice(
+  device?: HIDDevice | null,
+  taggedAddress?: string | null,
+) {
+  const addresses = new Set<string>();
+  if (taggedAddress) addresses.add(taggedAddress);
+
+  for (const [addr, entry] of Object.entries(WebHid._cache)) {
+    if (device && entry._device === device) {
+      addresses.add(addr);
+    }
+  }
+
+  for (const addr of addresses) {
+    const entry = WebHid._cache[addr];
+    if (entry?._device) {
+      try {
+        entry._device.oninputreport = null;
+      } catch {
+        /* ignore */
+      }
+    }
+    delete globalBuffer[addr];
+    eventWaitBuffer[addr] = [];
+    delete WebHid._cache[addr];
+  }
+}
+
+export function releaseAllVendorHidSessions() {
+  for (const addr of Object.keys(WebHid._cache)) {
+    releaseVendorHidSessionsForPhysicalDevice(undefined, addr);
+  }
+}
+
+/** USB 拔出时匹配当前已连接键盘（_address / 缓存句柄 / VID+PID） */
+export function hidDeviceMatchesConnectedKeyboard(
+  physical: HIDDevice | undefined | null,
+  connectedAddress: string | undefined | null,
+  vendorId?: number,
+  productId?: number,
+): boolean {
+  if (!physical) return false;
+  const tagged = (physical as { _address?: string })._address;
+  if (tagged && connectedAddress && tagged === connectedAddress) {
+    return true;
+  }
+  for (const entry of Object.values(WebHid._cache)) {
+    if (entry._device === physical) {
+      if (connectedAddress && entry.address === connectedAddress) return true;
+      break;
+    }
+  }
+  if (vendorId != null && productId != null) {
+    return physical.vendorId === vendorId && physical.productId === productId;
+  }
+  return false;
 }

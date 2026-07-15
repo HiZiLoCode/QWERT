@@ -1,7 +1,33 @@
 {
-	"name": "Oddity 75",
+	"name": "Neo Code 75",
 	"vendorId": "0x36B0",
-	"productId": "0x315C",
+	"productId": "0x314D",
+	"previewSkins": [
+		{
+			"value": "leadGray",
+			"label": "钛原灰",
+			"suffix": "",
+			"image": "/keyboard/1200-钛原灰-75.png"
+		},
+		{
+			"value": "neoBlue",
+			"label": "牛仔蓝",
+			"suffix": "",
+			"image": "/keyboard/1200-牛仔蓝-75.png"
+		},
+		{
+			"value": "flashWhite",
+			"label": "闪白",
+			"suffix": "",
+			"image": "/keyboard/1200-闪白-75.png"
+		},
+		{
+			"value": "anodeGray",
+			"label": "阳极灰",
+			"suffix": "",
+			"image": "/keyboard/1200-阳极灰-75.png"
+		}
+	],
 	"keycodes": ["qmk_lighting"],
 	"menus":
 	[
@@ -25,7 +51,7 @@
 							"content": ["id_qmk_rgb_matrix_effect", 3, 2],
 							"options":
 							[
-								[ "Turn Off All Lights", 0 ],
+								[ "none", 0 ],
 								[ "solid_color", 1 ],
 								[ "alphas_mods", 2 ],
 								[ "gradient_up_down", 3 ],
@@ -49,28 +75,23 @@
 								[ "rainbow_beacon", 21 ],
 								[ "rainbow_pinwheels", 22 ],
 								[ "flower_blooming", 23 ],
-								[ "raindrops", 24 ],
-								[ "jellybean_raindrops", 25 ],
-								[ "hue_breathing", 26 ],
-								[ "hue_pendulum", 27 ],
-								[ "hue_wave", 28 ],
-								[ "pixel_flow", 29 ],
-								[ "digital_rain", 30 ],
-								[ "solid_reactive", 31 ],
-								[ "solid_reactive_wide", 32 ],
-								[ "solid_reactive_multiwide", 33 ],
-								[ "solid_reactive_cross", 34 ],
-								[ "solid_reactive_multicross", 35 ],
-								[ "solid_reactive_nexus", 36 ],
-								[ "solid_reactive_multinexus", 37 ],
-								[ "splash", 38 ],
-								[ "multisplash", 39 ],
-								[ "solid_splash", 40 ],
-								[ "solid_multisplash", 41 ],
-								[ "starlight", 42 ],
-								[ "starlight_dual_hue", 43 ],
-								[ "starlight_dual_sat", 44 ],
-								[ "riverflow", 45 ]
+								[ "hue_breathing", 24 ],
+								[ "hue_pendulum", 25 ],
+								[ "hue_wave", 26 ],
+								[ "pixel_flow", 27 ],
+								[ "digital_rain", 28 ],
+								[ "solid_reactive", 29 ],
+								[ "solid_reactive_wide", 30 ],
+								[ "solid_reactive_multiwide", 31 ],
+								[ "solid_reactive_cross", 32 ],
+								[ "solid_reactive_multicross", 33 ],
+								[ "solid_reactive_nexus", 34 ],
+								[ "solid_reactive_multinexus", 35 ],
+								[ "splash", 36 ],
+								[ "multisplash", 37 ],
+								[ "solid_splash", 38 ],
+								[ "solid_multisplash", 39 ],
+								[ "riverflow", 40 ]
 							]
 						},
 						{
@@ -141,12 +162,13 @@
 		{"name": "BAT",      "title": "Querying Battery Status",                 "shortName": "QK_BAT"  },
 		{"name": "WLO",      "title": "Lock WIN",                                "shortName": "QK_WLO"  },
 		{"name": "SIX_N",    "title": "Full-key six-key switch",                 "shortName": "SIX_N"   },
-		{"name": "U_EE_CLR", "title": "Customize the reset button",              "shortName": "U_EE_CLR"},
-		{"name": "RTOG",     "title": "Toggle led lighting on or off",           "shortName": "RGB_RTOG"},
-		{"name": "KEY_DEB",  "title": "Toggle the number of de-chattering",      "shortName": "KEY_DEB" },
+        {"name": "IOS_SIRI", "title": "Outgoing SIRI",                           "shortName": "SIRI"    },
+		{"name": "TEST",     "title": "Test Keyboard Colour",                    "shortName": "TEST"    },
         {"name": "KbPrSlp",  "title": "Keyboard primary sleep",                  "shortName": "KbPrSlp" },
 		{"name": "KbdSecS",  "title": "Keyboard secondary sleep",                "shortName": "KbdSecS" },
-		{"name": "TEST",     "title": "Test Keyboard Colour",                    "shortName": "TEST"    },
+        {"name": "QK_DEB",   "title": "Number of times that the key shakes off", "shortName": "QK_DEB"  },
+		{"name": "RTOG",     "title": "Toggle led lighting on or off",           "shortName": "RGB_RTOG"},
+        {"name": "Do_Not_Disturb", "title": "NO_DISTURBING MODE",                "shortName": "DNTB"    },
 		{"name": "LG_TOG",   "title": "Toggle logo lighting on or off",          "shortName": "LG_TOG"  },
 		{"name": "LG_MO",    "title": "Cycle through modes",                     "shortName": "LG_MOD"  },
 		{"name": "LG_RM",    "title": "Cycle through modes in reverse",          "shortName": "LG_RMOD" },
@@ -161,33 +183,29 @@
 	],
 	"matrix": { "rows": 6, "cols": 16 },
     "layouts": {
-		"labels": [
-            "ISO Encoder"
-		],
 		"keymap": [
 			[
 				{ "c":"#777777" },
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,0",
                 { "c":"#aaaaaa" },
-				{ "w":1.0,  "h":1.0,  "x":0.9 },  "0,1",
+				{ "w":1.0,  "h":1.0,  "x":1.0 },  "0,1",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,2",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,3",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,4",
-				{ "w":1.0,  "h":1.0,  "x":0.3 },  "0,5",
+				{ "w":1.0,  "h":1.0,  "x":0.5 },  "0,5",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,6",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,7",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,8",
-				{ "w":1.0,  "h":1.0,  "x":0.3 },  "0,9",
+				{ "w":1.0,  "h":1.0,  "x":0.5 },  "0,9",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,10",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,11",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "0,12",
-				{ "w":1.0,  "h":1.0,  "x":0.5 },  "0,14\n\n\n0,0",
-                {"c": "#777777","w": 1.0, "h": 1.0, "x":0.0, "fa": [1,0,0,0,0,0,0,0,0,1]},
-                "2,15\n\n\n0,1\n\n\n\n\n\n e0 "
+				{ "c":"#777777" },
+				{ "w":1.0,  "h":1.0,  "x":0.25},  "2,15"
 			],
 
 			[
-                { "c":"#cccccc", "y":0.2 },
+                { "c":"#cccccc" },
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,0",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,1",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,2",
@@ -201,9 +219,10 @@
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,10",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,11",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "1,12",
-				{ "w":2.0,  "h":1.0,  "x":0.0 },  "1,13",
-                { "c":"#aaaaaa" },
-				{ "w":1.0,  "h":1.0,  "x":0.0 },  "2,14"
+				{ "c":"#aaaaaa" },
+				{ "w":2.0,  "h":1.0,  "x":0.0 },  "0,13",
+				{ "c":"#777777" },
+				{ "w":1.0,  "h":1.0,  "x":0.25}, "3,14"
 			],
 
 			[
@@ -222,9 +241,10 @@
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "2,10",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "2,11",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "2,12",
-                { "c":"#aaaaaa" },
+				{ "c":"#aaaaaa" },
 				{ "w":1.5,  "h":1.0,  "x":0.0 },  "2,13",
-				{ "w":1.0,  "h":1.0,  "x":0.0 },  "3,14"
+				{ "c":"#777777" },
+				{ "w":1.0,  "h":1.0,  "x":0.25},  "1,15"
 			],
 
 			[
@@ -242,15 +262,14 @@
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "3,9",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "3,10",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "3,11",
-                { "c":"#777777" },
+                { "c":"#aaaaaa" },
 				{ "w":2.25, "h":1.0,  "x":0.0 },  "3,13",
-                { "c":"#aaaaaa" },
-				{ "w":1.0,  "h":1.0,  "x":0.0 },  "3,15"
+				{ "c":"#777777" },
+				{ "w":1.0 , "h":1.0,  "x":0.25},  "3,15"
 			],
-
 			[
-                { "c":"#aaaaaa" },
-				{ "w":2.25, "h":1.0,  "x":0.0 },  "4,0",
+				{ "c":"#aaaaaa" },
+                { "w":2.25, "h":1.0,  "x":0.0 },  "4,0",
                 { "c":"#cccccc" },
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "4,2",
 				{ "w":1.0,  "h":1.0,  "x":0.0 },  "4,3",
@@ -265,7 +284,7 @@
                 { "c":"#aaaaaa" },
 				{ "w":1.75, "h":1.0,  "x":0.0 },  "4,13",
                 { "c":"#777777" },
-				{ "w":1.0,  "h":1.0,  "x":0.0 },  "4,14"
+				{ "w":1.0,  "h":1.0,  "x":0.25},  "4,14"
 			],
 
 			[
@@ -277,9 +296,9 @@
 				{ "w":6.25,	"h":1.0,  "x":0.0 },  "5,5",
                 { "c":"#aaaaaa" },
 				{ "w":1.25,	"h":1.0,  "x":0.0 },  "5,9",
-				{ "w":1.25,	"h":1.0,  "x":0.0 },  "5,12",
-                { "c":"#777777" },
-				{ "w":1.0,	"h":1.0,  "x":0.5 },  "5,13",
+				{ "w":1.25,	"h":1.0,  "x":0.0 },  "5,10",
+				{ "c":"#777777" },
+				{ "w":1.0,	"h":1.0,  "x":0.75},  "5,13",
 				{ "w":1.0,	"h":1.0,  "x":0.0 },  "5,14",
 				{ "w":1.0,	"h":1.0,  "x":0.0 },  "5,15"
 			]

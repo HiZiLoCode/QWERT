@@ -1,0 +1,87 @@
+{
+  "LightMode": [
+    {
+      "name": "爱心",
+      "lang": "808",
+      "value": 1,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "扫描",
+      "lang": "802",
+      "value": 2,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "打字",
+      "lang": "803",
+      "value": 3,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "雨滴",
+      "lang": "804",
+      "value": 4,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "终端",
+      "lang": "805",
+      "value": 5,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "魔力转圈圈",
+      "lang": "226",
+      "value": 6,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "蘑菇灯效",
+      "lang": "227",
+      "value": 7,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "自定义模式",
+      "lang": "228",
+      "value": 8,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    }
+  ],
+  "close": 9,
+  "custom": 8,
+  "order": 0
+}

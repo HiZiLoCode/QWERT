@@ -16,6 +16,18 @@ import {
 } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from "@/app/i18n";
+import { upgradeFlowLog, UF_SOURCE } from '@/utils/upgradeFlowLog';
+
+const UFL = UF_SOURCE.DONGLE_IAP;
+const ufl = {
+  info: (message: string, detail?: string) => upgradeFlowLog.info(UFL, message, detail),
+  warn: (message: string, detail?: string) => upgradeFlowLog.warn(UFL, message, detail),
+  error: (message: string, detail?: string) => upgradeFlowLog.error(UFL, message, detail),
+  out: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logOut(UFL, label, data, reportId),
+  in: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logIn(UFL, label, data, reportId),
+};
 
 // WebHID API 类型声明
 declare global {
@@ -163,6 +175,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
     if (inputQueueRef.current.length > 0) {
       const data = inputQueueRef.current.shift();
       if (data) {
+        ufl.in('HID IN (queue)', data, DONGLE_CONFIG.reportId);
         return data;
       }
     }
@@ -179,6 +192,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
       inputQueueWaitersRef.current.push({
         resolve: (data: Uint8Array) => {
           clearTimeout(timer);
+          ufl.in('HID IN', data, DONGLE_CONFIG.reportId);
           resolve(data);
         },
         reject: (error: Error) => {
@@ -202,7 +216,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
     }
     
     if (oldCount > 0) {
-      console.log(`已清除 ${oldCount} 个残留数据包`);
+      ufl.info(`已清除 ${oldCount} 个残留数据包`);
     }
   };
 
@@ -231,6 +245,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
     packet[7 + size] = bcc;
     
     // 发送（不包含Report ID）
+    ufl.out('IAP 传输层', packet.slice(1), DONGLE_CONFIG.reportId);
     await device.sendReport(DONGLE_CONFIG.reportId, packet.slice(1).buffer);
     
     await delay(2);
@@ -258,7 +273,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
     const packNum = Math.ceil(size / packSize);
     const packLastSize = ((size - 1) % packSize) + 1;
     
-    console.log(`发送业务包: ${size}字节, 分${packNum}包`);
+    ufl.info(`发送业务包`, `${size}字节, 分${packNum}包`);
     
     for (let packIdx = 0; packIdx < packNum; packIdx++) {
       const currentPackSize = (packIdx === packNum - 1) ? packLastSize : packSize;
@@ -428,7 +443,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
       });
       return dongleDevice || null;
     } catch (error) {
-      console.error('Dongle设备检测失败:', error);
+      ufl.error('Dongle设备检测失败', String(error));
       return null;
     }
   };
@@ -449,7 +464,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
           usagePage: DONGLE_CONFIG.usagePage,
         }]
       });
-      console.log(devices);
+      ufl.debug('授权设备列表', `${devices.length} 个`);
       
       if (devices.length === 0) {
         throw new Error(t("1253")); // '未选择设备'
@@ -479,7 +494,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
         dev.removeEventListener('inputreport', globalInputHandler);
         await dev.close();
       } catch (error) {
-        console.warn('断开设备时出错:', error);
+        ufl.warn('断开设备时出错', String(error));
       }
     }
   };
@@ -504,7 +519,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
         // 先尝试自动检测
         const autoDetected = await detectDongleDevice();
         if (autoDetected) {
-          console.log('自动检测到Dongle设备:', autoDetected.productName);
+          ufl.info('自动检测到Dongle设备', autoDetected.productName);
           connectedDevice = await connectDevice(autoDetected);
         } else {
           // 未检测到，请求用户授权
@@ -532,7 +547,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
       
       const ack1 = await iapBusinessRead(5000);
       if (ack1 !== ACK_CODE.SUCCESS) {
-        console.warn(`启动命令ACK异常: ${getAckMessage(ack1)}`);
+        ufl.warn('启动命令ACK异常', getAckMessage(ack1));
       }
 
       // 步骤2: 写入Flash
@@ -578,7 +593,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
         
         const ack2 = await iapBusinessRead(5000);
         if (ack2 !== ACK_CODE.SUCCESS) {
-          console.warn(`写入块${blockIdx} ACK异常: ${getAckMessage(ack2)}`);
+          ufl.warn(`写入块${blockIdx} ACK异常`, getAckMessage(ack2));
         }
         
         const progress = 20 + ((blockIdx + 1) / blockNum) * 70;
@@ -604,7 +619,7 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
       
       const ack3 = await iapBusinessRead(5000);
       if (ack3 !== ACK_CODE.SUCCESS) {
-        console.warn(`切换APP响应: ${getAckMessage(ack3)}`);
+        ufl.warn('切换APP响应', getAckMessage(ack3));
       }
 
       updateStatus(t("1234"), 100, undefined, 'normal'); // "升级完成！"
@@ -635,14 +650,14 @@ function DongleFirmwareUpgrade({ isOpen, onClose, deviceInfo }: DongleFirmwareUp
           
           const autoDetected = await detectDongleDevice();
           if (autoDetected) {
-            console.log('✅ 自动检测到Dongle设备:', autoDetected.productName);
+            ufl.info('自动检测到Dongle设备', autoDetected.productName);
             await connectDevice(autoDetected);
             updateStatus(t("1256"), 10); // "设备已连接，准备升级"
           } else {
             updateStatus(t("1257"), 0, undefined, 'warning'); // "未检测到设备，请点击开始升级授权"
           }
         } catch (error: any) {
-          console.error('自动连接失败:', error);
+          ufl.error('自动连接失败', String(error));
           updateStatus(t("1208"), 0); // "就绪"
         }
       };

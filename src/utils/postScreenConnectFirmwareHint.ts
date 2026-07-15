@@ -1,4 +1,5 @@
-import { getScreenUpgradeVersion } from '@/config/deviceInfo';
+import { getScreenUpgradeVersion, isScreenDriverUpgradeDisabled } from '@/config/deviceInfo';
+import { isFirmwareVersionBehind } from '@/utils/firmwareVersionCompare';
 import type { screenInfo } from '@/types/types';
 
 export type ShowFirmwareUpdateCardFn = (options: {
@@ -15,7 +16,7 @@ type TFn = (key: string, options?: Record<string, string>) => string;
 /**
  * 与 SettingPanel `screenVerFromContext` / `screenDeviceVersion` 一致：
  * 从 `getScreenSize().firmware_version` 得到数值后，用十六进制大写字符串作为「屏显版本号」（如 276 → "114"），
- * 再与 `getScreenUpgradeVersion` 返回的目标串做 `parseInt(..., 10)` 比较；卡片「当前版本」也使用该字符串，勿用十进制原数。
+ * 再与 `getScreenUpgradeVersion` 返回的目标串比较（当前 < 目标时才提示）；卡片「当前版本」也使用该字符串，勿用十进制原数。
  * @returns 是否已弹出固件升级提示
  */
 export function notifyFirmwareUpdateAfterScreenConnect(params: {
@@ -43,32 +44,22 @@ export function notifyFirmwareUpdateAfterScreenConnect(params: {
         params.fwVid && params.fwPid
             ? getScreenUpgradeVersion(params.fwVid, params.fwPid, params.firmwareChangelogKeySegment)
             : '';
+    const screenUpgradeDisabled =
+        params.fwVid &&
+        params.fwPid &&
+        isScreenDriverUpgradeDisabled(params.fwVid, params.fwPid, params.firmwareChangelogKeySegment);
     const screenNeeds = Boolean(
-        targetDec &&
+        !screenUpgradeDisabled &&
+            targetDec &&
             screenVersionDisplay &&
-            parseInt(screenVersionDisplay, 10) < parseInt(targetDec, 10),
+            isFirmwareVersionBehind(screenVersionDisplay, targetDec),
     );
-
-    const kbNeeds = Boolean(params.keyboardNeedsUpgrade);
 
     if (screenNeeds && screenVersionDisplay) {
         params.showFirmwareUpdateCard({
             variant: 'screen',
             targetVersionLabel: `v${targetDec}`,
             currentVersionLabel: `v${screenVersionDisplay}`,
-            extraHint: kbNeeds ? params.t('2936') : undefined,
-            onGoNow: params.onNavigateToSettingsFirmware,
-        });
-        return true;
-    }
-
-    if (kbNeeds) {
-        const tv = params.keyboardUpgradeVersion?.trim();
-        const cv = params.keyboardDeviceVersion?.trim();
-        params.showFirmwareUpdateCard({
-            variant: 'keyboard',
-            targetVersionLabel: tv ? `v${tv}` : 'v…',
-            currentVersionLabel: cv ? `v${cv}` : 'v…',
             onGoNow: params.onNavigateToSettingsFirmware,
         });
         return true;

@@ -1,0 +1,28 @@
+{
+    "previewSkins": [
+        {
+            "value": "leadGray",
+            "label": "钛原灰",
+            "suffix": "",
+            "image": "/keyboard/1200-钛原灰-75.png"
+        },
+        {
+            "value": "neoBlue",
+            "label": "牛仔蓝",
+            "suffix": "",
+            "image": "/keyboard/1200-牛仔蓝-75.png"
+        },
+        {
+            "value": "flashWhite",
+            "label": "闪白",
+            "suffix": "",
+            "image": "/keyboard/1200-闪白-75.png"
+        },
+        {
+            "value": "anodeGray",
+            "label": "阳极灰",
+            "suffix": "",
+            "image": "/keyboard/1200-阳极灰-75.png"
+        }
+    ]
+}

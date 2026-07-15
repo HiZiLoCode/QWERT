@@ -4,10 +4,24 @@
  */
 
 import {
+  hidSendReportFast,
   hidSendReportWithRetry,
   resetHidOutputWriteLockChain,
   withHidOutputWriteLock,
 } from './hidOutputWriteLock';
+import { upgradeFlowLog, UF_SOURCE } from '@/utils/upgradeFlowLog';
+
+const UFL = UF_SOURCE.SCREEN_OTA;
+const ufl = {
+  info: (m: string, d?: string) => upgradeFlowLog.info(UFL, m, d),
+  warn: (m: string, d?: string) => upgradeFlowLog.warn(UFL, m, d),
+  error: (m: string, d?: string) => upgradeFlowLog.error(UFL, m, d),
+  debug: (m: string, d?: string) => upgradeFlowLog.debug(UFL, m, d),
+  out: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logOut(UFL, label, data, reportId),
+  in: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logIn(UFL, label, data, reportId),
+};
 
 export const WEBHID_UPGRADE_CONSTANTS = {
   KEYBOARD_VID: 0x36b0,
@@ -27,6 +41,12 @@ export const WEBHID_UPGRADE_CONSTANTS = {
   IMAGE_FLASH_START_ADDR: 0,
   IMAGE_SEND_SIZE: 57,
   IMAGE_CHUNK_SIZE: 5700,
+  /** Python `download_image_data`: start 后等待下载界面 */
+  IMAGE_START_UI_WAIT_MS: 3000,
+  /** Python `wait_reply` bulk / 最后一包图传 IN 超时 */
+  IMAGE_BULK_REPLY_MS: 1000,
+  /** Python `WAIT_TIME`：进升级模式后等待 OTA 设备 */
+  OTA_ENTER_MODE_WAIT_MS: 1000,
   /** 与 Python `BULK_ACK_COUNT` / `ENABLE_BULK_ACK` 一致：每 100 包再等一次应答 */
   BULK_ACK_COUNT: 100,
   /** Python 图传 bulk 用 `wait_reply(..., 1000)`；WebHID 下 IN 常更晚，略加长避免未满 100 包就误判超时 */
@@ -39,6 +59,15 @@ export const WEBHID_UPGRADE_CONSTANTS = {
   OTA_UPGRADE_PRE_CMD: 0xf0,
   /** 单包 OUT 在 OUT 锁上排队过久仍不返回时，主动失败以免界面一直停在「升级中」 */
   OTA_OUT_PACKET_WATCHDOG_MS: 15000,
+  /** bulk（100 包）IN 超时或 OUT 失败后整段重发次数 */
+  IMAGE_BULK_MAX_RETRIES: 3,
+  /** bulk 重试前清队列/写锁后的等待 */
+  IMAGE_BULK_RETRY_DELAY_MS: 350,
+  /** 等 IN 时分片等待；满 100 包无有效应答后再短等一次 */
+  OTA_ACK_PROBE_WAIT_MS: 2500,
+  /** 100 包边界上快速探测 IN 的毫秒数（仅 bulk 计数满时 poll） */
+  OTA_ACK_IN_POLL_MS: 5,
+  OTA_ACK_PROBE_MAX_ROUNDS: 5,
 } as const;
 
 function sleep(ms: number) {
@@ -65,6 +94,15 @@ function u8FromDataView(data: DataView) {
  * 屏幕等复合 HID 的 input report 常在首字节带 reportId，OTA 应答 `ff cmd status` 会整体后移。
  * 在前若干字节内扫描 `ff` + cmd，返回 status（第三字节）；找不到返回 null。
  */
+function hasOtaPrefix(buf: Uint8Array): boolean {
+  const addr = WEBHID_UPGRADE_CONSTANTS.OTA_PROTO_ADDR;
+  const maxOff = Math.min(8, Math.max(0, buf.length - 3));
+  for (let off = 0; off <= maxOff; off++) {
+    if (buf[off] === addr) return true;
+  }
+  return false;
+}
+
 function parseOtaStatusByte(buf: Uint8Array, cmd: number): number | null {
   const addr = WEBHID_UPGRADE_CONSTANTS.OTA_PROTO_ADDR;
   const maxOff = Math.min(8, Math.max(0, buf.length - 3));
@@ -212,6 +250,15 @@ export class WebHidUpgradeClient {
   private _otaScreenKeepaliveIntervalMs: number;
   private _otaScreenKeepaliveCmd: number;
   private _keepaliveSuspendDepth = 0;
+  /** 图传/固件数据热路径：跳过逐包日志、走 hidSendReportFast */
+  private _otaXferHotPath = false;
+  /** burst OUT 期间由 tap 缓存 IN，避免应答在无 listener 时丢失 */
+  private _otaInTap: {
+    active: boolean;
+    device: HIDDevice | null;
+    handler: ((e: HIDInputReportEvent) => void) | null;
+    queue: Uint8Array[];
+  } = { active: false, device: null, handler: null, queue: [] };
 
   constructor(opts: WebHidUpgradeClientOptions = {}) {
     this.reportId = opts.reportId ?? WEBHID_UPGRADE_CONSTANTS.REPORT_ID;
@@ -276,7 +323,7 @@ export class WebHidUpgradeClient {
           await pick.open();
         }
       } catch (e) {
-        console.warn('requestAndOpenOtaDevice: screen HID open', e);
+        ufl.warn('requestAndOpenOtaDevice: screen HID open', String(e));
       }
       this.ota = pick;
       this._otaBorrowedFromScreen = true;
@@ -299,7 +346,14 @@ export class WebHidUpgradeClient {
       const cached = this._outputProfileByDevice.get(device);
       if (cached) {
         const padded = padReport(payload, cached.byteLength);
-        await hidSendReportWithRetry(device, cached.reportId, padded);
+        if (!this._otaXferHotPath) {
+          ufl.out('OTA OUT', padded, cached.reportId);
+        }
+        if (this._otaXferHotPath) {
+          await hidSendReportFast(device, cached.reportId, padded);
+        } else {
+          await hidSendReportWithRetry(device, cached.reportId, padded);
+        }
         return;
       }
 
@@ -308,7 +362,14 @@ export class WebHidUpgradeClient {
       for (const c of candidates) {
         try {
           const padded = padReport(payload, c.byteLength);
-          await hidSendReportWithRetry(device, c.reportId, padded);
+          if (!this._otaXferHotPath) {
+            ufl.out('OTA OUT', padded, c.reportId);
+          }
+          if (this._otaXferHotPath) {
+            await hidSendReportFast(device, c.reportId, padded);
+          } else {
+            await hidSendReportWithRetry(device, c.reportId, padded);
+          }
           this._outputProfileByDevice.set(device, c);
           return;
         } catch (e) {
@@ -319,6 +380,73 @@ export class WebHidUpgradeClient {
         'HID output report length mismatch. Check listHidOutputReports(device) or set reportId/reportOutLength.';
       throw new Error(`${lastErr?.message || 'sendReport failed'} — ${hint}`);
     });
+  }
+
+  private _enterOtaXferHotPath() {
+    this._otaXferHotPath = true;
+    this.startOtaInTap();
+  }
+
+  private _leaveOtaXferHotPath() {
+    this._otaXferHotPath = false;
+    this.stopOtaInTap();
+  }
+
+  private startOtaInTap() {
+    if (!this.ota || this._otaInTap.active) return;
+    const device = this.ota;
+    const handler = (e: HIDInputReportEvent) => {
+      const ev = e as HIDInputReportEvent & { device?: HIDDevice };
+      if (ev.device != null && ev.device !== device) return;
+      const u8 = u8FromDataView(e.data);
+      if (!hasOtaPrefix(u8)) return;
+      if (!this._otaXferHotPath) return;
+      if (this._otaInTap.queue.length > 48) {
+        this._otaInTap.queue.shift();
+      }
+      this._otaInTap.queue.push(u8);
+    };
+    device.addEventListener('inputreport', handler);
+    this._otaInTap = { active: true, device, handler, queue: [] };
+  }
+
+  private stopOtaInTap() {
+    const { device, handler } = this._otaInTap;
+    if (device && handler) {
+      device.removeEventListener('inputreport', handler);
+    }
+    this._otaInTap = { active: false, device: null, handler: null, queue: [] };
+  }
+
+  private clearOtaInTapQueue() {
+    this._otaInTap.queue.length = 0;
+  }
+
+  /** 从 tap 队列取指定 cmd 的 status；未找到返回 null */
+  private takeOtaStatusFromTap(expectedCmd: number): number | null {
+    const q = this._otaInTap.queue;
+    for (let i = 0; i < q.length; i++) {
+      const buf = q[i]!;
+      const st = parseOtaStatusByte(buf, expectedCmd);
+      if (st !== null) {
+        q.splice(i, 1);
+        if (!this._otaXferHotPath) {
+          ufl.in('OTA IN tap', buf);
+        }
+        return st;
+      }
+    }
+    return null;
+  }
+
+  private async waitOtaStatusFromTap(expectedCmd: number, timeoutMs: number): Promise<number | null> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const st = this.takeOtaStatusFromTap(expectedCmd);
+      if (st !== null) return st;
+      await sleep(4);
+    }
+    return null;
   }
 
   private async sendReportWithOtaWatchdog(
@@ -337,6 +465,32 @@ export class WebHidUpgradeClient {
       });
     } finally {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+  }
+
+  /** 图传/固件数据热路径 OUT（无 per-packet watchdog，靠 burst + 抽样 IN） */
+  private async sendOtaDataReportFast(payload: Uint8Array): Promise<void> {
+    if (!this.ota) throw new Error('Connect OTA device first');
+    await this.sendReport(this.ota, payload);
+  }
+
+  /** 图传/固件数据 OUT：带看门狗，用于非热路径或重试 */
+  private async sendOtaDataReport(payload: Uint8Array): Promise<void> {
+    if (!this.ota) throw new Error('Connect OTA device first');
+    const { OTA_OUT_PACKET_WATCHDOG_MS } = WEBHID_UPGRADE_CONSTANTS;
+    try {
+      await this.sendReportWithOtaWatchdog(
+        this.ota,
+        payload,
+        OTA_OUT_PACKET_WATCHDOG_MS,
+        'OTA 数据包 OUT 超时（15s）。HID 写锁或设备无响应，请拔插数据线后重试。',
+      );
+    } catch (e) {
+      if (this._otaBorrowedFromScreen) {
+        const d = this.screenDeviceComm?.getScreenHidDevice?.();
+        if (d) resetHidOutputWriteLockChain(d);
+      }
+      throw e;
     }
   }
 
@@ -360,7 +514,7 @@ export class WebHidUpgradeClient {
       try {
         await this.sendHidCommand(this.ota, cmd, []);
       } catch (e) {
-        console.warn('OTA screen keepalive:', e);
+        ufl.warn('OTA screen keepalive', String(e));
       }
     };
     void tick();
@@ -426,6 +580,7 @@ export class WebHidUpgradeClient {
     await this.sendHidCommand(this.keyboard, 0x10, []);
     await sleep(100);
     await this.sendHidCommand(this.keyboard, 0xe0, []);
+    await sleep(WEBHID_UPGRADE_CONSTANTS.OTA_ENTER_MODE_WAIT_MS);
   }
 
   async exitUpgradeMode() {
@@ -444,10 +599,10 @@ export class WebHidUpgradeClient {
           await this.sendHidCommand(kbd, 0xe1, [0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
           await sleep(100);
         } else {
-          console.warn('exitUpgradeMode: keyboardHidForExit missing, skip 0xe1');
+          ufl.warn('exitUpgradeMode', 'keyboardHidForExit missing, skip 0xe1');
         }
       } catch (e) {
-        console.warn('exitUpgradeMode (screen + keyboard exit):', e);
+        ufl.warn('exitUpgradeMode (screen + keyboard exit)', String(e));
       }
       return;
     }
@@ -459,7 +614,7 @@ export class WebHidUpgradeClient {
       await this.sendHidCommand(this.keyboard, 0xe1, [0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01]);
       await sleep(100);
     } catch (e) {
-      console.warn('exitUpgradeMode:', e);
+      ufl.warn('exitUpgradeMode', String(e));
     }
   }
 
@@ -497,7 +652,10 @@ export class WebHidUpgradeClient {
         // 部分环境不填 device；误过滤会导致「抓包有 IN、JS 永远等不到」
         if (ev.device != null && ev.device !== device) return;
         const u8 = u8FromDataView(e.data);
-        if (match(u8)) done(u8);
+        if (match(u8)) {
+          ufl.in('OTA IN', u8, e.reportId);
+          done(u8);
+        }
       };
       device.addEventListener('inputreport', handler);
     });
@@ -505,6 +663,9 @@ export class WebHidUpgradeClient {
 
   async waitOtaStatus(expectedSecondByte: number, timeoutMs = 5000) {
     if (!this.ota) throw new Error('Connect OTA device first');
+    if (this._otaInTap.active) {
+      return this.waitOtaStatusFromTap(expectedSecondByte, timeoutMs);
+    }
     const u8 = await this.waitInputReport(
       this.ota,
       (buf) => parseOtaStatusByte(buf, expectedSecondByte) !== null,
@@ -514,11 +675,14 @@ export class WebHidUpgradeClient {
   }
 
   /**
-   * 等价 Python `wait_reply(comm_fd, expected_cmd, timeout)`：
-   * `timeout` 为总毫秒上限；循环内单次 read 最多 1000ms（与 py `comm_fd.read(timeout=1000)` 一致）。
+   * 等价 Python `wait_reply(comm_fd, expected_cmd, timeout)`。
+   * 热路径下 IN 由 tap 缓存，burst OUT 期间到达的应答不会丢。
    */
   async waitReplyOta(expectedSecondByte: number, timeoutMs: number): Promise<number | null> {
     if (!this.ota) throw new Error('Connect OTA device first');
+    if (this._otaInTap.active) {
+      return this.waitOtaStatusFromTap(expectedSecondByte, timeoutMs);
+    }
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const remaining = timeoutMs - (Date.now() - start);
@@ -554,13 +718,8 @@ export class WebHidUpgradeClient {
     if (!this.ota) throw new Error('Connect OTA device first');
     if (!fwSlice.length) return;
     const sendSize = WEBHID_UPGRADE_CONSTANTS.SEND_SIZE;
-    for (let i = 0; i < fwSlice.length; i += sendSize) {
-      let chunk = fwSlice.subarray(i, i + sendSize);
-      if (chunk.length < sendSize) {
-        const p = new Uint8Array(sendSize);
-        p.set(chunk);
-        chunk = p;
-      }
+    const device = this.ota;
+    const sendOne = async (chunk: Uint8Array) => {
       const header = new Uint8Array([0xff, 0x68]);
       const part = new Uint8Array(header.length + chunk.length);
       part.set(header, 0);
@@ -570,7 +729,48 @@ export class WebHidUpgradeClient {
       const packet = new Uint8Array(part.length + tail.length);
       packet.set(part, 0);
       packet.set(tail, part.length);
-      await this.sendReport(this.ota, packet);
+      if (this._otaXferHotPath) {
+        await this.sendOtaDataReportFast(packet);
+      } else {
+        await this.sendOtaDataReport(packet);
+      }
+    };
+
+    if (this._otaXferHotPath) {
+      const cached = this._outputProfileByDevice.get(device);
+      if (cached) {
+        await withHidOutputWriteLock(device, async () => {
+          for (let i = 0; i < fwSlice.length; i += sendSize) {
+            let chunk = fwSlice.subarray(i, i + sendSize);
+            if (chunk.length < sendSize) {
+              const p = new Uint8Array(sendSize);
+              p.set(chunk);
+              chunk = p;
+            }
+            const header = new Uint8Array([0xff, 0x68]);
+            const part = new Uint8Array(header.length + chunk.length);
+            part.set(header, 0);
+            part.set(chunk, header.length);
+            const cksum = calcChecksum(part);
+            const tail = new Uint8Array([cksum & 0xff, (cksum >> 8) & 0xff]);
+            const packet = new Uint8Array(part.length + tail.length);
+            packet.set(part, 0);
+            packet.set(tail, part.length);
+            await hidSendReportFast(device, cached.reportId, padReport(packet, cached.byteLength));
+          }
+        });
+        return;
+      }
+    }
+
+    for (let i = 0; i < fwSlice.length; i += sendSize) {
+      let chunk = fwSlice.subarray(i, i + sendSize);
+      if (chunk.length < sendSize) {
+        const p = new Uint8Array(sendSize);
+        p.set(chunk);
+        chunk = p;
+      }
+      await sendOne(chunk);
     }
   }
 
@@ -581,6 +781,7 @@ export class WebHidUpgradeClient {
     const fw = firmware instanceof Uint8Array ? firmware : new Uint8Array(firmware);
     if (!this.ota) throw new Error('Connect OTA device first');
     this._suspendOtaScreenKeepaliveForTransfer();
+    this._enterOtaXferHotPath();
     try {
       await this.open(this.ota);
       if (this._otaBorrowedFromScreen) {
@@ -607,7 +808,7 @@ export class WebHidUpgradeClient {
           OTA_OUT_PACKET_WATCHDOG_MS,
           `固件起始命令 OUT 超时。请确认升级中已禁止屏幕轮询（setDownLoad + setIsDownloading）。`
         );
-        reply = await this.waitOtaStatus(0x70, 5000);
+        reply = await this.waitReplyOta(0x70, 5000);
         if (reply === 0x00) break;
         await sleep(100);
       }
@@ -615,23 +816,28 @@ export class WebHidUpgradeClient {
 
       const imgHeader = fw.subarray(0, BIN_HEADER_SIZE);
       await this.downloadFwData(imgHeader);
-      reply = await this.waitOtaStatus(0x70, 5000);
+      reply = await this.waitReplyOta(0x70, 5000);
       if (reply !== 0x01) throw new Error(`Firmware header verification failed, status=${reply}`);
       onProgress?.(BIN_HEADER_SIZE / fw.length);
 
       for (let off = BIN_HEADER_SIZE; off < fw.length; off += UPGRADE_CHUNK_SIZE) {
         const chunk = fw.subarray(off, off + UPGRADE_CHUNK_SIZE);
         await this.downloadFwData(chunk);
-        reply = await this.waitOtaStatus(0x70, 5000);
+        const chunkEnd = off + chunk.length;
+        reply = await this.waitReplyOta(0x70, 5000);
+        if (reply !== 0x02) {
+          reply = await this.waitFirmwareChunkAckWithProbes(fw, off, chunkEnd);
+        }
         if (reply !== 0x02) throw new Error(`Firmware chunk failed at ${off}, status=${reply}`);
-        onProgress?.(Math.min(1, (off + chunk.length) / fw.length));
+        onProgress?.(Math.min(1, chunkEnd / fw.length));
       }
 
-      reply = await this.waitOtaStatus(0x70, 5000);
+      reply = await this.waitReplyOta(0x70, 5000);
       if (reply !== 0x03) throw new Error(`Firmware completion failed, status=${reply}`);
       onProgress?.(1);
       return true;
     } finally {
+      this._leaveOtaXferHotPath();
       this._resumeOtaScreenKeepaliveAfterTransfer();
     }
   }
@@ -720,6 +926,306 @@ export class WebHidUpgradeClient {
     return out;
   }
 
+  /** bulk/图传重试前：清 IN 队列、LCD 指令队列与 HID OUT 写锁链 */
+  private async prepareOtaTransferRetry(reason: string) {
+    ufl.warn('OTA 图传 bulk 重试', reason);
+    if (this._otaBorrowedFromScreen) {
+      this.screenDeviceComm?.resetLcdStateForOta?.();
+      const d = this.screenDeviceComm?.getScreenHidDevice?.();
+      if (d) resetHidOutputWriteLockChain(d);
+    }
+    if (this.ota) await this.discardQueuedOtaInReports(64, 45);
+    this.clearOtaInTapQueue();
+    await sleep(WEBHID_UPGRADE_CONSTANTS.IMAGE_BULK_RETRY_DELAY_MS);
+  }
+
+  private isImageDataAckOk(st: number | null, expectFinal: boolean): boolean {
+    if (st === null) return false;
+    return expectFinal ? st === 0x03 : st === 0x02 || st === 0x03;
+  }
+
+  /** 热路径：单次持锁连续发多包 0x66 */
+  private async sendImageBurst(
+    img: Uint8Array,
+    startAddr: number,
+    fromByte: number,
+    toByte: number,
+    imageSize: number
+  ): Promise<number> {
+    if (!this.ota || fromByte >= toByte) return fromByte;
+    const { IMAGE_SEND_SIZE } = WEBHID_UPGRADE_CONSTANTS;
+    const device = this.ota;
+    const cached = this._outputProfileByDevice.get(device);
+
+    const emit = async (fileByte: number) => {
+      let sendData = img.subarray(fileByte, Math.min(fileByte + IMAGE_SEND_SIZE, imageSize));
+      if (sendData.length < IMAGE_SEND_SIZE) {
+        const p = new Uint8Array(IMAGE_SEND_SIZE);
+        p.set(sendData);
+        sendData = p;
+      }
+      const packet = this.buildImageDataPacketFast(startAddr + fileByte, sendData);
+      if (cached && this._otaXferHotPath) {
+        await hidSendReportFast(device, cached.reportId, padReport(packet, cached.byteLength));
+      } else if (this._otaXferHotPath) {
+        await this.sendOtaDataReportFast(packet);
+      } else {
+        await this.sendOtaDataReport(packet);
+      }
+    };
+
+    if (cached && this._otaXferHotPath) {
+      await withHidOutputWriteLock(device, async () => {
+        for (let fb = fromByte; fb < toByte; fb += IMAGE_SEND_SIZE) {
+          let sendData = img.subarray(fb, Math.min(fb + IMAGE_SEND_SIZE, imageSize));
+          if (sendData.length < IMAGE_SEND_SIZE) {
+            const p = new Uint8Array(IMAGE_SEND_SIZE);
+            p.set(sendData);
+            sendData = p;
+          }
+          const packet = this.buildImageDataPacketFast(startAddr + fb, sendData);
+          await hidSendReportFast(device, cached.reportId, padReport(packet, cached.byteLength));
+        }
+      });
+      return Math.min(toByte, imageSize);
+    }
+
+    for (let fb = fromByte; fb < toByte; fb += IMAGE_SEND_SIZE) {
+      await emit(fb);
+    }
+    return Math.min(toByte, imageSize);
+  }
+
+  /**
+   * 与 Python `download_image_data_chunk_fast` 一致：
+   * 在 [chunkFileStart, chunkFileEnd) 内 burst 发 0x66；满 100 包 wait_reply(1000ms) 收 0x02 并继续；
+   * 全图最后一包 wait_reply 收 0x03。
+   */
+  private async downloadImageChunkFast(
+    img: Uint8Array,
+    startAddr: number,
+    chunkFileStart: number,
+    chunkFileEnd: number,
+    imageSize: number,
+    onProgress?: (sentEnd: number) => void
+  ): Promise<number | null> {
+    const {
+      BULK_ACK_COUNT,
+      IMAGE_SEND_SIZE,
+      OTA_PROTO_IMAGE_DATA,
+      IMAGE_BULK_REPLY_MS,
+    } = WEBHID_UPGRADE_CONSTANTS;
+
+    let sentEnd = chunkFileStart;
+    let packetsSinceReset = 0;
+
+    while (sentEnd < chunkFileEnd) {
+      const packetsUntilBulk = BULK_ACK_COUNT - packetsSinceReset;
+      const remainingInChunk = Math.ceil((chunkFileEnd - sentEnd) / IMAGE_SEND_SIZE);
+      const burstPackets = Math.min(packetsUntilBulk, remainingInChunk);
+      const burstEnd = Math.min(chunkFileEnd, sentEnd + burstPackets * IMAGE_SEND_SIZE);
+
+      const sentBefore = sentEnd;
+      sentEnd = await this.sendImageBurst(img, startAddr, sentEnd, burstEnd, imageSize);
+      packetsSinceReset += Math.ceil((sentEnd - sentBefore) / IMAGE_SEND_SIZE);
+      onProgress?.(sentEnd);
+
+      const isFinalInImage = sentEnd >= imageSize;
+
+      if (isFinalInImage) {
+        let st = this.takeOtaStatusFromTap(OTA_PROTO_IMAGE_DATA);
+        if (st === null) {
+          st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_BULK_REPLY_MS);
+        }
+        if (st === 0x03) return st;
+        st = await this.waitImageDataAck(true);
+        return st;
+      }
+
+      if (packetsSinceReset < BULK_ACK_COUNT) {
+        continue;
+      }
+
+      // Python: 满 100 包 wait_reply(1000)；收到 0x02 立即继续 burst，无二次 8s 死等
+      let st = this.takeOtaStatusFromTap(OTA_PROTO_IMAGE_DATA);
+      if (st === null) {
+        st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_BULK_REPLY_MS);
+      }
+      if (st === 0x02) {
+        packetsSinceReset = 0;
+        continue;
+      }
+      if (st === 0x03) return st;
+      if (st !== null) {
+        ufl.info('OTA 图传 IN 重新计数 bulk', `status=0x${st.toString(16)} pos=0x${sentEnd.toString(16)}`);
+        packetsSinceReset = 0;
+        continue;
+      }
+
+      ufl.warn(
+        'OTA bulk 100包 1s 内无应答',
+        `pos=0x${sentEnd.toString(16)} chunk=0x${chunkFileStart.toString(16)}`
+      );
+      return null;
+    }
+
+    return 0x02;
+  }
+
+  /** 热路径：单次持锁连续发多包 0x68（固件探测补发） */
+  private async sendFirmwareBurst(
+    fw: Uint8Array,
+    fromOff: number,
+    toOff: number
+  ): Promise<number> {
+    if (!this.ota || fromOff >= toOff) return fromOff;
+    const { SEND_SIZE } = WEBHID_UPGRADE_CONSTANTS;
+    const device = this.ota;
+    const cached = this._outputProfileByDevice.get(device);
+
+    const buildPacket = (chunk: Uint8Array) => {
+      const header = new Uint8Array([0xff, 0x68]);
+      const part = new Uint8Array(header.length + chunk.length);
+      part.set(header, 0);
+      part.set(chunk, header.length);
+      const cksum = calcChecksum(part);
+      const tail = new Uint8Array([cksum & 0xff, (cksum >> 8) & 0xff]);
+      const packet = new Uint8Array(part.length + tail.length);
+      packet.set(part, 0);
+      packet.set(tail, part.length);
+      return packet;
+    };
+
+    const emitOne = async (off: number) => {
+      let chunk = fw.subarray(off, Math.min(off + SEND_SIZE, fw.length));
+      if (chunk.length < SEND_SIZE) {
+        const p = new Uint8Array(SEND_SIZE);
+        p.set(chunk);
+        chunk = p;
+      }
+      const packet = buildPacket(chunk);
+      if (cached && this._otaXferHotPath) {
+        await hidSendReportFast(device, cached.reportId, padReport(packet, cached.byteLength));
+      } else if (this._otaXferHotPath) {
+        await this.sendOtaDataReportFast(packet);
+      } else {
+        await this.sendOtaDataReport(packet);
+      }
+    };
+
+    if (cached && this._otaXferHotPath) {
+      await withHidOutputWriteLock(device, async () => {
+        for (let off = fromOff; off < toOff; off += SEND_SIZE) {
+          let chunk = fw.subarray(off, Math.min(off + SEND_SIZE, fw.length));
+          if (chunk.length < SEND_SIZE) {
+            const p = new Uint8Array(SEND_SIZE);
+            p.set(chunk);
+            chunk = p;
+          }
+          const packet = buildPacket(chunk);
+          await hidSendReportFast(device, cached.reportId, padReport(packet, cached.byteLength));
+        }
+      });
+      return Math.min(toOff, fw.length);
+    }
+
+    for (let off = fromOff; off < toOff; off += SEND_SIZE) {
+      await emitOne(off);
+    }
+    return Math.min(toOff, fw.length);
+  }
+
+  /** 固件补发探测：仅在 bulk 100 包边界 poll IN */
+  private async streamFirmwareProbeWithInCheck(
+    fw: Uint8Array,
+    startOff: number
+  ): Promise<{ status: number | null; endOff: number }> {
+    const {
+      BULK_ACK_COUNT,
+      SEND_SIZE,
+      OTA_ACK_IN_POLL_MS,
+      OTA_ACK_PROBE_WAIT_MS,
+    } = WEBHID_UPGRADE_CONSTANTS;
+    let off = startOff;
+    let packetsSinceReset = 0;
+
+    while (off < fw.length) {
+      const packetsUntilBulk = BULK_ACK_COUNT - packetsSinceReset;
+      const remainingPackets = Math.ceil((fw.length - off) / SEND_SIZE);
+      const burstPackets = Math.min(packetsUntilBulk, remainingPackets);
+      const burstEnd = Math.min(fw.length, off + burstPackets * SEND_SIZE);
+
+      const offBefore = off;
+      off = await this.sendFirmwareBurst(fw, off, burstEnd);
+      const burstCount = Math.ceil((off - offBefore) / SEND_SIZE);
+      packetsSinceReset += burstCount;
+
+      const isLast = off >= fw.length;
+      if (!isLast && packetsSinceReset < BULK_ACK_COUNT) {
+        continue;
+      }
+
+      const st = await this.waitReplyOta(0x70, OTA_ACK_IN_POLL_MS);
+      if (st === 0x02) {
+        return { status: st, endOff: off };
+      }
+      if (st !== null) {
+        ufl.info('OTA 固件 IN 重新计数 bulk', `status=0x${st.toString(16)} off=0x${off.toString(16)}`);
+        packetsSinceReset = 0;
+        continue;
+      }
+
+      const bulkSt = await this.waitReplyOta(0x70, OTA_ACK_PROBE_WAIT_MS);
+      if (bulkSt === 0x02) {
+        return { status: bulkSt, endOff: off };
+      }
+      ufl.warn(
+        'OTA 固件 bulk 100包无有效应答，继续发送',
+        `off=0x${off.toString(16)} last=0x${(bulkSt ?? -1).toString(16)}`
+      );
+      packetsSinceReset = 0;
+    }
+
+    return { status: null, endOff: off };
+  }
+
+  /** 固件 4K 块：主路径 wait_reply；无应答时再补发探测 */
+  private async waitFirmwareChunkAckWithProbes(
+    fw: Uint8Array,
+    chunkOff: number,
+    chunkEnd: number
+  ): Promise<number | null> {
+    let st = await this.waitReplyOta(0x70, WEBHID_UPGRADE_CONSTANTS.OTA_ACK_PROBE_WAIT_MS);
+    if (st === 0x02) return st;
+
+    ufl.warn('OTA 固件块无应答，补发探测包', `off=0x${chunkOff.toString(16)}`);
+    const probe = await this.streamFirmwareProbeWithInCheck(fw, chunkEnd);
+    if (probe.status === 0x02) return probe.status;
+
+    st = await this.waitReplyOta(0x70, 5000);
+    if (st === 0x02) return st;
+    await sleep(120);
+    return this.waitReplyOta(0x70, 5000);
+  }
+
+  /** 图传 0x66 bulk/最后一包：多次 waitReply，与原先三次等待一致 */
+  private async waitImageDataAck(expectFinal: boolean): Promise<number | null> {
+    const { OTA_PROTO_IMAGE_DATA, IMAGE_DATA_BULK_WAIT_REPLY_MS, IMAGE_DATA_FINAL_WAIT_REPLY_MS } =
+      WEBHID_UPGRADE_CONSTANTS;
+    const primaryMs = expectFinal ? IMAGE_DATA_FINAL_WAIT_REPLY_MS : IMAGE_DATA_BULK_WAIT_REPLY_MS;
+    let st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, primaryMs);
+    if (this.isImageDataAckOk(st, expectFinal)) return st;
+    await sleep(120);
+    st = await this.waitReplyOta(
+      OTA_PROTO_IMAGE_DATA,
+      expectFinal ? 4000 : IMAGE_DATA_BULK_WAIT_REPLY_MS
+    );
+    if (this.isImageDataAckOk(st, expectFinal)) return st;
+    await sleep(200);
+    st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, primaryMs);
+    return st;
+  }
+
   async transferImage(
     imageData: Uint8Array,
     startAddr: number = WEBHID_UPGRADE_CONSTANTS.IMAGE_FLASH_START_ADDR as number,
@@ -729,6 +1235,7 @@ export class WebHidUpgradeClient {
     if (!img.length) throw new Error('Image buffer is empty');
     if (!this.ota) throw new Error('Connect OTA device first');
     this._suspendOtaScreenKeepaliveForTransfer();
+    this._enterOtaXferHotPath();
     try {
       await this.open(this.ota);
       if (this._otaBorrowedFromScreen) {
@@ -739,108 +1246,65 @@ export class WebHidUpgradeClient {
         await this.discardQueuedOtaInReports(48, 40);
       }
 
-      const {
-        IMAGE_SEND_SIZE,
-        IMAGE_CHUNK_SIZE,
-        BULK_ACK_COUNT,
-        IMAGE_DATA_BULK_WAIT_REPLY_MS,
-        IMAGE_DATA_FINAL_WAIT_REPLY_MS,
-        OTA_PROTO_IMAGE_DATA,
-      } = WEBHID_UPGRADE_CONSTANTS;
+      const { IMAGE_BULK_MAX_RETRIES, IMAGE_CHUNK_SIZE, IMAGE_START_UI_WAIT_MS } =
+        WEBHID_UPGRADE_CONSTANTS;
       const imageSize = img.length;
 
-      await this.sendImageErase(startAddr, imageSize);
-      onProgress?.(0.02);
+      // Python download_image_data: 0x65 start -> sleep(3) -> 0x61 erase -> 5700 分块 0x66
+      ufl.info('OTA 图传步骤 1/3', '发送 IMAGE_START 0x65');
       await this.sendImageStart(imageSize, startAddr);
-      onProgress?.(0.05);
+      ufl.info('OTA 图传步骤 2/3', `等待下载界面 ${IMAGE_START_UI_WAIT_MS}ms`);
+      await sleep(IMAGE_START_UI_WAIT_MS);
+      ufl.info('OTA 图传步骤 3/3', '发送 IMAGE_ERASE 0x61');
+      await this.sendImageErase(startAddr, imageSize);
+      ufl.info('OTA 图传数据', '开始发送 IMAGE_DATA 0x66');
 
-      let lastStatus: number | null = null;
-      let imageDone = false;
-      let sentBytes = 0;
-      let totalImagePacketsSent = 0;
+      for (let chunkOff = 0; chunkOff < imageSize; chunkOff += IMAGE_CHUNK_SIZE) {
+        const chunkEnd = Math.min(chunkOff + IMAGE_CHUNK_SIZE, imageSize);
+        let chunkStatus: number | null = null;
+        let lastFailDetail = '';
 
-      outer: for (let chunkBase = 0; chunkBase < imageSize; chunkBase += IMAGE_CHUNK_SIZE) {
-        const slice = img.subarray(chunkBase, Math.min(chunkBase + IMAGE_CHUNK_SIZE, imageSize));
-        let packetsSent = 0;
-
-        for (let i = 0; i < slice.length; i += IMAGE_SEND_SIZE) {
-          let sendData = slice.subarray(i, i + IMAGE_SEND_SIZE);
-          if (sendData.length < IMAGE_SEND_SIZE) {
-            const p = new Uint8Array(IMAGE_SEND_SIZE);
-            p.set(sendData);
-            sendData = p;
+        for (let attempt = 0; attempt <= IMAGE_BULK_MAX_RETRIES; attempt++) {
+          if (attempt > 0) {
+            await this.prepareOtaTransferRetry(
+              `图传 chunk 0x${chunkOff.toString(16)} 第 ${attempt}/${IMAGE_BULK_MAX_RETRIES} 次 ${lastFailDetail}`
+            );
           }
-          /** 文件内偏移（与 `imageSize` 同量纲）；勿用含 `startAddr` 的 flash 地址判断「最后一包」否则会误判并提前等 0x03 */
-          const fileByte = chunkBase + i;
-          const currentOffset = startAddr + fileByte;
-          const packet = this.buildImageDataPacketFast(currentOffset, sendData);
-          const isLastPacket = fileByte + IMAGE_SEND_SIZE >= imageSize;
-          const willHitBulk = !isLastPacket && packetsSent + 1 >= BULK_ACK_COUNT;
-
-          // 与 Python 一致：先发再 `wait_reply`；为防 IN 早于监听挂上，仍在最后一包/批量边界前挂起 wait
-          let inFlightAck: Promise<number | null> | undefined;
-          if (isLastPacket) {
-            inFlightAck = this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_FINAL_WAIT_REPLY_MS);
-          } else if (willHitBulk) {
-            inFlightAck = this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_BULK_WAIT_REPLY_MS);
+          try {
+            chunkStatus = await this.downloadImageChunkFast(
+              img,
+              startAddr,
+              chunkOff,
+              chunkEnd,
+              imageSize,
+              (end) => {
+                onProgress?.(Math.min(1, end / imageSize));
+              }
+            );
+            if (chunkStatus === 0x03) {
+              onProgress?.(1);
+              ufl.info('OTA image 传输完成', `size=0x${imageSize.toString(16)}`);
+              return true;
+            }
+            if (chunkStatus === 0x02) break;
+            lastFailDetail = `status=${chunkStatus ?? 'null'}`;
+          } catch (e) {
+            lastFailDetail = e instanceof Error ? e.message : String(e);
+            ufl.warn('OTA image chunk OUT 失败', lastFailDetail);
           }
+        }
 
-          // 热路径不用 per-packet watchdog：OUT 在写锁排队 ≠ 设备无应答；bulk 前本可无 IN
-          await this.sendReport(this.ota, packet);
-          packetsSent += 1;
-          totalImagePacketsSent += 1;
-          sentBytes = Math.min(imageSize, chunkBase + i + IMAGE_SEND_SIZE);
-          onProgress?.(0.05 + (sentBytes / imageSize) * 0.45);
-
-          if (isLastPacket) {
-            let st = await inFlightAck!;
-            if (st !== 0x03) {
-              await sleep(120);
-              st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, 4000);
-            }
-            if (st !== 0x03) {
-              await sleep(200);
-              st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_FINAL_WAIT_REPLY_MS);
-            }
-            lastStatus = st;
-            if (st !== 0x03) throw new Error(`Image final ack expected 0x03, got ${st}`);
-            imageDone = true;
-            break outer;
-          }
-
-          if (willHitBulk) {
-            let st = await inFlightAck!;
-            if (st === null || (st !== 0x02 && st !== 0x03)) {
-              await sleep(120);
-              st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_BULK_WAIT_REPLY_MS);
-            }
-            if (st === null || (st !== 0x02 && st !== 0x03)) {
-              await sleep(200);
-              st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_BULK_WAIT_REPLY_MS);
-            }
-            lastStatus = st;
-            if (st !== 0x02 && st !== 0x03) {
-              throw new Error(
-                `Image bulk ack failed at file 0x${fileByte.toString(16)} flash 0x${currentOffset.toString(16)}, status=${st}`
-              );
-            }
-            console.log('[OTA image] bulk应答结束，本段计数清零', {
-              ackStatus: st,
-              截止累计包序号: totalImagePacketsSent,
-              BULK_ACK_COUNT,
-            });
-            packetsSent = 0;
-          }
+        if (chunkStatus !== 0x02 && chunkStatus !== 0x03) {
+          throw new Error(
+            `Image chunk failed at 0x${chunkOff.toString(16)} after ${IMAGE_BULK_MAX_RETRIES} retries: ${lastFailDetail}`
+          );
         }
       }
 
-      if (!imageDone && lastStatus !== 0x03) {
-        const st = await this.waitReplyOta(OTA_PROTO_IMAGE_DATA, IMAGE_DATA_FINAL_WAIT_REPLY_MS);
-        if (st !== 0x03) throw new Error(`Image completion expected 0x03, got ${st}`);
-      }
-      onProgress?.(0.5);
+      onProgress?.(1);
       return true;
     } finally {
+      this._leaveOtaXferHotPath();
       this._resumeOtaScreenKeepaliveAfterTransfer();
     }
   }
@@ -850,7 +1314,8 @@ export class WebHidUpgradeClient {
       firmware: ArrayBuffer | Uint8Array;
       image?: ArrayBuffer | Uint8Array | null;
       imageStartAddr?: number;
-      onProgress?: (ratio01: number) => void;
+      /** doneBytes / totalBytes，按图包+固件实际字节加权 */
+      onProgress?: (doneBytes: number, totalBytes: number) => void;
     }
   ) {
     const { firmware, image = null, imageStartAddr = WEBHID_UPGRADE_CONSTANTS.IMAGE_FLASH_START_ADDR, onProgress } =
@@ -864,18 +1329,35 @@ export class WebHidUpgradeClient {
     const hasFw = len(firmware) > 0;
     if (!hasImage && !hasFw) throw new Error('Provide image and/or firmware buffer');
 
+    const imgLen = len(image);
+    const fwLen = len(firmware);
+    const totalBytes = imgLen + fwLen;
+
+    const emitBytes = (imgDone: number, fwDone: number) => {
+      if (!onProgress || totalBytes <= 0) return;
+      onProgress(Math.min(totalBytes, imgDone + fwDone), totalBytes);
+    };
+
     if (hasImage && hasFw) {
       const im = image instanceof Uint8Array ? image : new Uint8Array(image as ArrayBuffer);
-      await this.transferImage(im, imageStartAddr, (r) => onProgress?.(r * 0.5));
+      await this.transferImage(im, imageStartAddr, (r) => {
+        emitBytes(Math.min(imgLen, Math.floor(r * imgLen)), 0);
+      });
       await sleep(120);
       const fw = firmware instanceof Uint8Array ? firmware : new Uint8Array(firmware as ArrayBuffer);
-      await this.transferFirmware(fw, (r) => onProgress?.(0.5 + r * 0.5));
+      await this.transferFirmware(fw, (r) => {
+        emitBytes(imgLen, Math.min(fwLen, Math.floor(r * fwLen)));
+      });
     } else if (hasImage) {
       const im = image instanceof Uint8Array ? image : new Uint8Array(image as ArrayBuffer);
-      await this.transferImage(im, imageStartAddr, onProgress);
+      await this.transferImage(im, imageStartAddr, (r) => {
+        emitBytes(Math.min(imgLen, Math.floor(r * imgLen)), 0);
+      });
     } else {
       const fw = firmware instanceof Uint8Array ? firmware : new Uint8Array(firmware as ArrayBuffer);
-      await this.transferFirmware(fw, onProgress);
+      await this.transferFirmware(fw, (r) => {
+        emitBytes(0, Math.min(fwLen, Math.floor(r * fwLen)));
+      });
     }
     return true;
   }

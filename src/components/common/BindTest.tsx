@@ -10,6 +10,7 @@ import ToggleSlider from "@/components/common/ToggleSlider";
 import { getKeyCodeFromWebCode } from "@/keyboard/keycode";
 import testKeyboard128 from "@/data/keyboardLayout/test_keyboard_128.json";
 import { mergeLayoutKeysWithUserKeyNames } from "@/utils/mergeLayoutKeysWithUserKeyNames";
+import { resolveQMKDisplayLayoutKeys } from "@/utils/qmkLayoutBridge";
 import { lightingPanelCardSx } from "@/constants/lightingPanelChrome";
 
 function normalizeKeyName(event: KeyboardEvent): string {
@@ -361,6 +362,7 @@ function BindTest() {
     return ((testKeyboard128 as any)?.layouts?.keys ?? []) as any[];
   }, []);
   const deviceLayoutKeys = keyboard?.layoutKeys ?? [];
+  const isQMK = keyboard?.keyboardType === "QMK";
   const layoutKeys = useMemo(() => {
     if (matrixTestEnabled) return testKeyboardLayoutKeys;
     return deviceLayoutKeys.length ? deviceLayoutKeys : testKeyboardLayoutKeys;
@@ -369,10 +371,14 @@ function BindTest() {
   const patternKeys = matrixTestEnabled ? [] : (keyboardLayout?.layouts?.patternKeys ?? []);
   /** 非矩阵测试：仅合并默认层键名（与实机矩阵一致）；矩阵测试勿合并设备 userKeys（索引与 test 布局不一致会错位） */
   const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
+  const currentLayer = keyboard?.layer ?? 0;
   const mappedLayoutKeys = useMemo(() => {
     if (matrixTestEnabled) return layoutKeys;
+    if (isQMK) {
+      return resolveQMKDisplayLayoutKeys(layoutKeys, keyboard?.allQMKLayers, currentLayer);
+    }
     return mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys);
-  }, [matrixTestEnabled, layoutKeys, defaultLayerUserKeys]);
+  }, [matrixTestEnabled, isQMK, layoutKeys, keyboard?.allQMKLayers, defaultLayerUserKeys, currentLayer]);
 
   const keyIndexByCode = useMemo(() => {
     const map = new Map<number, number[]>();
@@ -453,6 +459,10 @@ function BindTest() {
         push("RWIN", keyIndex);
         push("RIGHT WIN", keyIndex);
         push("RIGHT GUI", keyIndex);
+      }
+      if (normalized === "<>") {
+        push("<", keyIndex);
+        push(">", keyIndex);
       }
     });
     pushGenericLeftRightModifierAliases(

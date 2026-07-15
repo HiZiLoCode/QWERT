@@ -29,6 +29,9 @@ export type DeviceBaseInfo = {
   sideLightMaxSpeed?: number;
   sideLightSupportMusic?: boolean;
   matrixScreen?: boolean;
+  matrixScreenProtocol?: 'func-info' | 'qmk-via' | 'lattice-hid';
+  matrixLightLayout?: string;
+  matrixLightGroupLabel?: string;
   matrixScreenLightSize?: number;
   matrixScreenLightRows?: number;
   matrixScreenLightColumns?: number;

@@ -20,6 +20,12 @@ export type FirmwareRelease = {
     version: string;
     date: string;
     changes: FirmwareReleaseChanges;
+    /** 键盘固件：该版本 .bin（有则历史版本列表可「升级到此版本」） */
+    firmwareFile?: string;
+    /** 屏幕 OTA：该版本 app.bin（有则历史版本列表可「升级到此版本」） */
+    screenFirmwareFile?: string;
+    /** 屏幕 OTA：该版本 image.bin（可选） */
+    screenImageFile?: string;
 };
 
 function resolveChangelogLocale(lang: string): FirmwareChangelogLocale | undefined {
@@ -45,9 +51,95 @@ export function pickFirmwareReleaseChanges(changes: FirmwareReleaseChanges, lang
 /** 屏幕固件说明（与 FIRMWARE_CHANGELOG_BY_DEVICE 相同 key 规则） */
 export const SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [
+        // {
+        //     version: '120',
+        //     date: '2026-07-13',
+        //     screenFirmwareFile: './fw-files/screen/120/36B0_3059_0_screen_app.bin',
+        //     screenImageFile: './fw-files/screen/120/36B0_3059_0_screen_image.bin',
+        //     changes: {
+        //         zh: ['1、修改电池图标显示'],
+        //         en: ['1、Updated battery icon display'],
+        //         'zh-Hant': ['1、修改電池圖示顯示'],
+        //         ja: ['1、バッテリーアイコンの表示を修正'],
+        //         ko: ['1、배터리 아이콘 표시 수정'],
+        //         ru: ['1、Обновлено отображение значка батареи'],
+        //     },
+        // },
+        {
+            version: '119',
+            date: '2026-07-03',
+            screenFirmwareFile: './fw-files/screen/119/36B0_3059_0_screen_app.bin',
+            screenImageFile: './fw-files/screen/119/36B0_3059_0_screen_image.bin',
+            changes: {
+                zh: [
+                    '1、优化HUB芯片对线材信号衰减问题',
+                    '2、提升接口兼容性',
+                ],
+                en: [
+                    '1、Improved HUB chip handling of cable signal attenuation',
+                    '2、Enhanced port compatibility',
+                ],
+                'zh-Hant': [
+                    '1、優化 HUB 晶片對線材信號衰減問題',
+                    '2、提升介面相容性',
+                ],
+                ja: [
+                    '1、HUBチップによるケーブル信号減衰問題を最適化',
+                    '2、インターフェース互換性を向上',
+                ],
+                ko: [
+                    '1、HUB 칩의 케이블 신호 감쇠 문제 최적화',
+                    '2、인터페이스 호환성 향상',
+                ],
+                ru: [
+                    '1、Оптимизирована работа HUB-чипа при ослаблении сигнала в кабеле',
+                    '2、Повышена совместимость интерфейсов',
+                ],
+            },
+        },
+        {
+            version: '118',
+            date: '2026-06-24',
+            screenFirmwareFile: './fw-files/screen/118/36B0_3059_0_screen_app.bin',
+            screenImageFile: './fw-files/screen/118/36B0_3059_0_screen_image.bin',
+            changes: {
+                zh: [
+                    '1、优化屏幕帧率',
+                    '2、增加出厂重置默认动画',
+                    '3、优化屏幕升级稳定性',
+                ],
+                en: [
+                    '1、Optimized screen frame rate',
+                    '2、Added default animation for factory reset',
+                    '3、Improved screen upgrade stability',
+                ],
+                'zh-Hant': [
+                    '1、優化螢幕幀率',
+                    '2、增加出廠重置預設動畫',
+                    '3、優化螢幕升級穩定性',
+                ],
+                ja: [
+                    '1、画面フレームレートを最適化',
+                    '2、工場出荷状態リセット時のデフォルトアニメーションを追加',
+                    '3、画面アップグレードの安定性を改善',
+                ],
+                ko: [
+                    '1、화면 프레임레이트 최적화',
+                    '2、출고 설정 복원 기본 애니메이션 추가',
+                    '3、화면 업그레이드 안정성 최적화',
+                ],
+                ru: [
+                    '1、Оптимизирована частота кадров экрана',
+                    '2、Добавлена анимация по умолчанию при сбросе к заводским настройкам',
+                    '3、Улучшена стабильность обновления прошивки экрана',
+                ],
+            },
+        },
         {
             version: '117',
             date: '2026-05-22',
+            screenFirmwareFile: './fw-files/screen/117/36B0_3059_0_screen_app.bin',
+            // screenImageFile: './fw-files/screen/117/36B0_3059_0_screen_image.bin',
             changes: {
                 zh: ['1、游戏模式改为仅在游戏中不发码'],
                 en: ['1、Game mode now suppresses key reports only while gaming'],
@@ -57,31 +149,32 @@ export const SCREEN_FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease
                 ru: ['1、Игровой режим теперь блокирует передачу клавиш только во время игры'],
             },
         },
-        {
-            version: '115',
-            date: '2026-05-15',
-            changes: {
-                zh: ['1、修改简约灵动岛背景', '2、优化屏幕资源与预览一致性'],
-                en: [
-                    '1、Updated the minimalist Dynamic Island background',
-                    '2、Improved consistency between screen resources and preview',
-                ],
-                'zh-Hant': ['1、修改簡約靈動島背景', '2、優化螢幕資源與預覽一致性'],
-                ja: [
-                    '1、ミニマルDynamic Islandの背景を更新',
-                    '2、画面リソースとプレビューの一貫性を改善',
-                ],
-                ko: [
-                    '1、미니멀 Dynamic Island 배경 수정',
-                    '2、화면 리소스와 미리보기 일관성 개선',
-                ],
-                ru: [
-                    '1、Обновлён фон минималистичного Dynamic Island',
-                    '2、Улучшена согласованность ресурсов экрана и предпросмотра',
-                ],
-            },
-        },
+        // {
+        //     version: '115',
+        //     date: '2026-05-15',
+        //     changes: {
+        //         zh: ['1、修改简约灵动岛背景', '2、优化屏幕资源与预览一致性'],
+        //         en: [
+        //             '1、Updated the minimalist Dynamic Island background',
+        //             '2、Improved consistency between screen resources and preview',
+        //         ],
+        //         'zh-Hant': ['1、修改簡約靈動島背景', '2、優化螢幕資源與預覽一致性'],
+        //         ja: [
+        //             '1、ミニマルDynamic Islandの背景を更新',
+        //             '2、画面リソースとプレビューの一貫性を改善',
+        //         ],
+        //         ko: [
+        //             '1、미니멀 Dynamic Island 배경 수정',
+        //             '2、화면 리소스와 미리보기 일관성 개선',
+        //         ],
+        //         ru: [
+        //             '1、Обновлён фон минималистичного Dynamic Island',
+        //             '2、Улучшена согласованность ресурсов экрана и предпросмотра',
+        //         ],
+        //     },
+        // },
     ],
+    '0x36B0_0x3081_0': [],
     default: [],
 };
 
@@ -99,9 +192,98 @@ export function getScreenFirmwareReleasesForDevice(
 /** 设备 key → 该机型固件版本列表（含可选的「目标升级版本」说明，新在前） */
 export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
     '0x36B0_0x3059_0': [
+        // {
+        //     version: '130',
+        //     date: '2026-07-13',
+        //     firmwareFile: './fw-files/KeyBoard/130/36B0_3059_0.bin',
+        //     changes: {
+        //         zh: ['1、修改电量显示逻辑和显示图标'],
+        //         en: ['1、Updated battery level display logic and icons'],
+        //         'zh-Hant': ['1、修改電量顯示邏輯和顯示圖示'],
+        //         ja: ['1、バッテリー残量の表示ロジックとアイコンを修正'],
+        //         ko: ['1、배터리 잔량 표시 로직 및 아이콘 수정'],
+        //         ru: ['1、Обновлена логика и значки отображения уровня заряда батареи'],
+        //     },
+        // },
+        {
+            version: '129',
+            date: '2026-07-03',
+            firmwareFile: './fw-files/KeyBoard/129/36B0_3059_0.bin',
+            changes: {
+                zh: [
+                    '1、优化HUB芯片对线材信号衰减问题',
+                    '2、提升接口兼容性',
+                ],
+                en: [
+                    '1、Improved HUB chip handling of cable signal attenuation',
+                    '2、Enhanced port compatibility',
+                ],
+                'zh-Hant': [
+                    '1、優化 HUB 晶片對線材信號衰減問題',
+                    '2、提升介面相容性',
+                ],
+                ja: [
+                    '1、HUBチップによるケーブル信号減衰問題を最適化',
+                    '2、インターフェース互換性を向上',
+                ],
+                ko: [
+                    '1、HUB 칩의 케이블 신호 감쇠 문제 최적화',
+                    '2、인터페이스 호환성 향상',
+                ],
+                ru: [
+                    '1、Оптимизирована работа HUB-чипа при ослаблении сигнала в кабеле',
+                    '2、Повышена совместимость интерфейсов',
+                ],
+            },
+        },
+        {
+            version: '128',
+            date: '2026-06-24',
+            firmwareFile: './fw-files/KeyBoard/128/36B0_3059_0.bin',
+            changes: {
+                zh: [
+                    '1、增加出厂重置默认动画',
+                    '2、优化屏幕升级稳定性',
+                ],
+                en: [
+                    '1、Added default animation for factory reset',
+                    '2、Improved screen upgrade stability',
+                ],
+                'zh-Hant': [
+                    '1、增加出廠重置預設動畫',
+                    '2、優化螢幕升級穩定性',
+                ],
+                ja: [
+                    '1、工場出荷状態リセット時のデフォルトアニメーションを追加',
+                    '2、画面アップグレードの安定性を改善',
+                ],
+                ko: [
+                    '1、출고 설정 복원 기본 애니메이션 추가',
+                    '2、화면 업그레이드 안정성 최적화',
+                ],
+                ru: [
+                    '1、Добавлена анимация по умолчанию при сбросе к заводским настройкам',
+                    '2、Улучшена стабильность обновления экрана',
+                ],
+            },
+        },
+        {
+            version: '127',
+            date: '2026-06-16',
+            // firmwareFile: './fw-files/KeyBoard/127/36B0_3059_0.bin',
+            changes: {
+                zh: ['1、新增回车爱心为点阵屏动画'],
+                en: ['1、Added heart Enter key matrix screen animation'],
+                'zh-Hant': ['1、新增 Enter 愛心點陣屏動畫'],
+                ja: ['1、Enterキーのハートドットマトリックス画面アニメーションを追加'],
+                ko: ['1、Enter 하트 도트 매트릭스 화면 애니메이션 추가'],
+                ru: ['1、Добавлена анимация сердечка на Enter для матричного экрана'],
+            },
+        },
         {
             version: '126',
             date: '2026-05-22',
+            // firmwareFile: './fw-files/KeyBoard/126/36B0_3059_0.bin',
             changes: {
                 zh: ['1、修改一键打开驱动功能为 Fn+H'],
                 en: ['1、Changed one-tap web driver access to Fn+H'],
@@ -249,30 +431,6 @@ export const FIRMWARE_CHANGELOG_BY_DEVICE: Record<string, FirmwareRelease[]> = {
                 ],
             },
         },
-        {
-            version: '118',
-            date: '2026-05-15',
-            changes: {
-                zh: ['1、优化部分灯光效果亮度', '2、修改简约灵动岛背景'],
-                en: [
-                    '1、Improved brightness for selected lighting effects',
-                    '2、Updated the minimalist Dynamic Island background',
-                ],
-                'zh-Hant': ['1、優化部分燈光效果亮度', '2、修改簡約靈動島背景'],
-                ja: [
-                    '1、一部のライティング効果の明るさを最適化',
-                    '2、ミニマルDynamic Islandの背景を更新',
-                ],
-                ko: [
-                    '1、일부 조명 효과 밝기 최적화',
-                    '2、미니멀 Dynamic Island 배경 수정',
-                ],
-                ru: [
-                    '1、Улучшена яркость отдельных световых эффектов',
-                    '2、Обновлён фон минималистичного Dynamic Island',
-                ],
-            },
-        },
     ],
     default: [],
 };
@@ -288,11 +446,58 @@ export function getFirmwareReleasesForDevice(
     return FIRMWARE_CHANGELOG_BY_DEVICE.default ?? [];
 }
 
+/** 统一版本号表示（去 V 前缀、大写），并补充十进制 ↔ 十六进制等价形式 */
+export function normalizeFirmwareVersionLabel(versionLabel: string | undefined): string[] {
+    if (!versionLabel) return [];
+    const t = versionLabel.trim().toUpperCase().replace(/^V/i, '');
+    const out = new Set<string>([t]);
+    if (/^\d+$/.test(t)) {
+        const n = parseInt(t, 10);
+        if (!Number.isNaN(n)) {
+            out.add(n.toString(16).toUpperCase());
+        }
+    }
+    if (/^[0-9A-F]+$/.test(t)) {
+        const n = parseInt(t, 16);
+        if (!Number.isNaN(n)) {
+            out.add(String(n));
+        }
+    }
+    return [...out];
+}
+
+export function firmwareVersionsMatch(a: string | undefined, b: string | undefined): boolean {
+    if (!a || !b) return false;
+    const va = normalizeFirmwareVersionLabel(a);
+    const vb = normalizeFirmwareVersionLabel(b);
+    return va.some((x) => vb.includes(x));
+}
+
+export function parseFirmwareVersionNumber(versionLabel: string | undefined): number | null {
+    const variants = normalizeFirmwareVersionLabel(versionLabel);
+    for (const v of variants) {
+        if (/^\d+$/.test(v)) return parseInt(v, 10);
+    }
+    for (const v of variants) {
+        if (/^[0-9A-F]+$/.test(v)) {
+            const n = parseInt(v, 16);
+            if (!Number.isNaN(n)) return n;
+        }
+    }
+    return null;
+}
+
+export function compareFirmwareVersions(a: string, b: string): number {
+    const na = parseFirmwareVersionNumber(a);
+    const nb = parseFirmwareVersionNumber(b);
+    if (na != null && nb != null) return na - nb;
+    return a.localeCompare(b);
+}
+
 export function findFirmwareRelease(
     releases: FirmwareRelease[],
     versionLabel: string | undefined
 ): FirmwareRelease | undefined {
     if (!versionLabel) return undefined;
-    const t = versionLabel.trim().toUpperCase().replace(/^V/i, '');
-    return releases.find((r) => r.version.toUpperCase() === t);
+    return releases.find((r) => firmwareVersionsMatch(r.version, versionLabel));
 }

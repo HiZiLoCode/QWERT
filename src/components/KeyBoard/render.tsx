@@ -104,6 +104,16 @@ export function getNameColor(
     return (r * 299 + g * 587 + b * 114) / 1000 >= 185 ? '#111111' : '#ffffff';
 }
 
+/** UK 布局 Enter 键 L 形轮廓（与 APP_LED/Mechanical 一致） */
+export const UK_ENTER_CLIP_PATH =
+    'polygon(2% 0%, 98% 0%, 100% 2%, 100% 98%, 98% 100%, 22% 100%, 20% 98%, 20% 52%, 18% 50%, 2% 50%, 0% 52%, 0% 2%)';
+
+/** clip-path 会裁掉 CSS border，UK Enter 需用 SVG 描边（与 Mechanical .uk-enter 一致） */
+export function getUKEnterBorderImage(strokeColor: string, strokeWidth = 1): string {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><path d='M0,0 L100,0 L100,100 L20,100 L20,50 L0,50 Z' fill='none' stroke='${strokeColor}' stroke-width='${strokeWidth}' vector-effect='non-scaling-stroke'/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 export function getCompositeKeyClipPath(key: CompositeLayoutKey): string | null {
     if (key.w2 === undefined || key.h2 === undefined) return null;
     const x = key.x ?? 0;
@@ -131,6 +141,11 @@ export function getCompositeKeyClipPath(key: CompositeLayoutKey): string | null 
         [nx / boundingWidth, (ny2 + nh2) / boundingHeight], [nx2 / boundingWidth, (ny2 + nh2) / boundingHeight],
     ]; 
     return `polygon(${corners.map((c) => `${c[0] * 100}% ${c[1] * 100}%`).join(',')})`;
+}
+
+export function getKeyClipPath(key: CompositeLayoutKey & { mode?: number }): string | null {
+    if (key.mode === 3) return UK_ENTER_CLIP_PATH;
+    return getCompositeKeyClipPath(key);
 }
 
 export function getKeyVisualBoundsPx(key: CompositeLayoutKey, ku: number, kg: number) {

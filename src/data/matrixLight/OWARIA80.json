@@ -1,0 +1,27 @@
+{
+  "LightMode": [
+    {
+      "name": "终端",
+      "lang": "805",
+      "value": 1,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    },
+    {
+      "name": "关机",
+      "lang": "814",
+      "value": 2,
+      "brightness": true,
+      "speed": true,
+      "direction": false,
+      "color": true,
+      "palette": true
+    }
+  ],
+  "close": 0,
+  "custom": 6,
+  "order": 0
+}

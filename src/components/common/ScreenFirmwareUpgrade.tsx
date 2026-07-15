@@ -26,9 +26,24 @@ import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import type { KeyboardDevice } from '@/devices/KeyboardDevice';
 import type { FilterDevice, ConnectScreenHidResult } from '@/types/types';
+import { upgradeFlowLog, UF_SOURCE } from '@/utils/upgradeFlowLog';
+
+const UFL = UF_SOURCE.SCREEN_OTA;
+const ufl = {
+  info: (message: string, detail?: string) => upgradeFlowLog.info(UFL, message, detail),
+  warn: (message: string, detail?: string) => upgradeFlowLog.warn(UFL, message, detail),
+  error: (message: string, detail?: string) => upgradeFlowLog.error(UFL, message, detail),
+  out: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logOut(UFL, label, data, reportId),
+  in: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logIn(UFL, label, data, reportId),
+};
 
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** 进度百分比展示（保留一位小数） */
+const formatProgressPct = (p: number) => Math.min(100, Math.max(0, p)).toFixed(1);
 
 interface UpgradeState {
   isUpgrading: boolean;
@@ -92,19 +107,25 @@ export default function ScreenFirmwareUpgrade({
   const [upgradeState, setUpgradeState] = useState<UpgradeState>({
     isUpgrading: false,
     progress: 0,
-    status: t('1208'),
+    status: t('2925'),
     detail: undefined,
     statusType: 'normal',
     done: false,
   });
+  const progressFlushRef = useRef<{
+    rafId: number;
+    pending: { doneBytes: number; totalBytes: number } | null;
+  }>({ rafId: 0, pending: null });
   const [firmwareBytes, setFirmwareBytes] = useState<Uint8Array | null>(null);
   const [imageBytes, setImageBytes] = useState<Uint8Array | null>(null);
 
   const resetState = useCallback(() => {
+    cancelAnimationFrame(progressFlushRef.current.rafId);
+    progressFlushRef.current = { rafId: 0, pending: null };
     setUpgradeState({
       isUpgrading: false,
       progress: 0,
-      status: t('1208'),
+      status: t('2925'),
       detail: undefined,
       statusType: 'normal',
       done: false,
@@ -150,7 +171,7 @@ export default function ScreenFirmwareUpgrade({
           setImageBytes(img);
           setUpgradeState((s) => ({
             ...s,
-            status: img?.length ? t('2863') : t('2862'),
+            status: t('2954'),
             statusType: 'normal',
             progress: 0,
           }));
@@ -234,27 +255,36 @@ export default function ScreenFirmwareUpgrade({
     const fwLen = firmwareBytes?.length ?? 0;
     const hasImg = imgLen > 0;
     const hasFwPayload = fwLen > 0;
-    /** 预备阶段结束进度；之后为数据传输；再之后收尾 */
-    const P_PREP_END = 34;
-    const P_XFER_END = 93;
+    /** 预备最高 10%；图包 10–55%；固件 55–95%；收尾 97；100 仅完成 */
+    const P_PREP_END = 10;
+    const P_IMG_END = 55;
+    const P_XFER_END = 95;
     const P_FINAL = 97;
-    const mapXferProgress = (r01: number) =>
-      Math.min(100, Math.round(P_PREP_END + Math.min(1, Math.max(0, r01)) * (P_XFER_END - P_PREP_END)));
-    const xferDetail = (r01: number) => {
-      const clamp01 = Math.min(1, Math.max(0, r01));
+    const totalXferBytes = imgLen + fwLen;
+    const mapXferProgress = (doneBytes: number) => {
+      const clampDone = Math.min(totalXferBytes, Math.max(0, doneBytes));
       if (hasImg && hasFwPayload) {
-        if (clamp01 <= 0.5) {
-          const sub = clamp01 / 0.5;
-          return t('2875', { pct: Math.round(sub * 100) });
+        const imgDone = Math.min(imgLen, clampDone);
+        const fwDone = Math.max(0, clampDone - imgLen);
+        if (clampDone <= imgLen) {
+          const imgRatio = imgLen > 0 ? imgDone / imgLen : 1;
+          return P_PREP_END + imgRatio * (P_IMG_END - P_PREP_END);
         }
-        const sub = (clamp01 - 0.5) / 0.5;
-        return t('2876', { pct: Math.round(sub * 100) });
+        const fwRatio = fwLen > 0 ? fwDone / fwLen : 1;
+        return P_IMG_END + fwRatio * (P_XFER_END - P_IMG_END);
       }
-      if (hasImg) return t('2875', { pct: Math.round(clamp01 * 100) });
-      return t('2876', { pct: Math.round(clamp01 * 100) });
+      if (hasImg) {
+        const imgRatio = imgLen > 0 ? Math.min(imgLen, clampDone) / imgLen : 1;
+        return P_PREP_END + imgRatio * (P_XFER_END - P_PREP_END);
+      }
+      const fwRatio = fwLen > 0 ? Math.min(fwLen, clampDone) / fwLen : 1;
+      return P_PREP_END + fwRatio * (P_XFER_END - P_PREP_END);
     };
 
+    cancelAnimationFrame(progressFlushRef.current.rafId);
+    progressFlushRef.current = { rafId: 0, pending: null };
     // 同步 ref，早于 setState/setDownLoad，避免心跳 tick 与 OTA 抢同一 HID OUT 锁（bulk 前无 IN 属正常）
+    ufl.info('开始屏幕 OTA 升级', `固件=${fwLen}B 图包=${imgLen}B`);
     setScreenFirmwareOtaBlocking?.(true);
     setDownLoad(true);
     setIsDownloading(true);
@@ -265,55 +295,81 @@ export default function ScreenFirmwareUpgrade({
       statusType: 'normal',
       done: false,
       progress: 2,
-      status: screenDeviceComm ? t('2871') : t('2844'),
-      detail: screenDeviceComm ? t('2871') : t('2844'),
+      status: t('2848'),
+      detail: t('2848'),
     }));
+
+    const bumpProgress = (progress: number, patch: Partial<UpgradeState>) => {
+      setUpgradeState((s) => ({
+        ...s,
+        ...patch,
+        progress: Math.max(s.progress, Math.min(P_PREP_END, progress)),
+      }));
+    };
 
     // 与 ScreenTheme 一致：禁止 MainProvider 对 deviceComm 轮询 0x1C/0x1A，否则会与 OTA 同 HID 冲突导致失败
     try {
       if (!screenDeviceComm) {
-        setUpgradeState((s) => ({ ...s, progress: 6, status: t('2870'), detail: t('2870') }));
+        ufl.info('请求键盘 HID 设备');
+        bumpProgress(3, { status: t('2848'), detail: t('2848') });
         const kb = await client.requestKeyboardDevice();
         await client.open(kb);
-        setUpgradeState((s) => ({ ...s, progress: 10, status: t('2871'), detail: t('2871') }));
+        bumpProgress(5, { status: t('2848'), detail: t('2848') });
       }
       await client.enterUpgradeMode();
+      ufl.info('已进入升级模式');
       if (screenDeviceComm) {
-        setUpgradeState((s) => ({ ...s, progress: 16, status: t('2871'), detail: t('2873') }));
-        await sleep(200);
+        bumpProgress(6, { status: t('2848'), detail: t('2848') });
+        await sleep(1000);
       } else {
-        setUpgradeState((s) => ({ ...s, progress: 14, status: t('2871'), detail: t('2872') }));
+        bumpProgress(6, { status: t('2848'), detail: t('2848') });
         await sleep(2000);
-        setUpgradeState((s) => ({ ...s, progress: 22, status: t('2873'), detail: t('2873') }));
+        bumpProgress(8, { status: t('2848'), detail: t('2848') });
       }
       await client.requestAndOpenOtaDevice();
-      setUpgradeState((s) => ({ ...s, progress: 26, status: t('2873'), detail: t('2873') }));
-      setUpgradeState((s) => ({ ...s, progress: 30, status: t('2874'), detail: t('2874') }));
+      ufl.info('OTA 设备已打开');
+      bumpProgress(9, { status: t('2848'), detail: t('2848') });
+      bumpProgress(10, { status: t('2848'), detail: t('2848') });
       await client.sendOtaUpgradeCommand0xf0();
+      ufl.info('已发送 0xF0 升级预备命令');
       client.startOtaScreenKeepalive();
       setUpgradeState((s) => ({
         ...s,
-        progress: P_PREP_END,
+        progress: Math.max(s.progress, P_PREP_END),
         status: t('2848'),
-        detail: hasImg && hasFwPayload ? t('2877') : hasImg ? t('2878') : t('2880'),
+        detail: t('2848'),
       }));
       if (hasImg || hasFwPayload) {
+        ufl.info('开始传输图包/固件');
+        const scheduleXferProgress = (doneBytes: number) => {
+          progressFlushRef.current.pending = { doneBytes, totalBytes: totalXferBytes };
+          if (progressFlushRef.current.rafId) return;
+          progressFlushRef.current.rafId = requestAnimationFrame(() => {
+            progressFlushRef.current.rafId = 0;
+            const pending = progressFlushRef.current.pending;
+            progressFlushRef.current.pending = null;
+            if (!pending) return;
+            const mapped = mapXferProgress(pending.doneBytes);
+            setUpgradeState((s) => ({
+              ...s,
+              progress: Math.max(s.progress, mapped),
+              status: t('2848'),
+              detail: t('2848'),
+            }));
+          });
+        };
         await client.transferImageThenFirmware({
           image: hasImg ? imageBytes : null,
           firmware: firmwareBytes,
-          onProgress: (r) => {
-            setUpgradeState((s) => ({
-              ...s,
-              progress: mapXferProgress(r),
-              status: t('2848'),
-              detail: xferDetail(r),
-            }));
+          onProgress: (doneBytes, totalBytes) => {
+            scheduleXferProgress(Math.min(doneBytes, totalBytes));
           },
         });
       }
       setUpgradeState((s) => ({ ...s, progress: P_FINAL, status: t('2881'), detail: t('2881') }));
       await client.finalizeUpgradeSession();
       clientRef.current = null;
+      ufl.info('屏幕 OTA 升级成功');
       setUpgradeState({
         isUpgrading: false,
         progress: 100,
@@ -334,6 +390,7 @@ export default function ScreenFirmwareUpgrade({
         confirmOnly: true,
       });
     } catch (e) {
+      ufl.error('屏幕 OTA 升级失败', e instanceof Error ? e.message : String(e));
       try {
         await client.finalizeUpgradeSession();
       } catch {
@@ -375,23 +432,26 @@ export default function ScreenFirmwareUpgrade({
   const P = theme.palette.primary.main;
   const trackBg = isLightMode ? 'rgba(0, 0, 0, 0.06)' : alpha(theme.palette.common.white, 0.1);
 
-  /** 与 OTA 流程阈值一致：≥34 为数据传输阶段；≥97 为收尾，展示「固件写入完成」 */
-  const P_PREP_END = 34;
+  /** 预备最高 10%；传输 10–95；收尾 97 */
+  const P_PREP_END = 10;
+  const P_XFER_END = 95;
   const P_FINAL = 97;
 
   const progressHeadlineLeft = useMemo(() => {
     if (upgradeState.statusType === 'error') return upgradeState.status;
     if (upgradeState.isUpgrading) {
-      const p = Math.round(upgradeState.progress);
+      const p = upgradeState.progress;
       if (p >= 100 || p >= P_FINAL) return t('2884');
-      if (p >= P_PREP_END) return t('2848');
-      return upgradeState.status;
+      return t('2848');
     }
-    return t('1208');
+    if (!firmwareBytes) return t('2925');
+    return t('2954');
   }, [
+    firmwareBytes,
     upgradeState.isUpgrading,
     upgradeState.progress,
     upgradeState.status,
+    upgradeState.detail,
     upgradeState.statusType,
     t,
   ]);
@@ -663,14 +723,14 @@ export default function ScreenFirmwareUpgrade({
                     letterSpacing: '0.02em',
                   }}
                 >
-                  {Math.min(100, Math.max(0, Math.round(upgradeState.progress)))}%
+                  {formatProgressPct(upgradeState.progress)}%
                 </Typography>
               </Box>
             </Box>
             <Box sx={{ px: '14px', mt: '12px' }}>
               <LinearProgress
                 variant="determinate"
-                value={Math.min(100, Math.max(0, upgradeState.progress))}
+                value={Math.min(P_XFER_END, Math.max(0, upgradeState.progress))}
                 sx={{
                   height: 10,
                   borderRadius: '999px',

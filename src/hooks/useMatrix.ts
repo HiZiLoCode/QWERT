@@ -19,6 +19,7 @@ const useMatrix = () => {
     const [switchValue, setSwitchValue] = useState<boolean>(false);
     const [maxLightSpeed, setMaxLightSpeed] = useState<number>(0);
     const [rainDropActive, setRainDropActive] = useState<boolean>(false);
+    const [latticeDevice, setLatticeDevice] = useState<any>(null);
 
     // hexToRgb 函数
     const hexToRgb = (color: string): [number, number, number] => {
@@ -153,6 +154,8 @@ const useMatrix = () => {
         setSelectedIndex,
         setDevice,
         setSelectedCells,
+        latticeDevice,
+        setLatticeDevice,
     };
 };
 

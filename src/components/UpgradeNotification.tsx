@@ -4,6 +4,7 @@ import React, {
   useState,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 import {
   Paper,
@@ -36,13 +37,19 @@ const shimmerAnimation = keyframes`
 
 const UpgradeNotification: React.FC = () => {
   const theme = useTheme();
-  const { keyboard, connectState } = useContext(ConnectKbContext);
+  const { keyboard, connectState, connectedKeyboard } = useContext(ConnectKbContext);
   const { onChangeTab } = useContext(EditorContext);
   const { deviceNeedsUpgrade, deviceVersion, deviceUpgradeVersion } = keyboard;
 
   const [visible, setVisible] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { t } = useTranslation('common');
+  const connectedDeviceKey = useMemo(() => {
+    if (typeof connectedKeyboard?.vendorId !== 'number' || typeof connectedKeyboard?.productId !== 'number') {
+      return '';
+    }
+    return `${connectedKeyboard.vendorId}_${connectedKeyboard.productId}_${connectedKeyboard.productName ?? ''}`;
+  }, [connectedKeyboard?.vendorId, connectedKeyboard?.productId, connectedKeyboard?.productName]);
 
   /** 启动自动隐藏计时器 */
   const startAutoHideTimer = useCallback(() => {
@@ -53,6 +60,11 @@ const UpgradeNotification: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    setVisible(false);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, [connectedDeviceKey]);
+
+  useEffect(() => {
     if (connectState || keyboard.keyboardType === "QMK") {
       setVisible(false);
       return;
@@ -61,12 +73,14 @@ const UpgradeNotification: React.FC = () => {
     if (deviceNeedsUpgrade) {
       setVisible(true);
       startAutoHideTimer();
+    } else {
+      setVisible(false);
     }
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [deviceNeedsUpgrade, connectState, startAutoHideTimer,keyboard.keyboardType]);
+  }, [deviceNeedsUpgrade, connectState, startAutoHideTimer, keyboard.keyboardType, connectedDeviceKey]);
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);

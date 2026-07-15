@@ -13,7 +13,6 @@ type CommandQueueEntry = {
 type CommandQueue = Array<CommandQueueEntry>;
 // 存储设备缓存信息
 const cache: { [addr: string]: { hid: any } } = {};
-// 存储每个地址的命令队列信息
 const globalCommandQueue: {
   [address: string]: { isFlushing: boolean; commandQueue: CommandQueue };
 } = {};
@@ -26,6 +25,41 @@ export const shiftFrom16Bit = (value: number): [number, number] => [
   value & 255,
   value >> 8,
 ];
+
+/** 设备断开时释放命令队列与 HID 缓存，避免重插后旧会话继续读写导致 tab 崩溃 */
+export function releaseKeyboardApiSession(address: string | undefined | null) {
+  if (!address) return;
+  const wrapper = globalCommandQueue[address];
+  if (wrapper) {
+    while (wrapper.commandQueue.length > 0) {
+      const entry = wrapper.commandQueue.shift();
+      try {
+        entry?.rej(new Error('HID session released'));
+      } catch {
+        /* ignore */
+      }
+    }
+    wrapper.isFlushing = false;
+    delete globalCommandQueue[address];
+  }
+  const hid = cache[address]?.hid as { release?: () => void } | undefined;
+  try {
+    hid?.release?.();
+  } catch {
+    /* ignore */
+  }
+  delete cache[address];
+}
+
+export function releaseAllKeyboardApiSessions() {
+  const addresses = new Set([
+    ...Object.keys(globalCommandQueue),
+    ...Object.keys(cache),
+  ]);
+  for (const address of addresses) {
+    releaseKeyboardApiSession(address);
+  }
+}
 // 初始化并连接到设备
 const initAndConnectDevice = (address: string) => {
   return new HidDeivce(address);
@@ -321,20 +355,27 @@ export class KeyboardAPI {
   }
   // 获取HID设备实例
   getHID() {
-    if (this.address) {
+    if (this.address && cache[this.address]) {
       return cache[this.address].hid;
     }
     return null;
   }
   // 读取HID命令
   async webhid_read_command(): Promise<Uint8Array> {
-    return this.getHID().readP();
+    const hid = this.getHID();
+    if (!hid) {
+      return new Uint8Array(0);
+    }
+    return hid.readP();
   }
   // 通过WebHID发送数据到键盘
   async webhid_write_command(
     command: Command,
     bytes: Array<number> = [],
   ): Promise<any> {
+    if (!this.getHID()) {
+      throw new Error('HID device not available');
+    }
     const commandBytes = [0, command, ...bytes];
     await this.writeCommandPackets(commandBytes);
     let buffer: number[] = [];

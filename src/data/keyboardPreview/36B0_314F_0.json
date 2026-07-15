@@ -1,0 +1,28 @@
+{
+    "previewSkins": [
+        {
+            "value": "leadGray",
+            "label": "铅原灰",
+            "suffix": "",
+            "image": "/keyboard/307f_lead_gray.png"
+        },
+        {
+            "value": "neoBlue",
+            "label": "牛仔蓝",
+            "suffix": "",
+            "image": "/keyboard/307f_neo_blue.png"
+        },
+        {
+            "value": "flashWhite",
+            "label": "闪白",
+            "suffix": "",
+            "image": "/keyboard/307f_flash_white.png"
+        },
+        {
+            "value": "anodeGray",
+            "label": "阳极灰",
+            "suffix": "",
+            "image": "/keyboard/307f_anode_gray.png"
+        }
+    ]
+}

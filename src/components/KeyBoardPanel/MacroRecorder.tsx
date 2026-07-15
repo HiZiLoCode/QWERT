@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useContext, useMemo } from 'react';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
 import StopRoundedIcon from '@mui/icons-material/StopRounded';
-import { Box, TextField, Typography, Snackbar, Alert } from '@mui/material';
+import { Box, TextField, Typography } from '@mui/material';
+import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
@@ -11,6 +12,21 @@ import type { MacroProfile as V1MacroProfile, MacroAction as V1MacroAction } fro
 import { useTranslation } from '@/app/i18n';
 import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
 import { alpha, useTheme } from '@mui/material/styles';
+import {
+    encodeAllMacros,
+    parseRawMacroBytes,
+    qmkParsedToRecorderProfiles,
+    recorderProfilesToQmk,
+    webCodeToDisplayKey,
+} from '@/utils/qmkMacroCodec';
+import {
+    hiddenAnyMacrosFromMap,
+    mergeMacroProfilesForDevice,
+    readVendorAnyMacroMap,
+    VENDOR_ANY_MACRO_BASE_INDEX,
+} from '@/utils/vendor91683AnyKey';
+import { codeToNumber, getSelectedQMKKeyInfo } from '@/utils/qmkKeyCodeApply';
+import { getBasicKeyDict } from '@/utils/key-to-byte/dictionary-store';
 
 // ─── 本地 UI 类型（与原来保持一致）───────────────────────────────────────────
 interface MacroAction {
@@ -37,11 +53,36 @@ type DndDropResult = {
 
 const DELAY_MIN = 10;
 const DELAY_MAX = 255;
+const QMK_DELAY_MAX = 99999;
 
-function clampDelayValue(raw: string, fallback: number = DELAY_MIN): number {
+function clampDelayValue(raw: string, fallback: number = DELAY_MIN, max: number = DELAY_MAX): number {
     const parsed = Number.parseInt(raw, 10);
     if (Number.isNaN(parsed)) return fallback;
-    return Math.min(DELAY_MAX, Math.max(DELAY_MIN, parsed));
+    return Math.min(max, Math.max(DELAY_MIN, parsed));
+}
+
+/** 录制时解析延时：固定延时优先用输入框；动态延时用实际间隔 */
+function resolveRecordingDelayMs(
+    standardDelay: boolean,
+    delayValue: string,
+    elapsedMs: number,
+): number {
+    if (standardDelay) {
+        const parsed = Number.parseInt(delayValue, 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 50;
+    }
+    return Math.max(0, Math.round(elapsedMs));
+}
+
+function createDelayAction(delayMs: number): MacroAction {
+    return {
+        id: `delay-${Date.now()}-${Math.random()}`,
+        type: 'delay',
+        key: String(delayMs),
+        hasUpArrow: false,
+        hasDownArrow: false,
+        webCode: '',
+    };
 }
 
 // ─── 格式转换工具 ─────────────────────────────────────────────────────────────
@@ -101,17 +142,17 @@ const MacroRecorder: React.FC = () => {
     const [standardDelay, setStandardDelay] = useState(true);
     const [delayValue, setDelayValue] = useState('50');
     const [pendingActions, setPendingActions] = useState<MacroAction[] | null>(null);
-    const [toast, setToast] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({
-        open: false, msg: '', severity: 'success',
-    });
+    const { showMessage } = useSnackbarDialog();
 
     const pressedKeysRef = useRef(new Set<string>());
     const lastEventTimeRef = useRef(Date.now());
     const isFirstEventRef = useRef(true);
+    const macrosRef = useRef<MacroProfile[]>([]);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const isQMK = keyboard?.keyboardType === 'QMK';
     const macroScrollbarSx = getComfortableScrollbarSx(isDark);
 
     const surfaceCardSx = useMemo(
@@ -135,21 +176,79 @@ const MacroRecorder: React.FC = () => {
     const macroAccentHover = isDark ? theme.palette.primary.dark : '#3b78f0';
 
     const selectedMacro = macros[selectedMacroIndex];
+    const delayMax = isQMK ? QMK_DELAY_MAX : DELAY_MAX;
 
-    // localStorage key（与 ConnectKbProvider 保持一致）
-    const storageKey = `macro_profile_${keyboard?.version ?? 'default'}`;
+    useEffect(() => {
+        macrosRef.current = macros;
+    }, [macros]);
+
+    // localStorage key（91683 / QMK 分开存储）
+    const storageKey = isQMK
+        ? `qmk_macros_${keyboard?.version ?? 'default'}`
+        : `macro_profile_${keyboard?.version ?? 'default'}`;
+
+    const qmkDict = useMemo(
+        () => getBasicKeyDict(keyboard?.version ?? 10) as Record<string, number>,
+        [keyboard?.version],
+    );
 
     // ─── 初始化：优先从键盘读取，其次 ConnectKbContext，其次 localStorage，最后默认 ──
     useEffect(() => {
         const loadFromKeyboard = async () => {
+            if (isQMK && connectedKeyboard) {
+                try {
+                    const count: number = await connectedKeyboard.getMacroCount?.() ?? 16;
+                    const bufSize: number = await connectedKeyboard.getMacroBufferSize?.() ?? 0;
+                    if (bufSize > 0) {
+                        const rawBytes: number[] = await connectedKeyboard.getMacroBytes?.() ?? [];
+                        const parsed = parseRawMacroBytes(rawBytes, count);
+                        const local = qmkParsedToRecorderProfiles(parsed, count) as MacroProfile[];
+                        setMacros(local);
+                        localStorage.setItem(storageKey, JSON.stringify(local));
+                        return;
+                    }
+                    const initial: MacroProfile[] = Array.from({ length: count }, (_, i) => ({
+                        index: i,
+                        name: `M${i}`,
+                        actions: [],
+                        loopType: 0,
+                        loopCount: 1,
+                    }));
+                    setMacros(initial);
+                    return;
+                } catch (e) {
+                    console.warn('[MacroRecorder] QMK 读取宏失败，降级到本地:', e);
+                }
+                try {
+                    const saved = localStorage.getItem(storageKey);
+                    if (saved) {
+                        const parsed = JSON.parse(saved) as MacroProfile[];
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                            setMacros(parsed);
+                            return;
+                        }
+                    }
+                } catch { /* ignore */ }
+                const fallbackCount = await connectedKeyboard.getMacroCount?.() ?? 16;
+                setMacros(Array.from({ length: fallbackCount }, (_, i) => ({
+                    index: i,
+                    name: `M${i}`,
+                    actions: [],
+                    loopType: 0,
+                    loopCount: 1,
+                })));
+                return;
+            }
+
             if (connectedKeyboard && typeof connectedKeyboard.getAllMacroDataV2 === 'function') {
                 try {
                     const result = await connectedKeyboard.getAllMacroDataV2();
                     if (result && result.length > 0) {
-                        const local = fromV1Profiles(result);
+                        const visibleOnly = result.filter((p: { key?: number }) => (p.key ?? 0) < VENDOR_ANY_MACRO_BASE_INDEX);
+                        const local = fromV1Profiles(visibleOnly);
                         setMacros(local);
-                        if (setV1Profiles) setV1Profiles(result);
-                        localStorage.setItem(storageKey, JSON.stringify(result));
+                        if (setV1Profiles) setV1Profiles(visibleOnly);
+                        localStorage.setItem(storageKey, JSON.stringify(visibleOnly));
                         return;
                     }
                 } catch (e) {
@@ -186,10 +285,14 @@ const MacroRecorder: React.FC = () => {
             setMacros(initial);
         };
         loadFromKeyboard();
-    }, [connectedKeyboard]);
+    }, [connectedKeyboard, isQMK]);
 
     // ─── 将本地 macros 同步到 ConnectKbContext + localStorage ──────────────
     const syncToContext = (updated: MacroProfile[]) => {
+        if (isQMK) {
+            localStorage.setItem(storageKey, JSON.stringify(updated));
+            return;
+        }
         const v1 = toV1Profiles(updated);
         if (setV1Profiles) setV1Profiles(v1);
         localStorage.setItem(storageKey, JSON.stringify(v1));
@@ -200,36 +303,70 @@ const MacroRecorder: React.FC = () => {
         setIsRecording(false);
         setPendingActions(null);
 
-        // 如果键盘上有按键被选中，则将该宏映射到选中的按键
         const selectedKeyIndex = keyboard?.selectIndex ?? -1;
         const currentLayer = keyboard?.layer ?? 0;
-        if (selectedKeyIndex >= 0 && connectedKeyboard) {
-            const macro = macros[index];
-            if (!macro) return;
-            const macroKey = macro.index;
-            const macroType = macro.loopType;
-            const macroReplay = macro.loopCount;
+        if (selectedKeyIndex < 0 || !connectedKeyboard) return;
+
+        const macro = macros[index];
+        if (!macro) return;
+
+        if (macro.actions.length === 0) {
+            showMessage({ message: t('2998'), type: 'success', duration: 4000 });
+            return;
+        }
+
+        if (isQMK) {
+            const keyInfo = getSelectedQMKKeyInfo(
+                keyboard?.allQMKLayers,
+                currentLayer,
+                selectedKeyIndex,
+                keyboard?.layoutKeys,
+            );
+            if (!keyInfo) return;
+            const code = `MACRO(${index})`;
+            const keycode = codeToNumber(code, qmkDict);
+            if (keycode === 0) return;
             try {
-                if (macroType === 0 && macroReplay > 1) {
-                    await connectedKeyboard.setKeyMatrixData?.(currentLayer, selectedKeyIndex, 0x61, macroKey, macroReplay);
-                } else {
-                    await connectedKeyboard.setKeyMatrixData?.(currentLayer, selectedKeyIndex, 0x60, macroKey, macroType);
-                }
-                keyboard?.updateUserKey?.(
-                    { name: macro.name, code: `MACRO(${index})`, type: 0x60, code1: macroKey, code2: macroType, code3: macroReplay },
-                    selectedKeyIndex, 0, currentLayer
-                );
-                keyboard?.saveUserKeys?.();
+                keyboard?.updateQMKKey?.(currentLayer, selectedKeyIndex, {
+                    ...keyInfo,
+                    code,
+                    name: macro.name,
+                });
+                await connectedKeyboard.setKey?.(currentLayer, keyInfo.row, keyInfo.col, keycode);
             } catch (e) {
-                console.error(t('1703'), e);
+                console.error('[MacroRecorder] QMK 绑定宏失败:', e);
             }
+            return;
+        }
+
+        // 91683：将宏映射到选中按键
+        const macroKey = macro.index;
+        const macroType = macro.loopType;
+        const macroReplay = macro.loopCount;
+        try {
+            if (macroType === 0 && macroReplay > 1) {
+                await connectedKeyboard.setKeyMatrixData?.(currentLayer, selectedKeyIndex, 0x61, macroKey, macroReplay);
+            } else {
+                await connectedKeyboard.setKeyMatrixData?.(currentLayer, selectedKeyIndex, 0x60, macroKey, macroType);
+            }
+            keyboard?.updateUserKey?.(
+                { name: macro.name, code: `MACRO(${index})`, type: 0x60, code1: macroKey, code2: macroType, code3: macroReplay },
+                selectedKeyIndex, 0, currentLayer
+            );
+            keyboard?.saveUserKeys?.();
+        } catch (e) {
+            console.error(t('1703'), e);
         }
     };
 
     const handleStartRecording = () => {
-        setMacros(prev => prev.map((m, i) =>
-            i === selectedMacroIndex ? { ...m, actions: [] } : m
-        ));
+        setMacros((prev) => {
+            const next = prev.map((m, i) =>
+                i === selectedMacroIndex ? { ...m, actions: [] } : m,
+            );
+            macrosRef.current = next;
+            return next;
+        });
         setIsRecording(true);
         pressedKeysRef.current.clear();
         lastEventTimeRef.current = Date.now();
@@ -241,7 +378,23 @@ const MacroRecorder: React.FC = () => {
         syncToContext(updated);
         if (!connectedKeyboard) return;
         try {
-            await connectedKeyboard.setAllMacroDataV2(toV1Profiles(updated));
+            if (isQMK) {
+                const count: number = await connectedKeyboard.getMacroCount?.() ?? updated.length;
+                const bufSize: number = await connectedKeyboard.getMacroBufferSize?.() ?? 0;
+                const data = encodeAllMacros(recorderProfilesToQmk(updated), count);
+                if (bufSize > 0 && data.length > bufSize) {
+                    console.error(`[MacroRecorder] QMK 宏数据(${data.length}B)超出缓冲区(${bufSize}B)`);
+                    return;
+                }
+                await connectedKeyboard.setMacroBytes?.(data);
+                return;
+            }
+            await connectedKeyboard.setAllMacroDataV2(
+                mergeMacroProfilesForDevice(
+                    toV1Profiles(updated),
+                    hiddenAnyMacrosFromMap(readVendorAnyMacroMap(keyboard?.version)),
+                ),
+            );
         } catch (e) {
             console.error(t('1704'), e);
         }
@@ -249,8 +402,8 @@ const MacroRecorder: React.FC = () => {
 
     const handleStopRecording = () => {
         setIsRecording(false);
-        // 停止录制时自动下发到键盘
-        pushToKeyboard(macros);
+        // 停止录制时自动下发到键盘（使用 ref 避免 setState 尚未提交导致丢动作/延时）
+        void pushToKeyboard(macrosRef.current);
     };
 
     const handleDragEnd = (result: DndDropResult) => {
@@ -263,6 +416,7 @@ const MacroRecorder: React.FC = () => {
         const updated = macros.map((m, i) =>
             i === selectedMacroIndex ? { ...m, actions: newActions } : m
         );
+        macrosRef.current = updated;
         setMacros(updated);
         pushToKeyboard(updated);
     };
@@ -272,37 +426,37 @@ const MacroRecorder: React.FC = () => {
         if (!isRecording) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (pressedKeysRef.current.has(e.key)) return;
+            const pressKey = isQMK ? e.code : e.key;
+            if (pressedKeysRef.current.has(pressKey)) return;
             e.preventDefault();
-            pressedKeysRef.current.add(e.key);
+            pressedKeysRef.current.add(pressKey);
 
             const currentTime = Date.now();
-            const delay = standardDelay
-                ? Number(delayValue)
-                : currentTime - lastEventTimeRef.current;
+            const delayMs = resolveRecordingDelayMs(
+                standardDelay,
+                delayValue,
+                currentTime - lastEventTimeRef.current,
+            );
 
             const newActions: MacroAction[] = [];
-            if (!isFirstEventRef.current) {
-                newActions.push({
-                    id: `delay-${Date.now()}-${Math.random()}`,
-                    type: 'delay',
-                    key: String(delay),
-                    hasUpArrow: false,
-                    hasDownArrow: false,
-                    webCode: '',
-                });
+            if (!isFirstEventRef.current && delayMs > 0 && (!isQMK || !standardDelay)) {
+                newActions.push(createDelayAction(delayMs));
             }
             isFirstEventRef.current = false;
 
-            let keyName = e.key.toUpperCase();
-            switch (e.key) {
-                case 'Control': keyName = 'CTRL'; break;
-                case 'Escape': keyName = 'ESC'; break;
-                case 'ArrowUp': keyName = 'UP'; break;
-                case 'ArrowDown': keyName = 'DOWN'; break;
-                case 'ArrowLeft': keyName = 'LEFT'; break;
-                case 'ArrowRight': keyName = 'RIGHT'; break;
-                case ' ': keyName = 'SPACE'; break;
+            let keyName = isQMK
+                ? webCodeToDisplayKey(e.code)
+                : e.key.toUpperCase();
+            if (!isQMK) {
+                switch (e.key) {
+                    case 'Control': keyName = 'CTRL'; break;
+                    case 'Escape': keyName = 'ESC'; break;
+                    case 'ArrowUp': keyName = 'UP'; break;
+                    case 'ArrowDown': keyName = 'DOWN'; break;
+                    case 'ArrowLeft': keyName = 'LEFT'; break;
+                    case 'ArrowRight': keyName = 'RIGHT'; break;
+                    case ' ': keyName = 'SPACE'; break;
+                }
             }
 
             newActions.push({
@@ -314,59 +468,69 @@ const MacroRecorder: React.FC = () => {
                 webCode: e.code,
             });
 
-            setMacros(prev => prev.map((m, i) =>
-                i === selectedMacroIndex
-                    ? { ...m, actions: [...m.actions, ...newActions] }
-                    : m
-            ));
+            setMacros((prev) => {
+                const next = prev.map((m, i) =>
+                    i === selectedMacroIndex
+                        ? { ...m, actions: [...m.actions, ...newActions] }
+                        : m,
+                );
+                macrosRef.current = next;
+                return next;
+            });
             lastEventTimeRef.current = currentTime;
         };
 
         const handleKeyUp = (e: KeyboardEvent) => {
-            if (!pressedKeysRef.current.has(e.key)) return;
+            const pressKey = isQMK ? e.code : e.key;
+            if (!pressedKeysRef.current.has(pressKey)) return;
             e.preventDefault();
-            pressedKeysRef.current.delete(e.key);
+            pressedKeysRef.current.delete(pressKey);
 
             const currentTime = Date.now();
-            const delay = standardDelay
-                ? Number(delayValue)
-                : currentTime - lastEventTimeRef.current;
+            const delayMs = resolveRecordingDelayMs(
+                standardDelay,
+                delayValue,
+                currentTime - lastEventTimeRef.current,
+            );
 
-            let keyName = e.key.toUpperCase();
-            switch (e.key) {
-                case 'Control': keyName = 'CTRL'; break;
-                case 'Escape': keyName = 'ESC'; break;
-                case 'ArrowUp': keyName = 'UP'; break;
-                case 'ArrowDown': keyName = 'DOWN'; break;
-                case 'ArrowLeft': keyName = 'LEFT'; break;
-                case 'ArrowRight': keyName = 'RIGHT'; break;
-                case ' ': keyName = 'SPACE'; break;
+            let keyName = isQMK
+                ? webCodeToDisplayKey(e.code)
+                : e.key.toUpperCase();
+            if (!isQMK) {
+                switch (e.key) {
+                    case 'Control': keyName = 'CTRL'; break;
+                    case 'Escape': keyName = 'ESC'; break;
+                    case 'ArrowUp': keyName = 'UP'; break;
+                    case 'ArrowDown': keyName = 'DOWN'; break;
+                    case 'ArrowLeft': keyName = 'LEFT'; break;
+                    case 'ArrowRight': keyName = 'RIGHT'; break;
+                    case ' ': keyName = 'SPACE'; break;
+                }
             }
 
-            const newActions: MacroAction[] = [
-                {
-                    id: `delay-${Date.now()}-${Math.random()}`,
-                    type: 'delay',
-                    key: String(delay),
-                    hasUpArrow: false,
-                    hasDownArrow: false,
-                    webCode: '',
-                },
-                {
-                    id: `key-${Date.now()}-${Math.random()}`,
-                    type: 'keyboard',
-                    key: keyName,
-                    hasUpArrow: true,
-                    hasDownArrow: false,
-                    webCode: e.code,
-                },
-            ];
+            const newActions: MacroAction[] = [];
+            // QMK 自定义延迟：延时插在按下与抬起之间（Q → 50ms → Q）
+            if (delayMs > 0) {
+                newActions.push(createDelayAction(delayMs));
+            }
+            newActions.push({
+                id: `key-${Date.now()}-${Math.random()}`,
+                type: 'keyboard',
+                key: keyName,
+                hasUpArrow: true,
+                hasDownArrow: false,
+                webCode: e.code,
+            });
 
-            setMacros(prev => prev.map((m, i) =>
-                i === selectedMacroIndex
-                    ? { ...m, actions: [...m.actions, ...newActions] }
-                    : m
-            ));
+            setMacros((prev) => {
+                const next = prev.map((m, i) =>
+                    i === selectedMacroIndex
+                        ? { ...m, actions: [...m.actions, ...newActions] }
+                        : m,
+                );
+                macrosRef.current = next;
+                return next;
+            });
             lastEventTimeRef.current = currentTime;
         };
 
@@ -376,7 +540,7 @@ const MacroRecorder: React.FC = () => {
             document.removeEventListener('keydown', handleKeyDown, true);
             document.removeEventListener('keyup', handleKeyUp, true);
         };
-    }, [isRecording, selectedMacroIndex, standardDelay, delayValue]);
+    }, [isRecording, selectedMacroIndex, standardDelay, delayValue, isQMK]);
 
     useLayoutEffect(() => {
         if (!isRecording || !selectedMacro) return;
@@ -420,10 +584,10 @@ const MacroRecorder: React.FC = () => {
                             syncToContext(local);
                         }
                         setMacros(local);
-                        setToast({ open: true, msg: t('1689'), severity: 'success' });
+                        showMessage({ message: t('1689'), type: 'success' });
                     } catch (error) {
                         console.error(t('1705'), error);
-                        setToast({ open: true, msg: t('1692'), severity: 'error' });
+                        showMessage({ message: t('1692'), type: 'error' });
                     }
                 };
                 reader.readAsText(file);
@@ -678,10 +842,10 @@ const MacroRecorder: React.FC = () => {
                                             setDelayValue(String(DELAY_MIN));
                                             return;
                                         }
-                                        setDelayValue(String(clampDelayValue(val)));
+                                        setDelayValue(String(clampDelayValue(val, DELAY_MIN, delayMax)));
                                     }}
                                     disabled={isRecording}
-                                    inputProps={{ min: DELAY_MIN, max: DELAY_MAX }}
+                                    inputProps={{ min: DELAY_MIN, max: delayMax }}
                                     sx={{
                                         width: '68px',
                                         '& .MuiInputBase-input': {
@@ -1058,9 +1222,9 @@ const MacroRecorder: React.FC = () => {
                                                                             }}
                                                                             onBlur={(e: any) => {
                                                                                 const val = e.target.value as string;
-                                                                                const normalized = String(clampDelayValue(val));
-                                                                                setMacros((prev) =>
-                                                                                    prev.map((m, mi) =>
+                                                                                const normalized = String(clampDelayValue(val, DELAY_MIN, delayMax));
+                                                                                setMacros((prev) => {
+                                                                                    const next = prev.map((m, mi) =>
                                                                                         mi === selectedMacroIndex
                                                                                             ? {
                                                                                                 ...m,
@@ -1069,11 +1233,16 @@ const MacroRecorder: React.FC = () => {
                                                                                                 ),
                                                                                             }
                                                                                             : m,
-                                                                                    ),
-                                                                                );
+                                                                                    );
+                                                                                    macrosRef.current = next;
+                                                                                    if (isQMK) {
+                                                                                        void pushToKeyboard(next);
+                                                                                    }
+                                                                                    return next;
+                                                                                });
                                                                             }}
                                                                             min={DELAY_MIN}
-                                                                            max={DELAY_MAX}
+                                                                            max={delayMax}
                                                                             sx={{
                                                                                 width: '28px',
                                                                                 height: '12px',
@@ -1176,16 +1345,6 @@ const MacroRecorder: React.FC = () => {
                 </Box>
             </Box>
 
-            <Snackbar
-                open={toast.open}
-                autoHideDuration={3000}
-                onClose={() => setToast((x) => ({ ...x, open: false }))}
-                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-            >
-                <Alert severity={toast.severity} onClose={() => setToast((x) => ({ ...x, open: false }))}>
-                    {toast.msg}
-                </Alert>
-            </Snackbar>
         </Box>
     );
 };

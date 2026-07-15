@@ -23,6 +23,64 @@ const PlusIcon = createSvgIcon(
     'Plus',
 );
 
+/** 静态样式：勿嵌入主题色，避免 SSR/CSR 文本不一致触发 hydration 崩溃 */
+const HERO_SECTION_STYLES = `
+        @keyframes rotateBg {
+          0% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(180deg) scale(1.05); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
+        @keyframes heroRingGlow3 {
+          0% { transform: scale(1.2); opacity: 0.3; }
+          50% { transform: scale(1.34); opacity: 0.15; }
+          100% { transform: scale(1.2); opacity: 0.3; }
+        }
+        @keyframes heroRingGlow2 {
+          0% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.2); opacity: 0.2; }
+          100% { transform: scale(1); opacity: 0.5; }
+        }
+        @keyframes heroRingGlow {
+          0% { transform: scale(.8); opacity: 0.6; }
+          50% { transform: scale(0.95); opacity: 0.3; }
+          100% { transform: scale(.8); opacity: 0.6; }
+        }
+        .hero-rings::before,
+        .hero-rings::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 1px solid var(--hero-ring-border, rgba(59, 130, 246, 0.125));
+            transform-origin: center;
+            animation: heroRingGlow2 5s ease-in-out 0s infinite normal none running;
+        }
+        .hero-rings::before{
+            animation: heroRingGlow3 5s ease-in-out 0s infinite normal none running;
+        }
+
+        .hero-wrapper::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 1px solid var(--hero-ring-border, rgba(59, 130, 246, 0.125));
+          transform-origin: center;
+          animation: heroRingGlow 5s ease-in-out 0s infinite normal none running;
+        }
+
+        .hero-wrapper {
+          animation: rotateBg 12s linear infinite !important;
+        }
+
+        :where(*) {
+            border-width: 0px;
+            border-style: solid;
+            box-sizing: border-box;
+            overflow-wrap: break-word
+        }
+      `;
+
 export default function HeroSection() {
     const { connectKeyboard } = useContext(ConnectKbContext);
     const { t } = useTranslation('common');
@@ -55,63 +113,11 @@ export default function HeroSection() {
 
 
     return (
-        <Box className="w-full h-full">
-            <style>{`
-        @keyframes rotateBg {
-          0% { transform: rotate(0deg) scale(1); }
-          50% { transform: rotate(180deg) scale(1.05); }
-          100% { transform: rotate(360deg) scale(1); }
-        }
-        @keyframes heroRingGlow3 {
-          0% { transform: scale(1.2); opacity: 0.3; }
-          50% { transform: scale(1.34); opacity: 0.15; }
-          100% { transform: scale(1.2); opacity: 0.3; }
-        }
-        @keyframes heroRingGlow2 {
-          0% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.2); opacity: 0.2; }
-          100% { transform: scale(1); opacity: 0.5; }
-        }
-        @keyframes heroRingGlow {
-          0% { transform: scale(.8); opacity: 0.6; }
-          50% { transform: scale(0.95); opacity: 0.3; }
-          100% { transform: scale(.8); opacity: 0.6; }
-        }
-        .hero-rings::before,
-        .hero-rings::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            border: 1px solid ${ringBorderColor};
-            transform-origin: center;
-            animation: heroRingGlow2 5s ease-in-out 0s infinite normal none running;
-        }
-        .hero-rings::before{
-            animation: heroRingGlow3 5s ease-in-out 0s infinite normal none running;
-        }
-
-        .hero-wrapper::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-          border: 1px solid ${ringBorderColor};
-          transform-origin: center;
-          animation: heroRingGlow 5s ease-in-out 0s infinite normal none running;
-        }
-
-        .hero-wrapper {
-          animation: rotateBg 12s linear infinite !important;
-        }
-
-        :where(*) {
-            border-width: 0px;
-            border-style: solid;
-            box-sizing: border-box;
-            overflow-wrap: break-word
-        }
-      `}</style>
+        <Box
+            className="w-full h-full"
+            sx={{ '--hero-ring-border': ringBorderColor }}
+        >
+            <style>{HERO_SECTION_STYLES}</style>
             <Box sx={{
                 width: '100%', height: '100%', position: 'relative', overflow: 'hidden',
                 left: "0px",

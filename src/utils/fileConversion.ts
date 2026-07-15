@@ -49,6 +49,14 @@ function PARSE_EXCLUDED_VALUES(showIf?: string): number[] {
 
     return result
 }
+
+/** VIA showIf：所有 `!= N` 条件均满足时控件可见（effectValue 不等于任一排除值） */
+export function evaluateViaShowIf(showIf: string | undefined, effectValue: number): boolean {
+    if (!showIf) return true
+    const excluded = PARSE_EXCLUDED_VALUES(showIf)
+    return !excluded.includes(effectValue)
+}
+
 export function PARSE_LIGHTING_GROUP(
     group: any,
     langPrefix: string,
@@ -63,21 +71,18 @@ export function PARSE_LIGHTING_GROUP(
     const speedItem = FIND_ITEM(items, rule.speed)
     const colorItem = FIND_ITEM(items, rule.color)
 
-    const excludedColorValues = PARSE_EXCLUDED_VALUES(colorItem?.showIf)
-
     return effectItem.options.map(([name, value]: [string, number]) => {
         const brightness =
             !!brightnessItem &&
-            (!brightnessItem.showIf || !brightnessItem.showIf.includes(`!= ${value}`))
+            evaluateViaShowIf(brightnessItem.showIf, value)
 
         const speed =
             !!speedItem &&
-            (!speedItem.showIf || !speedItem.showIf.includes(`!= ${value}`))
+            evaluateViaShowIf(speedItem.showIf, value)
 
         const color =
             !!colorItem &&
-            value !== 0 &&
-            !excludedColorValues.includes(value)
+            evaluateViaShowIf(colorItem.showIf, value)
 
         return {
             name,

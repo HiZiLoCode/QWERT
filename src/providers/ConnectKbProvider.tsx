@@ -1,19 +1,20 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 "use client";
 
-import { createContext, useState, useCallback, useEffect, useRef } from "react";
+import { createContext, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   connectHID,
   KeyboardDevice,
   getAccreditDevice,
 } from "../devices/KeyboardDevice";
-import { WebHid, tagDevice } from "../devices/WebHid";
+import { WebHid, tagDevice, resolveVendorCommHidDevice, hidDeviceMatchesConnectedKeyboard } from "../devices/WebHid";
 import { QMK_connectHID } from "../devices/QMK/QMK_KeyboardDevice";
 import { KeyboardAPI, shiftFrom16Bit, shiftTo16Bit } from "../devices/KeyboardAPI";
 import { initKeyboardKey } from "../keyboard/layout";
 import useKeyboard from "../hooks/useKeyBoard";
 import { travelKeysTestData } from "../keyboard/test";
 import useMacro from "../hooks/useMacro";
+import { createSmoothProgressController } from "@/utils/keyboardSwitchProgress";
 import {
   AdvancedKeyItem,
   KeyboardKey,
@@ -25,6 +26,7 @@ import {
   WebHidDevice,
 } from "../types/types";
 import { ProfileContent, MacroProfile, DeviceBaseInfo } from "../types/types_v1";
+import { buildQmkLightingFuncPatch } from '@/utils/qmkLightingBridge';
 import {
   testConfigInfo,
   testDefaultKeys,
@@ -37,7 +39,54 @@ import {
   demoDeviceBaseInfo,
   demoDeviceFuncInfo,
 } from "@/keyboard/demoKeyboardDefaults";
-import { deviceInfo } from "../config/deviceInfo";
+import {
+  deviceInfo,
+  deviceInfoKey,
+  getDeviceUiCapabilities,
+  getPhysicalLayoutStem,
+  getQmkConfigFileStem,
+  hasIapBootDeviceInDeviceInfo,
+  isKeyboardDriverUpgradeDisabled,
+} from "../config/deviceInfo";
+import {
+  listBootRecoveryKeyboardOptions,
+  type BootRecoveryKeyboardOption,
+} from "@/utils/bootRecoveryKeyboardOptions";
+import {
+  clearFirmwareUpgradeState,
+  getDiscardFirmwareUpgradeStateReason,
+  isActiveFirmwareUpgradeState,
+  isIapBootUpgradePersistStep,
+  readFirmwareUpgradeState,
+  saveFirmwareUpgradeState,
+} from "@/utils/firmwareUpgradeState";
+import BootRecoveryKeyboardDialog from "@/components/common/BootRecoveryKeyboardDialog";
+import {
+  isDeviceAnyMacroKey,
+  toDeviceKeyType,
+  toVendorAnyUserKey,
+} from "@/utils/vendor91683AnyKey";
+import {
+  getAuthorizedIapBootDevice,
+  isIapBootHidDevice,
+  requestIapBootAuthorization,
+} from "@/utils/iapBootDevice";
+import { isHidWriteNotAllowedError } from "@/lib/hidOutputWriteLock";
+import {
+  beginKeyboardHidUserSession,
+  clearKeyboardHidDriverCaches,
+  endKeyboardHidUserSession,
+  isKeyboardHidReconcilePaused,
+  isKeyboardHidUserSessionActive,
+  pauseKeyboardHidReconcile,
+  releaseAllKeyboardHidSessions,
+  releaseKeyboardHidSessionForAddress,
+  setKeyboardAuthorizePickerOpen,
+  waitForHidEnumerationStable,
+  waitForKeyboardHidReconcileIdle,
+} from "@/utils/keyboardHidSession";
+import { areNavigatorHidNativeEventsSuspended } from "@/utils/hidNativeEventGate";
+import { isFirmwareVersionBehind, isFirmwareVersionUpgradeable } from "@/utils/firmwareVersionCompare";
 import {
   Dialog,
   DialogTitle,
@@ -53,105 +102,79 @@ import {
   type WebHIDSupportInfo,
 } from "@/utils/checkWebHIDSupport";
 import useMatrix from "@/hooks/useMatrix";
+import { getMatrixScreenConfig } from "../config/deviceInfo";
+import {
+  loadMatrixLightConfig,
+  matrixLightConfigToEffects,
+  matrixLightMetaFromConfig,
+} from "@/utils/matrixLightConfig";
+import { resolveQmkEffectsKeyForLabel } from "@/utils/qmkLightingBridge";
+import { createLatticeScreenComm } from "@/devices/lattice/LatticeScreenDevice";
 import { DEFAULT_KEYBOARD_CONFIG, type KeyboardConfig } from '../types/leyout'
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
 import { useTranslation } from "@/app/i18n";
 // import { getBasicKeyToByte } from "@/utils/fileConversion";
 import { buildMatrixKeyInfo, setCustomKeycodes } from "@/utils/keyLabelUtils";
+import { loadPhysicalLayoutKeys, mergePhysicalLayoutWithQmkLayer, qmkLayerToLayoutKeys } from "@/utils/qmkLayoutBridge";
 import { getDefinitionByVendorProductId, saveDefinition, type KeyboardDefinition } from '../utils/definition-storage';
 import { FileManager } from '@/components/FileManager';
-// 检测是否是 IAP/Boot 升级模式
-const isIAPMode = async (): Promise<boolean> => {
-  try {
-    if (!("hid" in navigator)) {
-      return false;
-    }
+function lookupConfiguredUpgradeVersion(
+  vendorId?: number,
+  productId?: number,
+  keyboardID = 0,
+): string {
+  if (vendorId == null || productId == null) return "";
+  const key = deviceInfoKey(vendorId, productId, keyboardID);
+  return deviceInfo[key]?.upgradeVersion || "";
+}
 
-    // 检测 Boot 模式设备（VID: 0x36B0, PID: 0x33FF）
-    const devices = await navigator.hid.getDevices();
-    const bootDevice = devices.find(device =>
-      device.vendorId === 0x36B0 &&
-      device.productId === 0x33FF &&
-      device.collections?.some(collection =>
-        collection.usagePage === 0xFF00 &&
-        collection.usage === 0x0001
-      )
-    );
-
-    if (bootDevice) {
-      console.log('[IAP检测] 检测到Boot模式设备:', bootDevice.productName, 'PID:', bootDevice.productId.toString(16));
-      return true;
-    }
-
-    return false;
-  } catch (error) {
-    console.error('[IAP检测] 检测失败:', error);
-    return false;
+function hydrateKeyboardFromPersistedUpgrade(keyboard: any, upgradeState: ReturnType<typeof readFirmwareUpgradeState>) {
+  const di = upgradeState?.deviceInfo;
+  if (!di) return;
+  if (di.vendorId != null) keyboard.setDeviceVID?.(di.vendorId);
+  if (di.productId != null) keyboard.setDevicePID?.(di.productId);
+  if (di.firmwareFile) keyboard.setDeviceUpgradeFile?.(di.firmwareFile);
+  const savedVersion = di.upgradeVersion?.trim();
+  if (savedVersion && upgradeState?.isUpgrading) {
+    keyboard.setDeviceUpgradeVersion?.(savedVersion);
+    return;
   }
-};
+  const cfgVersion = lookupConfiguredUpgradeVersion(di.vendorId, di.productId, 0);
+  if (cfgVersion) keyboard.setDeviceUpgradeVersion?.(cfgVersion);
+}
 
-// 统一的 IAP 模式处理函数
-// 返回 true 表示检测到升级模式并已处理，调用者应该停止后续流程
-const handleIAPModeDetection = async (keyboard: any, setIsUpgradeWindowOpen: Function, setLoading?: Function): Promise<boolean> => {
+/** 仅恢复 localStorage 中的升级元数据，不跳转升级页 */
+const handleIAPModeDetection = async (keyboard: any): Promise<void> => {
   try {
-    // 步骤1: 检测是否有未完成的升级（异常退出检测）
-    const upgradeStateStr = localStorage.getItem('firmwareUpgradeState');
-    if (upgradeStateStr) {
-      const upgradeState = JSON.parse(upgradeStateStr);
-      console.log('[IAP统一检测] ⚠️ 检测到未完成的升级:', upgradeState);
-      console.log('[IAP统一检测] 上次升级时间:', upgradeState.startTime);
+    const upgradeState = readFirmwareUpgradeState();
+    if (!upgradeState) return;
 
-      // 检查是否有固件文件信息
-      const hasFirmwareFile = upgradeState.deviceInfo?.firmwareFile;
-      console.log(hasFirmwareFile);
-
-      if (!hasFirmwareFile) {
-        console.log('[IAP统一检测] ❌ 未完成的升级记录中没有固件文件，跳过 Boot 检测');
-        // 清理无效的升级状态
-        localStorage.removeItem('firmwareUpgradeState');
-        return false;
-      }
-
-      // 恢复设备信息
-      if (upgradeState.deviceInfo) {
-        keyboard.setDeviceVID?.(upgradeState.deviceInfo.vendorId);
-        keyboard.setDevicePID?.(upgradeState.deviceInfo.productId);
-        keyboard.setDeviceUpgradeFile?.(upgradeState.deviceInfo.firmwareFile);
-        if (upgradeState.deviceInfo.upgradeVersion) {
-          keyboard.setDeviceUpgradeVersion?.(upgradeState.deviceInfo.upgradeVersion);
-        }
-      }
-
-      // 有固件文件信息，检测 Boot 设备是否在线
-      if (await isIAPMode()) {
-        console.log('[IAP统一检测] ✅ Boot设备在线，有固件文件，打开升级窗口以继续升级');
-        setIsUpgradeWindowOpen(true);
-        if (setLoading) setLoading(false);
-        return true;
-      } else {
-        console.log('[IAP统一检测] ⚠️ Boot设备不在线，但有未完成的升级记录');
-        // 继续检查是否有其他设备
-      }
+    console.log('[IAP统一检测] 检测到 localStorage 升级记录:', upgradeState);
+    const discardReason = getDiscardFirmwareUpgradeStateReason(upgradeState, {
+      vendorId: upgradeState.deviceInfo?.vendorId,
+      productId: upgradeState.deviceInfo?.productId,
+      currentUpgradeVersion: lookupConfiguredUpgradeVersion(
+        upgradeState.deviceInfo?.vendorId,
+        upgradeState.deviceInfo?.productId,
+        0,
+      ),
+    });
+    if (discardReason) {
+      console.log('[IAP统一检测] 丢弃无效/过期升级记录:', discardReason);
+      clearFirmwareUpgradeState();
+      return;
     }
-
-    // 步骤2: 检测是否在 IAP/Boot 升级模式
-    if (await isIAPMode()) {
-      console.log('[IAP统一检测] 检测到Boot模式设备');
-      console.log('[IAP统一检测] ⚠️ 但没有未完成的升级记录，不打开升级窗口');
-      console.log('[IAP统一检测] 💡 提示：只有在升级过程中才会自动打开升级窗口');
-
-      // 不处理，因为没有升级记录就说明不是异常退出
-      return false;
-    }
-
-    return false;
+    hydrateKeyboardFromPersistedUpgrade(keyboard, upgradeState);
   } catch (error) {
     console.error('[IAP统一检测] 检测失败:', error);
-    return false;
   }
 };
 
 export const ConnectKbContext = createContext<any>({});
+
+type KeyboardDetectResult =
+  | { type: 'QMK' | '91683'; device: KeyboardDevice | undefined; bootHid?: undefined }
+  | { type: 'IAP_BOOT'; device?: undefined; bootHid: HIDDevice };
 
 type KbConnect = {
   keyItems: KeyItem[];
@@ -163,7 +186,11 @@ type KbConnect = {
   loading: boolean;
   setLoading: Function;
   connectKeyboard: Function;
+  connectBootForFirmwareUpgrade: () => Promise<boolean>;
+  disconnectCurrentKeyboardAndReturnHome: () => void;
   initState: Function;
+  /** 刷新已授权键盘列表（切换设备 Popover 用） */
+  refreshAuthorizedKeyboardList: () => Promise<void>;
   keyCodes: KeyCode[];
   setKeyCodes: Function;
   keyColors: KeyColor[];
@@ -174,6 +201,8 @@ type KbConnect = {
   setConnectedKeyboard: Function;
   keyboardKeys: KeyboardLayoutKey[];
   keyboardLayout: KeyboardLayout | undefined;
+  /** QMK：当前连接使用的完整 VIA JSON 定义 */
+  qmkLoadedDefinition: KeyboardDefinition | null;
   calibration: boolean;
   setCalibration: Function;
   resetProgress: number;
@@ -198,9 +227,16 @@ type KbConnect = {
   connectState: boolean;
   setConnectState: Function;
   setConnectKeyboardStauts: Function;
+  isKeyboardSwitching: boolean;
+  keyboardSwitchProgress: number;
+  keyboardSwitchLabel: string;
+  beginKeyboardSwitch: (deviceName?: string) => void;
+  abortKeyboardSwitch: () => void;
   // 升级窗口状态
   isUpgradeWindowOpen: boolean;
   setIsUpgradeWindowOpen: Function;
+  pendingOpenUpgradeAfterBootConnect: boolean;
+  setPendingOpenUpgradeAfterBootConnect: Function;
   // 音效相关
   enableSound: boolean;
   setEnableSound: Function;
@@ -225,9 +261,14 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   const [connectedKeyboard, setConnectedKeyboard] = useState<KeyboardDevice>();
   // eslint-disable-next-line
   const [keyboardLayout, setKeyboardLayout] = useState<any>();
+  const [qmkLoadedDefinition, setQmkLoadedDefinition] = useState<KeyboardDefinition | null>(null);
   const [keyboardKeys, setKeyboardKeys] = useState<KeyboardLayoutKey[]>([]);
 
   const [initDataLoaded, setInitDataLoaded] = useState(false);
+  const [isKeyboardSwitching, setIsKeyboardSwitching] = useState(false);
+  const [keyboardSwitchProgress, setKeyboardSwitchProgress] = useState(0);
+  const [keyboardSwitchLabel, setKeyboardSwitchLabel] = useState('');
+  const switchProgressCtrlRef = useRef(createSmoothProgressController());
   const [calibration, setCalibration] = useState(false);
 
   const [resetProgress, setResetProgress] = useState(0);
@@ -241,15 +282,83 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   const [encoderPosition, setEncoderPosition] = useState({});
   // 升级窗口状态 - 用于控制设备事件监听
   const [isUpgradeWindowOpen, setIsUpgradeWindowOpen] = useState(false);
+  /** Boot 授权并进入主界面后，再打开升级弹窗 */
+  const [pendingOpenUpgradeAfterBootConnect, setPendingOpenUpgradeAfterBootConnect] = useState(false);
+  /** 无升级记录时 Boot 救砖：选择键盘型号 */
+  const [bootRecoveryOpen, setBootRecoveryOpen] = useState(false);
+  const pendingBootHidRef = useRef<HIDDevice | null>(null);
+  /** Boot 救砖会话中：阻止 reconcile 把页面打回首页（避免 initDataLoaded 闭包过期） */
+  const bootRecoverySessionRef = useRef(false);
+  const initDataLoadedRef = useRef(false);
+  const bootRecoveryOptions = useMemo(() => listBootRecoveryKeyboardOptions(), []);
   const isUpgradeWindowOpenRef = useRef(false);
   useEffect(() => {
     isUpgradeWindowOpenRef.current = isUpgradeWindowOpen;
   }, [isUpgradeWindowOpen]);
 
+  useEffect(() => {
+    initDataLoadedRef.current = initDataLoaded;
+  }, [initDataLoaded]);
+
+  /** 页面加载时丢弃明显过期的升级残留，避免旧版本号影响提示 */
+  useEffect(() => {
+    const state = readFirmwareUpgradeState();
+    if (!state) return;
+    const reason = getDiscardFirmwareUpgradeStateReason(state, {
+      vendorId: state.deviceInfo?.vendorId,
+      productId: state.deviceInfo?.productId,
+      currentUpgradeVersion: lookupConfiguredUpgradeVersion(
+        state.deviceInfo?.vendorId,
+        state.deviceInfo?.productId,
+        0,
+      ),
+    });
+    if (reason === 'expired' || reason === 'no-firmware-file' || reason === 'config-version-changed') {
+      console.log('[firmwareUpgradeState] 页面加载清理残留:', reason);
+      clearFirmwareUpgradeState();
+    }
+  }, []);
+
   /** 已授权键盘：轮询 / 热插拔检测「发现设备」用（与历史会话 7f903078 一致） */
   const hidAuthorizedKnownRef = useRef(new Set<string>());
   const hidAuthorizedInitRef = useRef(false);
+  const reconcileInFlightRef = useRef(false);
+  /** 授权/连接进行中：暂停 reconcile，避免与 requestDevice / startComm 并发写 HID 导致 tab 崩溃 */
+  const keyboardConnectInFlightRef = useRef(false);
+  const hidAuthorizeDialogOpenRef = useRef(false);
   const initStateRef = useRef<() => Promise<void>>(async () => {});
+  const reconcileFnRef = useRef<() => void>(() => {});
+  const reconcileIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconcileInitialTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onHidConnectHandlerRef = useRef<(() => void) | null>(null);
+  const reconcilePollingPausedRef = useRef(false);
+
+  const pauseReconcilePolling = useCallback(() => {
+    reconcilePollingPausedRef.current = true;
+    if (reconcileIntervalRef.current != null) {
+      window.clearInterval(reconcileIntervalRef.current);
+      reconcileIntervalRef.current = null;
+    }
+    if (reconcileInitialTimeoutRef.current != null) {
+      window.clearTimeout(reconcileInitialTimeoutRef.current);
+      reconcileInitialTimeoutRef.current = null;
+    }
+    if (onHidConnectHandlerRef.current) {
+      navigator.hid.removeEventListener("connect", onHidConnectHandlerRef.current);
+    }
+  }, []);
+
+  const resumeReconcilePolling = useCallback(() => {
+    if (!reconcilePollingPausedRef.current) return;
+    reconcilePollingPausedRef.current = false;
+    const reconcile = reconcileFnRef.current;
+    if (reconcileIntervalRef.current == null && reconcile) {
+      reconcileIntervalRef.current = window.setInterval(() => void reconcile(), 2500);
+    }
+    if (onHidConnectHandlerRef.current) {
+      navigator.hid.addEventListener("connect", onHidConnectHandlerRef.current);
+    }
+  }, []);
 
   // QMK 配置文件管理器状态
   const [showQMKFileManager, setShowQMKFileManager] = useState(false);
@@ -288,6 +397,26 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     [showMessage, t]
   );
 
+  /** 当前连接的键盘已物理断开 → 回到首页重新选设备 */
+  const disconnectCurrentKeyboardAndReturnHome = useCallback(() => {
+    if (connectedKeyboard?.test || connectedKeyboard?.api?.address === 'demo') {
+      return;
+    }
+    pauseKeyboardHidReconcile(2000);
+    releaseKeyboardHidSessionForAddress(connectedKeyboard?.api?.address);
+    setConnectedKeyboard(null);
+    setQmkLoadedDefinition(null);
+    setShowQMKFileManager(false);
+    setPendingQMKDevice(null);
+    keyboard.setDeviceStatus(false);
+    keyboard.setDeviceOnline(false);
+    keyboard.setDeviceMode(0);
+    setConnectState(true);
+    setLoading(true);
+    initDataLoadedRef.current = false;
+    setInitDataLoaded(false);
+  }, [connectedKeyboard, keyboard]);
+
   /** 已授权设备插入：轮询 + hid connect，持续 initState；新 address 弹「发现设备」 */
   useEffect(() => {
     if (typeof window === "undefined" || !("hid" in navigator)) {
@@ -295,10 +424,25 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     }
 
     const reconcile = async () => {
-      if (isUpgradeWindowOpenRef.current) return;
+      if (
+        isUpgradeWindowOpenRef.current
+        || reconcileInFlightRef.current
+        || keyboardConnectInFlightRef.current
+        || hidAuthorizeDialogOpenRef.current
+        || bootRecoverySessionRef.current
+        || isKeyboardHidUserSessionActive()
+        || areNavigatorHidNativeEventsSuspended()
+        || isKeyboardHidReconcilePaused()
+      ) {
+        return;
+      }
+      reconcileInFlightRef.current = true;
       try {
         const list = (await getAccreditDevice()) || [];
         const nextKnown = new Set(list.map((d) => d.address));
+        const addressesChanged =
+          list.length !== hidAuthorizedKnownRef.current.size
+          || list.some((d) => !hidAuthorizedKnownRef.current.has(d.address));
 
         if (!hidAuthorizedInitRef.current) {
           hidAuthorizedKnownRef.current = nextKnown;
@@ -323,23 +467,56 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         }
 
         hidAuthorizedKnownRef.current = nextKnown;
-        await initStateRef.current();
+        if (addressesChanged) {
+          await initStateRef.current();
+        }
       } catch (e) {
         console.warn("[HID] reconcile authorized devices failed", e);
+      } finally {
+        reconcileInFlightRef.current = false;
       }
     };
 
+    reconcileFnRef.current = reconcile;
+
     const intervalId = window.setInterval(() => void reconcile(), 2500);
-    void reconcile();
+    reconcileIntervalRef.current = intervalId;
+    const initialReconcileId = window.setTimeout(() => void reconcile(), 3500);
+    reconcileInitialTimeoutRef.current = initialReconcileId;
 
     const onHidConnect = () => {
-      window.setTimeout(() => void reconcile(), 450);
+      if (
+        areNavigatorHidNativeEventsSuspended()
+        || keyboardConnectInFlightRef.current
+        || hidAuthorizeDialogOpenRef.current
+        || isKeyboardHidUserSessionActive()
+      ) {
+        return;
+      }
+      window.setTimeout(() => {
+        if (
+          areNavigatorHidNativeEventsSuspended()
+          || keyboardConnectInFlightRef.current
+          || hidAuthorizeDialogOpenRef.current
+          || isKeyboardHidUserSessionActive()
+          || isKeyboardHidReconcilePaused()
+        ) {
+          return;
+        }
+        void reconcile();
+      }, 1200);
     };
+    onHidConnectHandlerRef.current = onHidConnect;
     navigator.hid.addEventListener("connect", onHidConnect);
 
     return () => {
       window.clearInterval(intervalId);
-      navigator.hid.removeEventListener("connect", onHidConnect);
+      window.clearTimeout(initialReconcileId);
+      reconcileIntervalRef.current = null;
+      reconcileInitialTimeoutRef.current = null;
+      if (onHidConnectHandlerRef.current) {
+        navigator.hid.removeEventListener("connect", onHidConnectHandlerRef.current);
+      }
     };
   }, [showMessage, t]);
 
@@ -379,13 +556,12 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       const devPID = shiftTo16Bit([notifyValue[11], notifyValue[12]]);
 
       console.log("设备断开:", device, item, keyboardData, connectedKeyboard);
+      pauseKeyboardHidReconcile(2000);
+      releaseKeyboardHidSessionForAddress(item?.address);
+      releaseKeyboardHidSessionForAddress(connectedKeyboard?.api?.address);
       if (devPID === item.devPID) {
         keyboard.setDeviceMode(0);
-        // 演示会话：列表里物理端点的断开通知不得清空虚拟键盘、不得拉回设备选择态
-        if (!connectedKeyboard?.test) {
-          setConnectState(true);
-          setConnectedKeyboard(null);
-        }
+        disconnectCurrentKeyboardAndReturnHome();
       }
       setKeyboardData(prev =>
         prev.map(d =>
@@ -468,22 +644,32 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       }
     }, 500)
   }
-  async function initState() {
-    // 🔍 统一的 IAP 模式检测和处理
-    const isInUpgradeMode = await handleIAPModeDetection(keyboard, setIsUpgradeWindowOpen, setLoading);
-    if (isInUpgradeMode) {
-      console.log('[初始化] 检测到升级模式，已处理');
+  async function loadAuthorizedKeyboardList(options?: { skipPauseGuard?: boolean }) {
+    if (
+      keyboardConnectInFlightRef.current
+      || hidAuthorizeDialogOpenRef.current
+      || bootRecoverySessionRef.current
+      || isKeyboardHidUserSessionActive()
+      || areNavigatorHidNativeEventsSuspended()
+      || isUpgradeWindowOpenRef.current
+    ) {
       return;
     }
+    if (!options?.skipPauseGuard && isKeyboardHidReconcilePaused()) {
+      return;
+    }
+    await handleIAPModeDetection(keyboard);
 
     const deviceData = await getAccreditDevice();
 
     if (!deviceData?.length) {
-      // 演示模式：无已授权 HID 时仍可能正在使用虚拟键盘，不应把 loading 打开导致退回首页
       if (connectedKeyboard?.test) {
         return;
       }
-      setLoading(true);
+      if (!initDataLoadedRef.current && !bootRecoverySessionRef.current) {
+        setLoading(true);
+        setConnectState(true);
+      }
       return;
     }
     const results = await Promise.all(
@@ -501,7 +687,6 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
             });
           }
 
-          // 注册消费者控制端点监听 (新增)
           if (!device.listeners.some(l => l.name === "consumerNotify")) {
             device.listeners.push({
               name: "consumerNotify",
@@ -509,9 +694,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
             });
           }
 
-          if (loading) {
-            console.log(loading, "触发Promise");
-
+          if (loading && !keyboardConnectInFlightRef.current) {
             const data = await device.getConnStatus();
             if (data.status === 4) {
               const devVID = data.vendorId;
@@ -520,7 +703,6 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
               return { ...item, devVID, devPID, devID: deviceBaseInfo.keyboardID, devMode: 1 };
             }
-
           }
           return { ...item, devMode: 0 };
         } catch (error) {
@@ -531,10 +713,21 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     );
 
     setKeyboardData(results.filter(Boolean));
-    // initState 只负责刷新设备列表，不控制 loading
-    // loading 的关闭由 setConnectKeyboardStauts 在成功获取配置后负责
+  }
+
+  async function initState() {
+    await loadAuthorizedKeyboardList();
   }
   initStateRef.current = initState;
+
+  const refreshAuthorizedKeyboardListRef = useRef<(options?: { skipPauseGuard?: boolean }) => Promise<void>>(
+    async () => {},
+  );
+  refreshAuthorizedKeyboardListRef.current = loadAuthorizedKeyboardList;
+
+  const refreshAuthorizedKeyboardList = useCallback(async () => {
+    await refreshAuthorizedKeyboardListRef.current({ skipPauseGuard: true });
+  }, []);
 
   async function applyDeviceInfo(connectedKeyboard, isCustom) {
     let devVID, devPID;
@@ -683,19 +876,31 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     // 是否强制弹出一次设备选择框（用于“授权设备/重新选择设备”按钮场景）
     , forcePrompt: boolean = false
   ): Promise<KeyboardDetectResult> => {
+    const upgradeState = readFirmwareUpgradeState();
+    const includeIapBoot =
+      hasIapBootDeviceInDeviceInfo() ||
+      isActiveFirmwareUpgradeState({
+        vendorId: upgradeState?.deviceInfo?.vendorId,
+        productId: upgradeState?.deviceInfo?.productId,
+      });
+
     // 目标：无论后续是 QMK 探测还是普通连接，整个流程只弹一次“选择设备/授权”框
     // 做法：如果需要授权且当前没有任何已授权设备，则先统一触发一次 requestDevice，之后探测/连接都不再触发授权弹窗
     let userDidAuthorize = false;
     let selectedHidDevice: HIDDevice | null = null;
     if (requestAuthorize) {
-      // 每次手动连接都只弹一次设备选择框，后续流程复用同一设备
       try {
-        selectedHidDevice = await WebHid.requestDevice();
-        userDidAuthorize = true;
+        selectedHidDevice = await WebHid.requestDeviceForPicker({ includeIapBoot });
+        userDidAuthorize = !!selectedHidDevice;
       } catch (e) {
         // 用户取消授权时，不要在同一次连接流程里重复弹窗；直接走“无设备/连接失败”分支
         return { type: "91683", device: undefined };
       }
+      if (!selectedHidDevice) {
+        return { type: "91683", device: undefined };
+      }
+      await waitForHidEnumerationStable();
+      clearKeyboardHidDriverCaches();
     } else {
       userDidAuthorize = true;
       const authorized = await WebHid.devices(false);
@@ -708,6 +913,13 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     if (!selectedHidDevice) {
       return { type: "91683", device: undefined };
     }
+
+    if (isIapBootHidDevice(selectedHidDevice.vendorId, selectedHidDevice.productId)) {
+      return { type: 'IAP_BOOT', bootHid: selectedHidDevice };
+    }
+
+    selectedHidDevice = await resolveVendorCommHidDevice(selectedHidDevice);
+
     const selectedDevices = [tagDevice(selectedHidDevice)];
 
     // 只有用户明确授权后才探测 QMK，避免自动连上已授权旧 QMK 设备触发 FileManager
@@ -724,6 +936,153 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     const vendorDevice = await connectHID(mode, false, selectedDevices);
     return { type: "91683", device: vendorDevice };
   };
+
+  const enterBootUpgradeMainFlow = useCallback(async (
+    bootHid?: HIDDevice,
+    recoveryOption?: BootRecoveryKeyboardOption,
+  ): Promise<boolean> => {
+    bootRecoverySessionRef.current = true;
+    try {
+      if (recoveryOption) {
+        saveFirmwareUpgradeState({
+          isUpgrading: true,
+          startTime: new Date().toISOString(),
+          step: 'waiting-iap',
+          deviceInfo: {
+            vendorId: recoveryOption.vendorId,
+            productId: recoveryOption.productId,
+            firmwareFile: recoveryOption.updateFile,
+            upgradeVersion: recoveryOption.upgradeVersion,
+          },
+        });
+      }
+
+      const upgradeState = readFirmwareUpgradeState();
+      const discardReason = upgradeState
+        ? getDiscardFirmwareUpgradeStateReason(upgradeState, {
+            vendorId: upgradeState.deviceInfo?.vendorId,
+            productId: upgradeState.deviceInfo?.productId,
+            currentUpgradeVersion: upgradeState.deviceInfo?.upgradeVersion,
+          })
+        : 'no-firmware-file';
+
+      if (!upgradeState || discardReason) {
+        console.warn('[Boot连接] 无有效升级记录，无法进入 Boot 续升');
+        return false;
+      }
+
+      if (isIapBootUpgradePersistStep(upgradeState.step) || upgradeState.deviceInfo?.currentVersion) {
+        saveFirmwareUpgradeState({
+          ...upgradeState,
+          step: upgradeState.step ?? 'waiting-iap',
+          deviceInfo: {
+            ...upgradeState.deviceInfo,
+            currentVersion: undefined,
+          },
+        });
+      }
+
+      hydrateKeyboardFromPersistedUpgrade(keyboard, readFirmwareUpgradeState());
+      keyboard.setDeviceVersion('');
+
+      let boot = bootHid ?? await getAuthorizedIapBootDevice();
+      if (!boot) {
+        boot = await requestIapBootAuthorization();
+      }
+      if (!boot) {
+        console.log('[Boot连接] 用户取消 Boot 设备授权');
+        return false;
+      }
+
+      try {
+        if (!boot.opened) {
+          await boot.open();
+        }
+      } catch (error) {
+        console.warn('[Boot连接] Boot 设备 open 失败:', error);
+      }
+
+      console.log('[Boot连接] Boot 设备已授权:', boot.productName, 'PID=0x33FF');
+      keyboard.keyboardType = '91683';
+      keyboard.setKeyboardType?.('91683');
+      keyboard.setDeviceStatus(true);
+      keyboard.setDeviceOnline(true);
+      keyboard.setDeviceType(101);
+      keyboard.setDeviceName(recoveryOption?.name || boot.productName || 'Boot Device');
+
+      setConnectedKeyboard(undefined);
+      initDataLoadedRef.current = true;
+      setLoading(false);
+      setConnectState(false);
+      setInitDataLoaded(true);
+      setPendingOpenUpgradeAfterBootConnect(true);
+      return true;
+    } finally {
+      bootRecoverySessionRef.current = false;
+    }
+  }, [keyboard]);
+
+  const openBootRecoveryDialog = useCallback((bootHid: HIDDevice): boolean => {
+    if (bootRecoveryOptions.length === 0) {
+      showMessage({
+        message: t('2985'),
+        type: 'warning',
+        duration: 6000,
+      });
+      return false;
+    }
+    bootRecoverySessionRef.current = true;
+    pendingBootHidRef.current = bootHid;
+    setBootRecoveryOpen(true);
+    return true;
+  }, [bootRecoveryOptions.length, showMessage, t]);
+
+  const confirmBootRecoveryKeyboard = useCallback(async (option: BootRecoveryKeyboardOption) => {
+    const bootHid = pendingBootHidRef.current;
+    pendingBootHidRef.current = null;
+    setBootRecoveryOpen(false);
+    if (!bootHid) {
+      bootRecoverySessionRef.current = false;
+      resumeReconcilePolling();
+      return;
+    }
+    beginKeyboardHidUserSession();
+    try {
+      await enterBootUpgradeMainFlow(bootHid, option);
+    } finally {
+      endKeyboardHidUserSession();
+      if (!bootRecoverySessionRef.current) {
+        resumeReconcilePolling();
+      }
+    }
+  }, [enterBootUpgradeMainFlow, resumeReconcilePolling]);
+
+  const cancelBootRecoveryDialog = useCallback(() => {
+    bootRecoverySessionRef.current = false;
+    pendingBootHidRef.current = null;
+    setBootRecoveryOpen(false);
+    resumeReconcilePolling();
+  }, [resumeReconcilePolling]);
+
+  const connectBootForFirmwareUpgrade = useCallback(
+    async () => {
+      let boot = await getAuthorizedIapBootDevice();
+      if (!boot) {
+        boot = await requestIapBootAuthorization();
+      }
+      if (!boot) return false;
+
+      const upgradeState = readFirmwareUpgradeState();
+      if (isActiveFirmwareUpgradeState({
+        vendorId: upgradeState?.deviceInfo?.vendorId,
+        productId: upgradeState?.deviceInfo?.productId,
+      })) {
+        return enterBootUpgradeMainFlow(boot);
+      }
+      return openBootRecoveryDialog(boot);
+    },
+    [enterBootUpgradeMainFlow, openBootRecoveryDialog],
+  );
 
   // 连接键盘，如果是Demo模式，则不用连接
   const connectKeyboard = useCallback(
@@ -749,19 +1108,47 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         openWebHIDUnsupportedDialog(webHidSupport);
         return false;
       }
+
+      if (keyboardConnectInFlightRef.current) {
+        console.log('[连接设备] 已有连接流程进行中，跳过重复请求');
+        return false;
+      }
+
+      keyboardConnectInFlightRef.current = true;
+      let connectSucceeded = false;
+      beginKeyboardHidUserSession();
+      if (requestAuthorize) {
+        hidAuthorizeDialogOpenRef.current = true;
+        setKeyboardAuthorizePickerOpen(true);
+        pauseReconcilePolling();
+      }
+
       try {
-        // 🔍 统一的 IAP 模式检测和处理（连接前）
-        const isInUpgradeMode = await handleIAPModeDetection(keyboard, setIsUpgradeWindowOpen);
-        if (isInUpgradeMode) {
-          console.log('[连接设备] 检测到升级模式，已处理');
-          return false;
+        if (!requestAuthorize) {
+          await waitForKeyboardHidReconcileIdle(() => reconcileInFlightRef.current);
+          await releaseAllKeyboardHidSessions();
         }
 
         // 设置设备未连接
         keyboard.setDeviceStatus(false);
 
         // WebHID连接键盘，如果第一次连接需要浏览器授权
-        const { type, device } = await detectAndConnectKeyboard(mode, requestAuthorize, forcePrompt);
+        const result = await detectAndConnectKeyboard(mode, requestAuthorize, forcePrompt);
+
+        if (result.type === 'IAP_BOOT' && result.bootHid) {
+          const upgradeState = readFirmwareUpgradeState();
+          if (isActiveFirmwareUpgradeState({
+            vendorId: upgradeState?.deviceInfo?.vendorId,
+            productId: upgradeState?.deviceInfo?.productId,
+          })) {
+            connectSucceeded = await enterBootUpgradeMainFlow(result.bootHid);
+            return connectSucceeded;
+          }
+          connectSucceeded = openBootRecoveryDialog(result.bootHid);
+          return connectSucceeded;
+        }
+
+        const { type, device } = result;
         // 如果没有获取到设备（用户取消授权或无设备），直接返回
         if (!device) {
           console.log('[连接设备] 未获取到设备，退出连接流程');
@@ -769,15 +1156,6 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         }
         keyboard.keyboardType = type;
         keyboard.setKeyboardType(type);
-        if (keyboard.keyboardType === "91683") {
-          // 🔍 连接后再次检测是否在 IAP 模式
-          const isInUpgradeModeAfterConnect = await handleIAPModeDetection(keyboard, setIsUpgradeWindowOpen);
-          if (isInUpgradeModeAfterConnect) {
-            console.log('[连接设备] 连接后检测到升级模式，已处理');
-            return false;
-          }
-        }
-        await initState();
         try {
           const acc = await getAccreditDevice();
           hidAuthorizedKnownRef.current = new Set(acc.map((d) => d.address));
@@ -786,80 +1164,177 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           /* ignore */
         }
         if (mode === "tryConnect") {
-          // setConnectKeyboardStauts 内部会根据是否有配置决定是否 setLoading(false) 和切换界面
-          await setConnectKeyboardStauts(device, undefined, type);
+          connectSucceeded = await setConnectKeyboardStauts(device, undefined, type);
+          return connectSucceeded;
         }
 
+        connectSucceeded = true;
         return true;
       } catch (e) {
         console.log("---------------error-----------------");
         console.log(e);
+        if (isHidWriteNotAllowedError(e)) {
+          showMessage({ message: t('2996'), type: 'error', duration: 8000 });
+          return false;
+        }
         throw e;
+      } finally {
+        keyboardConnectInFlightRef.current = false;
+        if (requestAuthorize) {
+          hidAuthorizeDialogOpenRef.current = false;
+          setKeyboardAuthorizePickerOpen(false);
+        }
+        endKeyboardHidUserSession();
+        if (!bootRecoverySessionRef.current) {
+          resumeReconcilePolling();
+        }
+        if (connectSucceeded) {
+          void refreshAuthorizedKeyboardList();
+        }
       }
     },
-    [keyboard, notifyKeyboardConnected, openWebHIDUnsupportedDialog]
+    [keyboard, enterBootUpgradeMainFlow, openBootRecoveryDialog, notifyKeyboardConnected, openWebHIDUnsupportedDialog, showMessage, t, pauseReconcilePolling, resumeReconcilePolling, refreshAuthorizedKeyboardList]
   );
   // 设置连接键盘状态
-  const setConnectKeyboardStauts = async (connectedKeyboard, item?, kbType?: string) => {
-    const isCustom = connectedKeyboard.productId === 12290;
+  const beginKeyboardSwitch = useCallback((deviceName = '') => {
+    switchProgressCtrlRef.current.stop();
+    switchProgressCtrlRef.current = createSmoothProgressController();
+    setKeyboardSwitchLabel(deviceName);
+    setIsKeyboardSwitching(true);
+    setKeyboardSwitchProgress(0);
+    switchProgressCtrlRef.current.start((value) => {
+      setKeyboardSwitchProgress(value);
+    });
+  }, []);
 
-    const { devVID, devPID } = await applyDeviceInfo(connectedKeyboard, isCustom);
-    console.log(connectedKeyboard);
+  const abortKeyboardSwitch = useCallback(() => {
+    switchProgressCtrlRef.current.stop();
+    setIsKeyboardSwitching(false);
+    setKeyboardSwitchProgress(0);
+    setKeyboardSwitchLabel('');
+  }, []);
 
-    // 设置设备名称（在获取数据前先临时设置，便于 getDeviceData 内部使用）
-    keyboard.deviceName = connectedKeyboard.productName;
-    keyboard.setDeviceName(connectedKeyboard.productName);
+  const finishKeyboardSwitch = useCallback(async () => {
+    await switchProgressCtrlRef.current.complete();
+    setIsKeyboardSwitching(false);
+    setKeyboardSwitchProgress(0);
+    setKeyboardSwitchLabel('');
+  }, []);
 
-    keyboard.setDeviceVID(devVID);
-    keyboard.setDevicePID(devPID);
+  const setConnectKeyboardStauts = async (nextKeyboard, item?, kbType?: string): Promise<boolean> => {
+    if (isIapBootHidDevice(nextKeyboard?.vendorId, nextKeyboard?.productId)) {
+      showMessage({ message: t('2981'), type: 'warning', duration: 6000 });
+      return false;
+    }
+    const isCustom = nextKeyboard.productId === 12290;
+    const isDeviceSwitch = initDataLoaded && !!connectedKeyboard;
+    const switchLabel = item?.productName ?? nextKeyboard?.productName ?? '';
 
-    // 设置设备本地配置
-    keyboard.setProfile(1);
-    keyboard.setFnLayer(0);
-    let success
-    // 获取设备数据
-    const resolvedType = kbType ?? keyboard.keyboardType;
-    if (resolvedType === "QMK") {
-      success = await getQMKDeviceData(connectedKeyboard, 1)
-    } else {
-      // 91683 设备：确保关闭 QMK 文件管理器
-      setShowQMKFileManager(false);
-      setPendingQMKDevice(null);
-      success = await getDeviceData(connectedKeyboard, 1);
+    if (isDeviceSwitch && !isKeyboardSwitching) {
+      beginKeyboardSwitch(switchLabel);
     }
 
-    // 只有在成功获取数据后才设置界面状态
-    if (success) {
-      // 设置通讯接口（在确认有配置后才赋值）
-      setConnectedKeyboard(connectedKeyboard);
-      // 设置设备连接
-      keyboard.setDeviceStatus(true);
-      // 设置设备在线
-      keyboard.setDeviceOnline(true);
-      // 设置设备类型
-      keyboard.setDeviceType(101);
-      // 关闭 loading，进入主界面
-      setLoading(false);
-      // 设置设备选择界面
-      setConnectState(false);
-      setInitDataLoaded(true);
-      notifyKeyboardConnected(connectedKeyboard.productName || keyboard.deviceName || "");
-    }
-    // 如果 success 为 false（无配置），不赋值 connectedKeyboard，不关闭 loading，保持在选择界面
+    try {
+      // 切换设备时先清空上一台的固件升级状态，避免提示残留到新设备
+      keyboard.setDeviceNeedsUpgrade(false);
+      keyboard.setDeviceVersion('');
+      keyboard.setDeviceUpgradeVersion('');
+      keyboard.setDeviceUpgradeFile('');
 
-    if (!connectedKeyboard.listeners.some(l => l.name === 'devNotify')) {
-      connectedKeyboard.listeners.push({
-        name: "devNotify",
-        fn: (notifyValue) => handleDeviceNotify(connectedKeyboard, item, notifyValue),
-      });
-    }
+      switchProgressCtrlRef.current.setMilestone(18);
+      const { devVID, devPID } = await applyDeviceInfo(nextKeyboard, isCustom);
+      console.log(nextKeyboard);
 
-    // 注册消费者控制端点监听 (新增)
-    if (!connectedKeyboard.listeners.some(l => l.name === 'consumerNotify') && keyboard.keyboardType === "91683") {
-      connectedKeyboard.listeners.push({
-        name: "consumerNotify",
-        fn: (notifyValue) => handleConsumerNotify(connectedKeyboard, notifyValue),
-      });
+      // 设置设备名称（在获取数据前先临时设置，便于 getDeviceData 内部使用）
+      keyboard.deviceName = nextKeyboard.productName;
+      keyboard.setDeviceName(nextKeyboard.productName);
+
+      keyboard.setDeviceVID(devVID);
+      keyboard.setDevicePID(devPID);
+
+      // 设置设备本地配置
+      keyboard.setProfile(1);
+      keyboard.setFnLayer(0);
+      switchProgressCtrlRef.current.setMilestone(36);
+      let success
+      // 获取设备数据
+      const resolvedType = kbType ?? keyboard.keyboardType;
+      if (resolvedType === "QMK") {
+        switchProgressCtrlRef.current.setMilestone(52);
+        success = await getQMKDeviceData(nextKeyboard, 1)
+      } else {
+        // 91683 设备：确保关闭 QMK 文件管理器
+        setShowQMKFileManager(false);
+        setPendingQMKDevice(null);
+        setQmkLoadedDefinition(null);
+        switchProgressCtrlRef.current.setMilestone(52);
+        success = await getDeviceData(nextKeyboard, 1);
+      }
+
+      switchProgressCtrlRef.current.setMilestone(88);
+
+      if (!nextKeyboard.listeners.some(l => l.name === 'devNotify')) {
+        nextKeyboard.listeners.push({
+          name: "devNotify",
+          fn: (notifyValue) => handleDeviceNotify(nextKeyboard, item, notifyValue),
+        });
+      }
+
+      if (!nextKeyboard.listeners.some(l => l.name === 'consumerNotify') && keyboard.keyboardType === "91683") {
+        nextKeyboard.listeners.push({
+          name: "consumerNotify",
+          fn: (notifyValue) => handleConsumerNotify(nextKeyboard, notifyValue),
+        });
+      }
+
+      // 只有在成功获取数据后才设置界面状态
+      if (success) {
+        const finalType = kbType ?? keyboard.keyboardType;
+        if (finalType) {
+          await keyboard.setKeyboardType(finalType);
+          keyboard.keyboardType = finalType;
+        }
+        // 设置通讯接口（在确认有配置后才赋值）
+        setConnectedKeyboard(nextKeyboard);
+        // 设置设备连接
+        keyboard.setDeviceStatus(true);
+        // 设置设备在线
+        keyboard.setDeviceOnline(true);
+        // 设置设备类型
+        keyboard.setDeviceType(101);
+        // 关闭 loading，进入主界面
+        setLoading(false);
+        // 设置设备选择界面
+        setConnectState(false);
+        initDataLoadedRef.current = true;
+        setInitDataLoaded(true);
+        notifyKeyboardConnected(nextKeyboard.productName || keyboard.deviceName || "");
+        void refreshAuthorizedKeyboardListRef.current({ skipPauseGuard: true });
+        if (isDeviceSwitch) {
+          await finishKeyboardSwitch();
+        }
+        return true;
+      }
+      if (isDeviceSwitch) {
+        abortKeyboardSwitch();
+      } else if (!initDataLoaded) {
+        setLoading(true);
+        setConnectState(true);
+      }
+      // 如果 success 为 false（无配置），不赋值 connectedKeyboard，不关闭 loading，保持在选择界面
+      return false;
+    } catch (error) {
+      if (isDeviceSwitch) {
+        abortKeyboardSwitch();
+      } else if (!initDataLoaded) {
+        setLoading(true);
+        setConnectState(true);
+      }
+      if (isHidWriteNotAllowedError(error)) {
+        showMessage({ message: t('2996'), type: 'error', duration: 8000 });
+        return false;
+      }
+      throw error;
     }
   };
   /**
@@ -872,43 +1347,44 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
     console.log(`[QMK配置加载] 开始加载配置 VID: ${vidStr}, PID: ${pidStr}`);
 
+    const tryImportQmkConfig = async (fileStem: string): Promise<KeyboardDefinition | null> => {
+      const normalized = fileStem.trim();
+      if (!normalized) return null;
+      for (const ext of ["json", "JSON"]) {
+        try {
+          const staticConfig = await import(`@/data/config/${normalized}.${ext}`);
+          const config = staticConfig.default || staticConfig;
+          console.log(`[QMK配置加载] ✅ 成功加载静态配置: ${config.name} (${normalized}.${ext})`);
+          await saveDefinition(config);
+          console.log(`[QMK配置加载] 已保存到本地存储`);
+          return config;
+        } catch {
+          console.log(`[QMK配置加载] 静态配置文件 ${normalized}.${ext} 不存在`);
+        }
+      }
+      return null;
+    };
+
+    // 0. deviceInfo 中声明的 qmkConfig / name（优先级最高）
+    const deviceInfoStem = getQmkConfigFileStem(keyboard.deviceVID, keyboard.devicePID, 0);
+    if (deviceInfoStem) {
+      const fromDeviceInfo = await tryImportQmkConfig(deviceInfoStem);
+      if (fromDeviceInfo) return fromDeviceInfo;
+    }
+
     // 1. 尝试加载静态配置文件（从 src/data/config 目录）
     try {
       // 尝试根据设备名称加载（如果有的话）
 
       const deviceName = (keyboard.deviceName || '').replace(/\s+/g, '');
       if (deviceName) {
-        try {
-          const ext = "json".toLowerCase();
-          const staticConfig = await import(`@/data/config/${deviceName}.${ext}`);
-          const config = staticConfig.default || staticConfig;
-          console.log(`[QMK配置加载] ✅ 成功加载静态配置: ${config.name}`);
-
-          // 保存到本地存储，方便下次快速加载
-          await saveDefinition(config);
-          console.log(`[QMK配置加载] 已保存到本地存储`);
-
-          return config;
-        } catch (error) {
-          console.log(`[QMK配置加载] 静态配置文件 ${deviceName}.json 不存在`);
-        }
+        const fromDeviceName = await tryImportQmkConfig(deviceName);
+        if (fromDeviceName) return fromDeviceName;
       }
 
       // 尝试根据 VID_PID 加载
-      try {
-        const ext = "json".toLowerCase();
-        const staticConfig = await import(`@/data/config/${vidStr}_${pidStr}.${ext}`);
-        const config = staticConfig.default || staticConfig;
-        console.log(`[QMK配置加载] ✅ 成功加载静态配置: ${config.name}`);
-
-        // 保存到本地存储，方便下次快速加载
-        await saveDefinition(config);
-        console.log(`[QMK配置加载] 已保存到本地存储`);
-
-        return config;
-      } catch (error) {
-        console.log(`[QMK配置加载] 静态配置文件 ${vidStr}_${pidStr}.json 不存在`);
-      }
+      const fromVidPid = await tryImportQmkConfig(`${vidStr}_${pidStr}`);
+      if (fromVidPid) return fromVidPid;
     } catch (error) {
       console.log(`[QMK配置加载] 静态配置文件加载失败:`, error);
     }
@@ -933,6 +1409,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
   const continueQMKConnection = async (deviceComm: any, config: KeyboardDefinition) => {
     try {
       console.log('[QMK连接] 使用配置继续连接:', config.name);
+      setQmkLoadedDefinition(config);
 
       // 保存配置到本地存储（确保用户上传的配置被持久化）
       try {
@@ -987,8 +1464,14 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       // 存储所有层的按键数据到 keyboard 对象
       keyboard.setAllQMKLayers?.(allLayersKeymap);
 
-      // 初始化布局按键
-      if (keyboardLayout.layouts?.keys) {
+      // 初始化布局按键：优先合并 91683 物理布局（含 HID code），供测试按键正确映射
+      const physicalStem = getPhysicalLayoutStem(keyboard.deviceVID, keyboard.devicePID, 0);
+      const physicalKeys = physicalStem ? await loadPhysicalLayoutKeys(physicalStem) : [];
+      if (physicalKeys.length && allLayersKeymap[0]?.length) {
+        keyboard.initLayoutKeys(mergePhysicalLayoutWithQmkLayer(physicalKeys, allLayersKeymap[0]));
+      } else if (allLayersKeymap[0]?.length) {
+        keyboard.initLayoutKeys(qmkLayerToLayoutKeys(allLayersKeymap[0]));
+      } else if (keyboardLayout.layouts?.keys) {
         keyboard.initLayoutKeys(keyboardLayout.layouts.keys);
       }
 
@@ -1006,87 +1489,45 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           console.warn('[QMK连接] 灯光配置解析失败:', error);
         }
 
+        // QMK 点阵屏：加载灯效名称 JSON，覆盖 matrixlight 列表
+        const matrixCfg = getMatrixScreenConfig(keyboard.deviceVID, keyboard.devicePID, 0);
+        if (matrixCfg?.matrixLightLayout) {
+          try {
+            const mlConfig = await loadMatrixLightConfig(matrixCfg.matrixLightLayout);
+            layoutConfig.lighting.matrixlight = matrixLightConfigToEffects(mlConfig);
+            layoutConfig.lighting.matrixLightMeta = matrixLightMetaFromConfig(mlConfig);
+            const groupLabel = matrixCfg.matrixLightGroupLabel ?? 'Lattice';
+            const effectsKey = resolveQmkEffectsKeyForLabel(keyboardLayout.menus, groupLabel);
+            layoutConfig.lighting.effects[effectsKey] = matrixLightConfigToEffects(mlConfig);
+            console.log('[QMK连接] 点阵屏灯效配置已加载:', matrixCfg.matrixLightLayout);
+          } catch (error) {
+            console.warn('[QMK连接] 点阵屏灯效配置加载失败:', error);
+          }
+        }
+
         // 读取设备当前灯光状态，回显到 LightSetting
         try {
           const lightState = await deviceComm.getLightingState(keyboardLayout.menus);
           console.log('[QMK连接] 当前灯光状态:', lightState);
 
-          // 从 VIA menus 里找各控件的 contentId，映射到 deviceFuncInfo 字段
-          // 约定：Backlight 区块使用 id_qmk_rgb_matrix_* 前缀
-          //        logo/side  区块使用 id_qmk_rgblight_* 前缀
-          const toEffect = (id: string) => lightState[id] ?? 0;
-          const toBright = (id: string, max: number) =>
-            max > 0 ? Math.round((lightState[id] ?? 0) / max * 100) : 0;
+          const funcPatch = buildQmkLightingFuncPatch(keyboardLayout.menus, lightState);
 
-          // 用 contentId 前缀区分分组类型（不依赖 group.label 字符串）
-          // id_qmk_rgb_matrix_* → backlight；id_qmk_rgblight_* → logo/side
-          const getGroupType = (items: any[]): 'backlight' | 'logo' | null => {
-            const probe = items.find(
-              (i: any) => Array.isArray(i.content) && i.content.length >= 3 && typeof i.content[0] === 'string'
-            );
-            if (!probe) return null;
-            const cid: string = probe.content[0];
-            if (cid.startsWith('id_qmk_rgb_matrix_')) return 'backlight';
-            if (cid.startsWith('id_qmk_rgblight_')) return 'logo';
-            return null;
-          };
-
-          const lightingMenu = keyboardLayout.menus.find((m: any) => m.label === 'Lighting');
-          if (lightingMenu) {
-            const funcPatch: Record<string, any> = {};
-
-            for (const group of lightingMenu.content) {
-              const items: any[] = group.content || [];
-              const groupType = getGroupType(items);
-              if (!groupType) continue;
-
-              const effectItem = items.find((i: any) => i.type === 'dropdown');
-              const brightItem = items.find((i: any) => i.type === 'range' && i.label === 'Brightness');
-              const speedItem = items.find((i: any) => i.type === 'range' && i.label === 'Effect Speed');
-              const colorItem = items.find((i: any) => i.type === 'color');
-
-              const effectId = effectItem?.content?.[0];
-              const brightId = brightItem?.content?.[0];
-              const speedId = speedItem?.content?.[0];
-              const colorId = colorItem?.content?.[0];
-              const brightMax = brightItem?.options?.[1] ?? 255;
-
-              if (groupType === 'backlight') {
-                if (effectId) funcPatch.lightMode = toEffect(effectId);
-                if (brightId) funcPatch.lightBrightness = Math.round((lightState[brightId] ?? 0) / brightMax * 100);
-                if (speedId) funcPatch.lightSpeed = lightState[speedId] ?? 0;
-                if (colorId) {
-                  funcPatch.lightRValue = lightState[`${colorId}_hue`] ?? lightState[colorId] ?? 0;
-                  funcPatch.lightGValue = lightState[`${colorId}_sat`] ?? 0;
-                }
-                funcPatch.lightSwitch = 0;
-                funcPatch.lightCustomIndex = 0;
-                funcPatch.lightMixColor = 1;
-              } else if (groupType === 'logo') {
-                if (effectId) funcPatch.logoLightMode = toEffect(effectId);
-                if (brightId) funcPatch.logoLightBrightness = Math.round((lightState[brightId] ?? 0) / brightMax * 100);
-                if (speedId) funcPatch.logoLightSpeed = lightState[speedId] ?? 0;
-                if (colorId) {
-                  funcPatch.logoLightRValue = lightState[`${colorId}_hue`] ?? lightState[colorId] ?? 0;
-                  funcPatch.logoLightGValue = lightState[`${colorId}_sat`] ?? 0;
-                }
-                funcPatch.logoLightSwitch = 0;
-                funcPatch.logoLightMixColor = 1;
-              }
-            }
-
-            // 合并到 deviceFuncInfo（保留已有字段）
-            const baseFuncInfo = keyboard.deviceFuncInfo ?? {};
-            keyboard.setDeviceFuncInfo({ ...baseFuncInfo, ...funcPatch });
-            console.log('[QMK连接] deviceFuncInfo 已更新:', funcPatch);
-          }
+          const baseFuncInfo = keyboard.deviceFuncInfo ?? {};
+          keyboard.setDeviceFuncInfo({ ...baseFuncInfo, ...funcPatch });
+          console.log('[QMK连接] deviceFuncInfo 已更新:', funcPatch);
         } catch (error) {
           console.warn('[QMK连接] 读取灯光状态失败:', error);
         }
       }
 
       // 设置键盘布局（附加原始 menus、layouts、customKeycodes，供 LightSetting / QMKKeyCodeSetting / 重置流程使用）
-      setKeyboardLayout({ ...layoutConfig, menus: keyboardLayout.menus, layouts: keyboardLayout.layouts, customKeycodes: keyboardLayout.customKeycodes ?? [] });
+      setKeyboardLayout({
+        ...layoutConfig,
+        menus: keyboardLayout.menus,
+        layouts: keyboardLayout.layouts,
+        customKeycodes: keyboardLayout.customKeycodes ?? [],
+        previewSkins: (keyboardLayout as { previewSkins?: unknown }).previewSkins,
+      });
 
       // 初始化 lightType 为第一个灯光分组的原始 label（不依赖硬编码字符串）
       if (keyboardLayout.menus) {
@@ -1099,6 +1540,46 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
       // 设置键盘模式为 QMK
       localStorage.setItem("keyboardMode", "QMK");
+
+      // QMK：从 deviceInfo 合并 LED / 点阵屏等 UI 能力（91683 由固件回读）
+      const matrixCfg = getMatrixScreenConfig(keyboard.deviceVID, keyboard.devicePID, 0);
+      const qmkUiCaps = getDeviceUiCapabilities(
+        keyboard.deviceVID,
+        keyboard.devicePID,
+        0,
+      );
+      const matrixLightMeta = layoutConfig.lighting?.matrixLightMeta;
+      const uiCapsPatch = {
+        ...qmkUiCaps,
+        ...(matrixLightMeta ? { matrixScreenLightSize: matrixLightMeta.close } : {}),
+      };
+
+      if (matrixCfg?.matrixScreenProtocol === 'lattice-hid' && deviceComm.api?.address) {
+        try {
+          const latticeComm = createLatticeScreenComm(deviceComm.api.address);
+          matrixData.setLatticeDevice(latticeComm);
+          const info = await latticeComm.getDeviceInfo();
+          const modeRes = await latticeComm.getLightMode();
+          const brightRes = await latticeComm.getLightBrightness();
+          const speedRes = await latticeComm.getLightSpeed();
+          uiCapsPatch.matrixScreenLightRows = info.rows;
+          uiCapsPatch.matrixScreenLightColumns = info.cols;
+          uiCapsPatch.matrixScreenLightMaxBrightness = info.maxLightBrightness;
+          uiCapsPatch.matrixScreenLightMaxSpeed = info.maxLightSpeed;
+          keyboard.setDeviceFuncInfo({
+            ...(keyboard.deviceFuncInfo ?? {}),
+            matrixScreenLightMode: modeRes.lightMode,
+            matrixScreenLightBrightness: brightRes.brightness,
+            matrixScreenLightSpeed: speedRes.speed,
+            matrixScreenLightSwitch: modeRes.lightMode !== (matrixLightMeta?.close ?? 0),
+          });
+          console.log('[QMK连接] 点阵屏 Raw HID 协议已初始化');
+        } catch (error) {
+          console.warn('[QMK连接] 点阵屏 Raw HID 初始化失败:', error);
+        }
+      }
+
+      keyboard.setDeviceBaseInfo(uiCapsPatch);
 
       console.log('[QMK连接] ✅ 设备数据加载完成');
       console.log('[QMK连接] 配置信息:', {
@@ -1134,15 +1615,9 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       console.log('[QMK设备] 配置加载结果:', config);
       console.log(keyboard.keyboardType);
       if (!config) {
-        // 没有配置文件，打开文件管理器让用户上传
-        // 只有在用户主动连接时才弹出文件管理器（keyboardType 已确认为 QMK）
-        if (keyboard.keyboardType !== "QMK") {
-          console.log('[QMK设备] 未找到配置文件，打开文件管理器');
-          return false;
-
-        }
         setPendingQMKDevice(deviceComm);
         setShowQMKFileManager(true);
+        return false;
       }
 
       // 有配置文件，直接继续连接
@@ -1213,9 +1688,12 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       keyboard.setLightType("backlight");
 
       // 设置设备升级文件
-      keyboard.setDeviceUpgradeFile(
-        getDeviceUpgradeFile(keyboard.deviceVID, keyboard.devicePID, deviceInfo.keyboardID)
+      const upgradeFile = getDeviceUpgradeFile(
+        keyboard.deviceVID,
+        keyboard.devicePID,
+        deviceInfo.keyboardID,
       );
+      keyboard.setDeviceUpgradeFile(upgradeFile);
       console.log(keyboard.deviceVID, keyboard.deviceVID, 'keyboard.devVID, keyboard.devPID');
 
       // 设置设备升级版本
@@ -1239,8 +1717,18 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
         .toString(16)
         .toUpperCase();
       keyboard.setDeviceVersion(curVersion);
-      // 设置设备是否需要升级
-      const needsUpgrade = parseInt(curVersion) < parseInt(upgradeVersion);
+      // 设置设备是否需要升级（须已配置版本号与固件路径才提示；upgradeVersion=100 时关闭）
+      const keyboardUpgradeDisabled = isKeyboardDriverUpgradeDisabled(
+        keyboard.deviceVID,
+        keyboard.devicePID,
+        deviceInfo.keyboardID,
+      );
+      const firmwarePackageReady =
+        !keyboardUpgradeDisabled && Boolean(upgradeVersion?.trim() && upgradeFile?.trim());
+      const needsUpgrade =
+        firmwarePackageReady && isFirmwareVersionBehind(curVersion, upgradeVersion);
+      const canFlashFirmware =
+        firmwarePackageReady && isFirmwareVersionUpgradeable(curVersion, upgradeVersion);
       console.log(
         "GetDeviceData, needsUpgrade",
         needsUpgrade,
@@ -1249,6 +1737,21 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       );
       keyboard.setDeviceNeedsUpgrade(needsUpgrade);
 
+      const persistedUpgrade = readFirmwareUpgradeState();
+      if (persistedUpgrade && !isUpgradeWindowOpenRef.current) {
+        const discardReason = getDiscardFirmwareUpgradeStateReason(persistedUpgrade, {
+          vendorId: keyboard.deviceVID,
+          productId: keyboard.devicePID,
+          currentUpgradeVersion: upgradeVersion,
+        });
+        if (discardReason || !canFlashFirmware) {
+          console.log(
+            '[GetDeviceData] 清理 firmwareUpgradeState',
+            discardReason || 'device-up-to-date',
+          );
+          clearFirmwareUpgradeState();
+        }
+      }
 
       // 设备布局
       const deviceLayout = getDeviceLayout(
@@ -1354,9 +1857,13 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
 
       // 定义辅助函数，用于匹配宏名称
       const matchMacroNames = (keys) => {
-        if (parsedLocalMacros.length === 0) return keys;
-
         return keys.map(key => {
+          if (isDeviceAnyMacroKey(key)) {
+            return toVendorAnyUserKey(key, keyboard.version);
+          }
+
+          if (parsedLocalMacros.length === 0) return key;
+
           // 检查按键是否为宏类型(0x60)
           if ((key.type === 0x60 || key.type === 0x61) && key.code1 < parsedLocalMacros.length) {
             return {
@@ -1400,7 +1907,10 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (error) {
       console.error("获取设备数据时出错:", error);
-      // await deviceComm.stopComm();
+      if (isHidWriteNotAllowedError(error)) {
+        showMessage({ message: t('2996'), type: 'error', duration: 8000 });
+        return false;
+      }
       throw error;
     }
   };
@@ -1532,8 +2042,16 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     currentLayer,
     setCurrentLayer,
     connectKeyboard,
+    connectBootForFirmwareUpgrade,
+    disconnectCurrentKeyboardAndReturnHome,
     setConnectKeyboardStauts,
+    isKeyboardSwitching,
+    keyboardSwitchProgress,
+    keyboardSwitchLabel,
+    beginKeyboardSwitch,
+    abortKeyboardSwitch,
     initState,
+    refreshAuthorizedKeyboardList,
     loading,
     setLoading,
     keyCodes,
@@ -1545,6 +2063,7 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     connectedKeyboard,
     keyboardKeys,
     keyboardLayout,
+    qmkLoadedDefinition,
     keyboard,
     setConnectedKeyboard,
     macroList,
@@ -1571,6 +2090,8 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
     // 升级窗口状态
     isUpgradeWindowOpen,
     setIsUpgradeWindowOpen,
+    pendingOpenUpgradeAfterBootConnect,
+    setPendingOpenUpgradeAfterBootConnect,
     detectAndConnectKeyboard,
     // 音效相关
     enableSound,
@@ -1615,6 +2136,13 @@ function ConnectKbProvider({ children }: { children: React.ReactNode }) {
           setPendingQMKDevice(null);
         }}
         t={(key: string) => key}
+      />
+
+      <BootRecoveryKeyboardDialog
+        open={bootRecoveryOpen}
+        options={bootRecoveryOptions}
+        onCancel={cancelBootRecoveryDialog}
+        onConfirm={confirmBootRecoveryKeyboard}
       />
     </ConnectKbContext.Provider>
   );

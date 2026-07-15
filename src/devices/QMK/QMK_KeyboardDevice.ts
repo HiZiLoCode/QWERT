@@ -52,6 +52,11 @@ export enum KeyboardValue {
     FIRMWARE_VERSION = 0x04, // 固件版本
     DEVICE_INDICATION = 0x05, // 设备指示灯
 }
+/** QMK VIA 在本驱动中固定走 32 字节 HID 报告（deviceMode=1），与 91683 有线/2.4G 逻辑不同 */
+export function resolveQmkKeyboardApiDeviceMode(_productId?: number): number {
+    return 1;
+}
+
 export const QMK_connectHID = async (
     mode: string = "demo",
     requestAuthorize?: boolean,
@@ -69,7 +74,9 @@ export const QMK_connectHID = async (
         const devices = selectedDevices ?? await WebHid.devices(requestAuthorize);
         // devices.
         if (devices?.length > 0) {
-            const keyboard = new QMK_KeyboardDevice(new KeyboardAPI(devices[0].address, 1));
+            const hid = devices[0];
+            const apiDeviceMode = resolveQmkKeyboardApiDeviceMode(hid.productId);
+            const keyboard = new QMK_KeyboardDevice(new KeyboardAPI(hid.address, apiDeviceMode));
             const version = await keyboard.getProtocolVersion();
             if (version !== -1 && version !== 0) {
                 console.log(`当前键盘为QMK键盘,协议版本为V${version}`);
@@ -239,7 +246,7 @@ export class QMK_KeyboardDevice {
         this.vendorId = hid.vendorId;
         this.productId = hid.productId;
         this.productName = hid.productName;
-        this.deviceMode = hid.productId === 12290 ? 1 : 0
+        this.deviceMode = hid.productId === 12290 ? 1 : 0;
         this.addListeners();
         this.version
     }

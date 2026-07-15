@@ -1,21 +1,56 @@
 'use client';
 
 import { Box, Button, Typography } from '@mui/material';
-import { useContext, useMemo, useState, type DragEvent } from 'react';
+import { useContext, useEffect, useMemo, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { alpha, useTheme } from '@mui/material/styles';
 import { ConnectKbContext } from '@/providers/ConnectKbProvider';
+import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
+import { isHidWriteNotAllowedError } from '@/lib/hidOutputWriteLock';
 import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import FullKeyboard from '@/components/FullKeyboard';
 import CombinationKeyBoard from '@/components/CombinationKeyBoard';
 import MacroRecorder from '@/components/KeyBoardPanel/MacroRecorder';
+import QMKAnyKeycodeDialog from '@/components/KeyBoardPanel/QMKAnyKeycodeDialog';
 import customKeys from '@/data/customkeys.json';
 import type { LayoutKey } from '@/types/types_v1';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
+import { mergePhysicalLayoutWithQmkLayer, qmkLayerToLayoutKeys, resolveQMKDisplayLayoutKeys } from '@/utils/qmkLayoutBridge';
+import {
+    buildQMKCustomKeycodes,
+    buildQMKKeycodeMenus,
+    codeToNumber,
+    getQMKPoolForCategory,
+    getSelectedQMKKeyInfo,
+    hidModMaskToQmkKeycode,
+    qmkKeycodeToDisplayName,
+    reReadAllQMKLayers,
+    type QMKPanelCategory,
+} from '@/utils/qmkKeyCodeApply';
+import type { IKeycode } from '@/utils/key-to-byte/qmk_keyCode';
+import { getBasicKeyDict } from '@/utils/key-to-byte/dictionary-store';
 import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
 import { expandKeyedPool, type KeyPoolItem } from '@/utils/customkeysUiLayout';
+import {
+    isPickupLightingDevice,
+    resolveLogoLightKeyLangKey,
+    resolveLogoLightingLangKey,
+} from '@/utils/qmkLightingBridge';
 import { EditorContext } from '@/providers/EditorProvider';
 import { ButtonRem } from '@/styled/ReconstructionRem';
+import {
+    hiddenAnyMacrosFromMap,
+    isValidVendorAnyInput,
+    isVendorAnyKeyType,
+    mergeMacroProfilesForDevice,
+    parseVendorAnyInput,
+    readVendorAnyMacroMap,
+    resolveVendorAnyMacroSlot,
+    toDeviceKeyType,
+    VENDOR_KEY_TYPE_ANY,
+    writeVendorAnyMacroMap,
+} from '@/utils/vendor91683AnyKey';
+import type { MacroProfile } from '@/types/types_v1';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 import PublicAssetImage from '@/components/common/PublicAssetImage';
 
@@ -120,14 +155,18 @@ type KeyItem = {
     /** 若存在，悬停提示用该文案；按钮上仍用 `langid` / 90000+code1 / `name` */
     tooltipLangid?: string;
     icon?: string;
+    /** QMK 键码池：使用正常字号展示，避免 scale(0.6) 过小 */
+    isQmkPoolKey?: boolean;
 };
 
 const KeyButton = ({
     keyItem,
     onSelectKey,
+    isPickupDevice,
 }: {
     keyItem: KeyItem;
     onSelectKey?: (key: KeyItem) => void;
+    isPickupDevice: boolean;
 }) => {
     const [hover, setHover] = useState(false);
     const { t } = useTranslation('common');
@@ -142,17 +181,19 @@ const KeyButton = ({
         if (onSelectKey) onSelectKey(keyItem);
     };
 
-    const customFallbackLangId =
-        keyItem.type === 80 && !keyItem.langid && keyItem.code1 > 0 ? String(90000 + keyItem.code1) : undefined;
-    const translatedByLangid = keyItem.langid ? t(keyItem.langid) : '';
-    const translatedByFallback = customFallbackLangId ? t(customFallbackLangId) : '';
+    const displayLangId =
+        resolveLogoLightKeyLangKey(keyItem, isPickupDevice)
+        ?? (keyItem.type === 80 && !keyItem.langid && keyItem.code1 > 0
+            ? String(90000 + keyItem.code1)
+            : keyItem.langid);
+    const tooltipLangId = resolveLogoLightingLangKey(keyItem.tooltipLangid, isPickupDevice);
+    const translatedByLangid = displayLangId ? t(displayLangId) : '';
     const displayLabel =
-        (translatedByLangid && translatedByLangid !== keyItem.langid ? translatedByLangid : '') ||
-        (translatedByFallback && translatedByFallback !== customFallbackLangId ? translatedByFallback : '') ||
+        (translatedByLangid && translatedByLangid !== displayLangId ? translatedByLangid : '') ||
         keyItem.name;
-    const tooltipFromId = keyItem.tooltipLangid ? t(keyItem.tooltipLangid) : '';
+    const tooltipFromId = tooltipLangId ? t(tooltipLangId) : '';
     const tooltipTitle =
-        keyItem.tooltipLangid && tooltipFromId && tooltipFromId !== keyItem.tooltipLangid
+        tooltipLangId && tooltipFromId && tooltipFromId !== tooltipLangId
             ? tooltipFromId
             : displayLabel;
     const iconValue = keyItem.icon ?? '';
@@ -164,6 +205,7 @@ const KeyButton = ({
     /** Fn0–3 短标签：与设计稿一致用正文字号，不再整体 scale(0.6) */
     const isCompactFnLayerText =
         !keyItem.icon && /^FN_[0-3]$/.test(codeUpper);
+    const useFullSizeLabel = Boolean(keyItem.isQmkPoolKey || isCompactFnLayerText);
 
     return (
         <Box sx={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
@@ -246,7 +288,7 @@ const KeyButton = ({
                         ) : (
                             <span style={{ transform: 'scale(0.6)', display: 'inline-flex' }}>{keyItem.icon}</span>
                         )
-                    ) : isCompactFnLayerText ? (
+                    ) : useFullSizeLabel ? (
                         <Box
                             component="span"
                             sx={{
@@ -254,10 +296,13 @@ const KeyButton = ({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 width: '100%',
-                                fontSize: '14px',
+                                fontSize: keyItem.isQmkPoolKey ? '12px' : '14px',
                                 fontWeight: 600,
-                                lineHeight: 1.2,
-                                whiteSpace: 'nowrap',
+                                lineHeight: 1.25,
+                                whiteSpace: keyItem.isQmkPoolKey ? 'normal' : 'nowrap',
+                                wordBreak: 'break-word',
+                                textAlign: 'center',
+                                px: '2px',
                             }}
                         >
                             {displayLabel}
@@ -273,7 +318,16 @@ const KeyButton = ({
     );
 };
 
-type CategoryId = 'basic' | 'media' | 'shortcut' | 'custom' | 'macro' | 'combination';
+type CategoryId =
+    | 'basic'
+    | 'media'
+    | 'shortcut'
+    | 'custom'
+    | 'macro'
+    | 'combination'
+    | 'layers'
+    | 'special'
+    | 'lighting';
 
 type Category = {
     id: CategoryId;
@@ -289,14 +343,33 @@ const CATEGORIES: Category[] = [
     { id: 'combination', labelKey: '106' },
 ];
 
-const LAYER_COUNT = 4;
+const QMK_CATEGORY_BASE: Category[] = [
+    { id: 'basic', labelKey: '1500' },
+    { id: 'media', labelKey: '1501' },
+    { id: 'macro', labelKey: '1502' },
+    { id: 'layers', labelKey: '1503' },
+    { id: 'special', labelKey: '1504' },
+    { id: 'lighting', labelKey: '1505' },
+];
+
+function qmkKeycodeToPoolItem(kc: IKeycode): KeyItem {
+    return {
+        name: qmkKeycodeToDisplayName(kc),
+        code: kc.code,
+        type: 0,
+        code1: 0,
+        code2: 0,
+        tooltipLangid: kc.title,
+        isQmkPoolKey: true,
+    };
+}
 
 type KeyMappingPanelProps = {
     onKeyboardScaleChange?: (ratio: number) => void;
 };
 
 export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPanelProps = {}) {
-    const { connectedKeyboard, keyboard, macroList, keyboardLayout } = useContext(ConnectKbContext);
+    const { connectedKeyboard, keyboard, macroList, keyboardLayout, keyboardData, isKeyboardSwitching } = useContext(ConnectKbContext);
     const { macroProfiles } = macroList;
     const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
     const currentLayer = keyboard?.layer ?? 0;
@@ -304,9 +377,51 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
     const userKeys = keyboard?.userKeys?.[currentLayer] ?? [];
     const { selectedSetting } = useContext(EditorContext);
     const { t } = useTranslation('common');
+    const { showMessage } = useSnackbarDialog();
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const [category, setCategory] = useState<CategoryId>('basic');
+    const [anyDialogOpen, setAnyDialogOpen] = useState(false);
+    const [vendorAnyDialogOpen, setVendorAnyDialogOpen] = useState(false);
+    const isQMK = keyboard?.keyboardType === 'QMK';
+
+    const devMode = useMemo(() => {
+        const current = keyboardData.find((item: { productName?: string; devMode?: number }) => item.productName === connectedKeyboard?.productName);
+        return current?.devMode ?? 0;
+    }, [keyboardData, connectedKeyboard?.productName]);
+    const isPickupDevice = useMemo(
+        () => isPickupLightingDevice(connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode),
+        [connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode],
+    );
+
+    const qmkDict = useMemo(
+        () => getBasicKeyDict(keyboard?.version ?? 10) as Record<string, number>,
+        [keyboard?.version],
+    );
+
+    const qmkMenus = useMemo(() => {
+        const custom = buildQMKCustomKeycodes(keyboardLayout?.customKeycodes);
+        return buildQMKKeycodeMenus(custom);
+    }, [keyboardLayout?.customKeycodes]);
+
+    const qmkCategories = useMemo(() => {
+        const categories = [...QMK_CATEGORY_BASE];
+        if ((keyboardLayout?.customKeycodes?.length ?? 0) > 0) {
+            categories.push({ id: 'custom', labelKey: '1506' });
+        }
+        return categories;
+    }, [keyboardLayout?.customKeycodes]);
+
+    const visibleCategories = isQMK ? qmkCategories : CATEGORIES;
+
+    useEffect(() => {
+        if (!isQMK) return;
+        if (!qmkCategories.some((c) => c.id === category)) {
+            setCategory('basic');
+        }
+    }, [isQMK, qmkCategories, category]);
+
+    const qmkLayerCount = keyboard?.allQMKLayers?.length || 4;
 
     const basicList = useMemo(() => {
         const item = (customKeys as any[]).find((g) => g.label === 'Basic');
@@ -421,6 +536,10 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
     }, [macroProfiles]);
 
     const selectedPool = useMemo(() => {
+        if (isQMK) {
+            if (category === 'basic' || category === 'macro') return [];
+            return getQMKPoolForCategory(category as QMKPanelCategory, qmkMenus).map(qmkKeycodeToPoolItem);
+        }
         switch (category) {
             case 'basic':
                 return basicList;
@@ -437,17 +556,189 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
             default:
                 return [];
         }
-    }, [category, basicList, mediaDisplayList, shortcutDisplayList, customDisplayList, macroListItems]);
+    }, [isQMK, category, qmkMenus, basicList, mediaDisplayList, shortcutDisplayList, customDisplayList, macroListItems]);
 
-    const mappedLayoutKeys = useMemo(
-        () => mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys),
-        [layoutKeys, userKeys],
-    );
+    const mappedLayoutKeys = useMemo(() => {
+        if (keyboard?.keyboardType === 'QMK') {
+            return resolveQMKDisplayLayoutKeys(
+                layoutKeys,
+                keyboard.allQMKLayers,
+                currentLayer,
+            );
+        }
+        return mergeLayoutKeysWithUserKeyNames(layoutKeys, userKeys);
+    }, [keyboard?.keyboardType, keyboard?.allQMKLayers, currentLayer, layoutKeys, userKeys]);
+
+    const writeQMKKey = async (
+        keyInfo: NonNullable<ReturnType<typeof getSelectedQMKKeyInfo>>,
+        keycode: number,
+        displayName: string,
+        code?: string,
+    ) => {
+        if (isKeyboardSwitching) {
+            showMessage({ message: t('2975'), type: 'warning', duration: 4000 });
+            return false;
+        }
+
+        const qmkKeyboard = connectedKeyboard as {
+            setKey?: (layer: number, row: number, col: number, val: number) => Promise<number>;
+            getKey?: (layer: number, row: number, col: number) => Promise<number>;
+        } | undefined;
+
+        if (!qmkKeyboard?.setKey) {
+            showMessage({ message: t('2996'), type: 'error', duration: 8000 });
+            return false;
+        }
+
+        try {
+            const written = await qmkKeyboard.setKey(
+                currentLayer,
+                keyInfo.row,
+                keyInfo.col,
+                keycode,
+            );
+            let verified = written === keycode;
+            if (!verified && qmkKeyboard.getKey) {
+                const readback = await qmkKeyboard.getKey(currentLayer, keyInfo.row, keyInfo.col);
+                verified = readback === keycode;
+            }
+            if (!verified) {
+                throw new Error(
+                    `QMK keymap verify failed at layer=${currentLayer} row=${keyInfo.row} col=${keyInfo.col}: expected 0x${keycode.toString(16)}, got 0x${(written ?? 0).toString(16)}`,
+                );
+            }
+
+            keyboard?.updateQMKKey?.(currentLayer, selectedIndex, {
+                ...keyInfo,
+                code: code ?? keyInfo.code,
+                name: displayName,
+            });
+            return true;
+        } catch (error) {
+            console.error('[KeyMappingPanel] QMK 改键写入失败:', error);
+            showMessage({
+                message: t(isHidWriteNotAllowedError(error) ? '2996' : '2997'),
+                type: 'error',
+                duration: 8000,
+            });
+            return false;
+        }
+    };
+
+    const applyQMKKeycode = async (code: string, displayName: string) => {
+        if (selectedIndex < 0) return;
+        const keyInfo = getSelectedQMKKeyInfo(
+            keyboard?.allQMKLayers,
+            currentLayer,
+            selectedIndex,
+            layoutKeys,
+        );
+        if (!keyInfo) return;
+        const keycode = codeToNumber(code, qmkDict);
+        if (keycode === 0 && code !== 'KC_NO') return;
+        await writeQMKKey(keyInfo, keycode, displayName, code);
+    };
+
+    const handleAnyConfirm = async (code: string, keycode: number) => {
+        if (selectedIndex < 0) return;
+        const keyInfo = getSelectedQMKKeyInfo(
+            keyboard?.allQMKLayers,
+            currentLayer,
+            selectedIndex,
+            layoutKeys,
+        );
+        if (!keyInfo) return;
+        await writeQMKKey(keyInfo, keycode, code, code);
+    };
+
+    const handleAnyButtonClick = () => {
+        if (selectedIndex < 0) return;
+        setAnyDialogOpen(true);
+    };
+
+    const handleVendorAnyButtonClick = () => {
+        if (selectedIndex < 0) return;
+        setVendorAnyDialogOpen(true);
+    };
+
+    const handleVendorAnyConfirm = async (code: string) => {
+        if (selectedIndex < 0 || isQMK || !connectedKeyboard) return;
+
+        const parsed = parseVendorAnyInput(code, qmkDict);
+        if (!parsed) return;
+
+        const macroSlot = resolveVendorAnyMacroSlot(selectedIndex);
+        const anyMap = readVendorAnyMacroMap(keyboard?.version);
+        anyMap[macroSlot] = {
+            webCode: parsed.webCode,
+            displayName: parsed.displayName,
+            code: parsed.code,
+            macroActions: parsed.macroActions,
+        };
+        writeVendorAnyMacroMap(keyboard?.version, anyMap);
+
+        const userMacros = (macroProfiles ?? []) as MacroProfile[];
+        const merged = mergeMacroProfilesForDevice(userMacros, hiddenAnyMacrosFromMap(anyMap));
+
+        try {
+            await connectedKeyboard.setAllMacroDataV2?.(merged);
+            await connectedKeyboard.setKeyMatrixData?.(currentLayer, selectedIndex, 0x60, macroSlot, 0);
+            keyboard?.updateUserKey?.(
+                {
+                    name: parsed.displayName,
+                    code: parsed.code,
+                    type: VENDOR_KEY_TYPE_ANY,
+                    code1: macroSlot,
+                    code2: 0,
+                    code3: 1,
+                },
+                selectedIndex,
+                0,
+                currentLayer,
+            );
+            keyboard?.saveUserKeys?.();
+        } catch (e) {
+            console.error('[KeyMappingPanel] ANY 键下发失败:', e);
+        }
+    };
+
+    const applyQMKFullKey = async (key: { code1?: number; code2?: number; name?: string }) => {
+        if (selectedIndex < 0) return;
+        const keyInfo = getSelectedQMKKeyInfo(
+            keyboard?.allQMKLayers,
+            currentLayer,
+            selectedIndex,
+            layoutKeys,
+        );
+        if (!keyInfo) return;
+        let keycode = (key.code2 ?? 0) as number;
+        if (key.code1 && key.code1 !== 0) {
+            keycode = hidModMaskToQmkKeycode(key.code1 & 0xff, keycode);
+        }
+        await writeQMKKey(keyInfo, keycode, key.name ?? keyInfo.name);
+    };
 
     const applyKey = async (key: KeyItem) => {
         if (selectedIndex < 0) return;
 
+        if (isQMK) {
+            await applyQMKKeycode(key.code, key.name);
+            return;
+        }
+
         keyboard?.updateUserKey?.(key, selectedIndex, 0, currentLayer);
+
+        if (isVendorAnyKeyType(key.type)) {
+            await connectedKeyboard?.setKeyMatrixData?.(
+                currentLayer,
+                selectedIndex,
+                toDeviceKeyType(key.type),
+                key.code1,
+                key.code2,
+            );
+            keyboard?.saveUserKeys?.();
+            return;
+        }
 
         if (key.type === 0x60) {
             const macroIndex = macroProfiles.findIndex((macro: any) => macro.key === key.code1);
@@ -462,7 +753,13 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
             return;
         }
 
-        await connectedKeyboard?.setKeyMatrixData?.(currentLayer, selectedIndex, key.type, key.code1, key.code2);
+        await connectedKeyboard?.setKeyMatrixData?.(
+            currentLayer,
+            selectedIndex,
+            toDeviceKeyType(key.type),
+            key.code1,
+            key.code2,
+        );
         keyboard?.saveUserKeys?.();
     };
 
@@ -478,6 +775,20 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
         combinationText: string;
     }) => {
         if (selectedIndex < 0 || mainKeyCode === 0) return;
+
+        if (isQMK) {
+            const keyInfo = getSelectedQMKKeyInfo(
+                keyboard?.allQMKLayers,
+                currentLayer,
+                selectedIndex,
+                layoutKeys,
+            );
+            if (!keyInfo) return;
+            const name = combinationText || `${modifierMask ? t('1671') : ''}${mainKey}`;
+            const keycode = hidModMaskToQmkKeycode(modifierMask, mainKeyCode);
+            await writeQMKKey(keyInfo, keycode, name);
+            return;
+        }
 
         const name = combinationText || `${modifierMask ? t('1671') : ''}${mainKey}`;
         const key = {
@@ -495,6 +806,39 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
     };
 
     const handleRestoreKey = async () => {
+        if (isQMK) {
+            const device = connectedKeyboard as {
+                clearAllKeymaps?: () => Promise<void>;
+                readRawMatrix?: (matrix: { rows: number; cols: number }, layer: number) => Promise<number[]>;
+            } | null | undefined;
+            if (!device?.clearAllKeymaps || !device.readRawMatrix || !keyboardLayout?.matrix || !keyboardLayout?.layouts?.keymap) {
+                return;
+            }
+            try {
+                await device.clearAllKeymaps();
+                await new Promise((r) => setTimeout(r, 300));
+                const numberOfLayers = qmkLayerCount;
+                const newAllLayers = await reReadAllQMKLayers(
+                    device as { readRawMatrix: (matrix: { rows: number; cols: number }, layer: number) => Promise<number[]> },
+                    keyboardLayout,
+                    numberOfLayers,
+                );
+                keyboard?.setAllQMKLayers?.(newAllLayers);
+                if (newAllLayers[0]?.length) {
+                    const baseLayout = keyboard?.layoutKeys ?? [];
+                    keyboard?.initLayoutKeys?.(
+                        baseLayout.length
+                            ? mergePhysicalLayoutWithQmkLayer(baseLayout, newAllLayers[0])
+                            : qmkLayerToLayoutKeys(newAllLayers[0]),
+                    );
+                }
+                keyboard?.setSelectIndex?.(-1);
+            } catch {
+                // ignore
+            }
+            return;
+        }
+
         /** 整层恢复：不依赖选中键（刷新后 selectIndex 常为 -1）。读固件默认矩阵后 setRestoreDefaultKeys。 */
         const device = connectedKeyboard as {
             test?: boolean;
@@ -565,7 +909,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                         travelValue={0}
                         showActuation={false}
                         showLayerOverlay={selectedSetting === 'keypress'}
-                        layerCount={LAYER_COUNT}
+                        layerCount={isQMK ? qmkLayerCount : 4}
                         currentLayer={currentLayer}
                         onSelectLayer={(i: number) => keyboard?.setLayer?.(i)}
                         onRestoreDefault={() => void handleRestoreKey()}
@@ -647,7 +991,7 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                             >
                                 {t('1670')}
                             </Typography>
-                            {CATEGORIES.map((c) => {
+                            {visibleCategories.map((c) => {
                                 const active = c.id === category;
                                 return (
                                     <Button
@@ -718,7 +1062,10 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                             }}
                         >
                             {category === 'basic' ? (
-                                <FullKeyboard disabled={selectedIndex < 0} onSelectKey={applyKey as any} />
+                                <FullKeyboard
+                                    disabled={selectedIndex < 0}
+                                    onSelectKey={isQMK ? (applyQMKFullKey as any) : (applyKey as any)}
+                                />
                             ) : category === 'combination' ? (
                                 <CombinationKeyBoard disabled={selectedIndex < 0} onSave={applyCombination} />
                             ) : category === 'macro' ? (
@@ -748,15 +1095,108 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                                                     mt: idx > 0 ? '8px' : 0,
                                                 }}
                                             >
-                                                {t(item.sectionTitleKey)}
+                                                {t(resolveLogoLightingLangKey(item.sectionTitleKey, isPickupDevice) ?? item.sectionTitleKey)}
                                             </Typography>
                                         ) : (
                                             <KeyButton
                                                 key={`${(item as KeyItem).code}-${idx}`}
                                                 keyItem={item as KeyItem}
+                                                isPickupDevice={isPickupDevice}
                                                 onSelectKey={(k) => void applyKey(k)}
                                             />
                                         ),
+                                    )}
+                                    {!isQMK && category === 'shortcut' && (
+                                        <Box sx={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                                            <ButtonRem
+                                                variant="text"
+                                                title="Any keycode"
+                                                disabled={selectedIndex < 0}
+                                                onClick={handleVendorAnyButtonClick}
+                                                sx={{
+                                                    width: '100%',
+                                                    minWidth: 0,
+                                                    maxWidth: '100%',
+                                                    height: '56px',
+                                                    borderRadius: '10px',
+                                                    textTransform: 'none',
+                                                    fontSize: '12px',
+                                                    fontWeight: 600,
+                                                    ...(isDark
+                                                        ? {
+                                                              border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
+                                                              color: selectedIndex < 0
+                                                                  ? theme.palette.text.disabled
+                                                                  : theme.palette.text.primary,
+                                                              backgroundColor: theme.palette.customed1.main,
+                                                          }
+                                                        : {
+                                                              border: '1px solid #cfe0ff',
+                                                              color: selectedIndex < 0 ? '#94a3b8' : '#2d4a75',
+                                                              backgroundColor: '#ffffff',
+                                                          }),
+                                                    '&:hover': selectedIndex < 0
+                                                        ? {}
+                                                        : isDark
+                                                          ? {
+                                                                borderColor: alpha(theme.palette.primary.main, 0.55),
+                                                                backgroundColor: alpha(theme.palette.primary.main, 0.18),
+                                                            }
+                                                          : {
+                                                                borderColor: '#9fc2ff',
+                                                                backgroundColor: '#f7fbff',
+                                                            },
+                                                }}
+                                            >
+                                                Any
+                                            </ButtonRem>
+                                        </Box>
+                                    )}
+                                    {isQMK && category === 'special' && (
+                                        <Box sx={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                                            <ButtonRem
+                                                variant="text"
+                                                title="Any keycode"
+                                                disabled={selectedIndex < 0}
+                                                onClick={handleAnyButtonClick}
+                                                sx={{
+                                                    width: '100%',
+                                                    minWidth: 0,
+                                                    maxWidth: '100%',
+                                                    height: '56px',
+                                                    borderRadius: '10px',
+                                                    textTransform: 'none',
+                                                    fontSize: '12px',
+                                                    fontWeight: 600,
+                                                    ...(isDark
+                                                        ? {
+                                                              border: `1px solid ${alpha(theme.palette.common.white, 0.12)}`,
+                                                              color: selectedIndex < 0
+                                                                  ? theme.palette.text.disabled
+                                                                  : theme.palette.text.primary,
+                                                              backgroundColor: theme.palette.customed1.main,
+                                                          }
+                                                        : {
+                                                              border: '1px solid #cfe0ff',
+                                                              color: selectedIndex < 0 ? '#94a3b8' : '#2d4a75',
+                                                              backgroundColor: '#ffffff',
+                                                          }),
+                                                    '&:hover': selectedIndex < 0
+                                                        ? {}
+                                                        : isDark
+                                                          ? {
+                                                                borderColor: alpha(theme.palette.primary.main, 0.55),
+                                                                backgroundColor: alpha(theme.palette.primary.main, 0.18),
+                                                            }
+                                                          : {
+                                                                borderColor: '#9fc2ff',
+                                                                backgroundColor: '#f7fbff',
+                                                            },
+                                                }}
+                                            >
+                                                Any
+                                            </ButtonRem>
+                                        </Box>
                                     )}
                                 </Box>
                             )}
@@ -764,6 +1204,25 @@ export default function KeyMappingPanel({ onKeyboardScaleChange }: KeyMappingPan
                     </Box>
                 </Box>
             </Box>
+            {isQMK ? (
+                <QMKAnyKeycodeDialog
+                    open={anyDialogOpen}
+                    onClose={() => setAnyDialogOpen(false)}
+                    onConfirm={(code, keycode) => void handleAnyConfirm(code, keycode)}
+                    fullDict={qmkDict}
+                    customKeycodes={keyboardLayout?.customKeycodes}
+                />
+            ) : (
+                <QMKAnyKeycodeDialog
+                    open={vendorAnyDialogOpen}
+                    onClose={() => setVendorAnyDialogOpen(false)}
+                    onConfirm={() => {}}
+                    onConfirmRaw={(raw) => void handleVendorAnyConfirm(raw)}
+                    isInputValid={(input) => isValidVendorAnyInput(input, qmkDict)}
+                    fullDict={qmkDict}
+                    placeholder="KC_A, A(KC_A,KC_B,KC_C), 0x04..."
+                />
+            )}
         </Box >
     );
 }

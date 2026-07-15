@@ -6,13 +6,36 @@ import KeyboardPanel from "./Panel/KeyboardPanel";
 import { EditorContext } from "@/providers/EditorProvider";
 import SettingPanel from "./Panel/SettingPanel";
 import { MainContext } from "@/providers/MainProvider";
+import { ConnectKbContext } from "@/providers/ConnectKbProvider";
 import UpgradeNotification from "@/components/UpgradeNotification";
-import { FirmwareUpdatePromptLayer } from "@/providers/useSnackbarProvider";
+import { listenToUpgradeNavigation } from "@/utils/eventBus";
+import { FirmwareUpdatePromptLayer, useSnackbarDialog } from "@/providers/useSnackbarProvider";
+import KeyboardSwitchOverlay from "@/components/common/KeyboardSwitchOverlay";
 export default function Main() {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
     const { setQgifModule } = useContext(MainContext);
-    const { currentTab } = useContext(EditorContext);
+    const {
+        keyboard,
+        connectedKeyboard,
+        isKeyboardSwitching,
+        keyboardSwitchProgress,
+        keyboardSwitchLabel,
+        setIsUpgradeWindowOpen,
+        pendingOpenUpgradeAfterBootConnect,
+        setPendingOpenUpgradeAfterBootConnect,
+        loading,
+        connectState,
+    } = useContext(ConnectKbContext);
+    const { currentTab, onChangeTab, requestSettingsFirmwareTab } = useContext(EditorContext);
+    const { dismissFirmwareUpdatePrompt } = useSnackbarDialog();
+    const isQMK = keyboard?.keyboardType === 'QMK';
+    const connectedDeviceKey = useMemo(() => {
+        if (typeof connectedKeyboard?.vendorId !== 'number' || typeof connectedKeyboard?.productId !== 'number') {
+            return '';
+        }
+        return `${connectedKeyboard.vendorId}_${connectedKeyboard.productId}_${connectedKeyboard.productName ?? ''}`;
+    }, [connectedKeyboard?.vendorId, connectedKeyboard?.productId, connectedKeyboard?.productName]);
     const tabs = useMemo(() => {
         const tableList = [
             { key: "keyboard", name: "键值", lang: "50", component: <KeyboardPanel /> },
@@ -62,6 +85,45 @@ export default function Main() {
         }
     }, []);
 
+    useEffect(() => {
+        return listenToUpgradeNavigation(() => {
+            onChangeTab('settings');
+            requestSettingsFirmwareTab();
+        });
+    }, [onChangeTab, requestSettingsFirmwareTab]);
+
+    useEffect(() => {
+        if (!pendingOpenUpgradeAfterBootConnect || loading || connectState) return;
+        setPendingOpenUpgradeAfterBootConnect(false);
+        setIsUpgradeWindowOpen(true);
+        onChangeTab('settings');
+        requestSettingsFirmwareTab();
+    }, [
+        pendingOpenUpgradeAfterBootConnect,
+        loading,
+        connectState,
+        setPendingOpenUpgradeAfterBootConnect,
+        setIsUpgradeWindowOpen,
+        onChangeTab,
+        requestSettingsFirmwareTab,
+    ]);
+
+    useEffect(() => {
+        if (currentTab !== 'settings') {
+            dismissFirmwareUpdatePrompt();
+        }
+    }, [currentTab, dismissFirmwareUpdatePrompt]);
+
+    useEffect(() => {
+        if (isQMK) {
+            dismissFirmwareUpdatePrompt();
+        }
+    }, [isQMK, dismissFirmwareUpdatePrompt]);
+
+    useEffect(() => {
+        dismissFirmwareUpdatePrompt();
+    }, [connectedDeviceKey, dismissFirmwareUpdatePrompt]);
+
     return (
         <Box sx={{
             width: '100%',
@@ -71,6 +133,17 @@ export default function Main() {
             alignItems: 'center',
             backgroundColor: theme.palette.background.default,
         }}>
+            <Box
+                sx={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'stretch',
+                    opacity: isKeyboardSwitching ? 0 : 1,
+                    pointerEvents: isKeyboardSwitching ? 'none' : 'auto',
+                    transition: 'opacity 220ms ease',
+                }}
+            >
             {!isDark ? (
                 <Box
                     aria-hidden
@@ -113,8 +186,14 @@ export default function Main() {
                 }}
             >
                 <UpgradeNotification />
-                <FirmwareUpdatePromptLayer />
+                {currentTab === 'settings' && !isQMK ? <FirmwareUpdatePromptLayer /> : null}
             </Box>
+            </Box>
+            <KeyboardSwitchOverlay
+                open={isKeyboardSwitching}
+                progress={keyboardSwitchProgress}
+                deviceName={keyboardSwitchLabel}
+            />
         </Box>
     )
 }

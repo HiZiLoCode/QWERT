@@ -8,6 +8,7 @@ import {
   getKeyCode,
   hidKeycode2EventCode,
 } from "../keyboard/keycode";
+import { toDeviceKeyType } from "@/utils/vendor91683AnyKey";
 import {
   baseTestData,
   kbNameTestData,
@@ -45,8 +46,12 @@ export const shiftFrom24Bit = (value: number): [number, number, number] => [
   (value >> 16) & 255, // 高 8 位
 ];
 
-/** V2 功能区：0x3059 为 76 字节有效载荷（含 LCD tail + NumLockMode 等），与标准 59 字节 V2 区分 */
-const PID_FUNCINFO_V2_LAYOUT_71 = 0x3059;
+/** V2 扩展功能区 PID：76 字节有效载荷（含 LCD tail + NumLockMode 等），与标准 59 字节 V2 区分 */
+export const PID_FUNCINFO_V2_LAYOUT_EXTENDED = new Set<number>([0x3059, 0x3081]);
+
+export function usesExtendedFuncInfoLayout(productId: number): boolean {
+  return PID_FUNCINFO_V2_LAYOUT_EXTENDED.has(productId);
+}
 
 interface lightSpeed {
   lightMaxSpeed: number,
@@ -469,7 +474,7 @@ export class KeyboardDevice {
       ]);
     };
     const v2FuncTotalBytes =
-      this.productId === PID_FUNCINFO_V2_LAYOUT_71 ? 76 : 59;
+      usesExtendedFuncInfoLayout(this.productId) ? 76 : 59;
     const bufferSize = [0x38, 0x18][this.deviceMode];
     let result: number[] = [];
 
@@ -646,7 +651,7 @@ export class KeyboardDevice {
       snapTap: result[58] === 1,
     };
 
-    if (this.productId === PID_FUNCINFO_V2_LAYOUT_71 && result.length >= 76) {
+    if (usesExtendedFuncInfoLayout(this.productId) && result.length >= 76) {
       return {
         ...base,
         lcdScreenPage: result[59],
@@ -665,7 +670,7 @@ export class KeyboardDevice {
     if (this.test) return;
     if ([2, 3].includes(isProtocolVer2)) {
       // --- V2：仅 0x3059 下发满 128 字节（尾部补 0），其余设备仍为 64 字节 ---
-      const isFuncLayout71 = this.productId === PID_FUNCINFO_V2_LAYOUT_71;
+      const isFuncLayout71 = usesExtendedFuncInfoLayout(this.productId);
 
       const buffer: number[] = new Array(isFuncLayout71 ? 128 : 64).fill(0);
       buffer[0] = data.profile || 0;
@@ -748,13 +753,16 @@ export class KeyboardDevice {
         buffer[63] = data.pickupLightEffectSwitch ?? 0;
         buffer[64] = data.pickupLightEffectDirection ?? 0;
         // 65–75：固件扩展区；全量 FUNCINFO 下发前从设备回读保留，避免被 0 覆盖。
+        await this.startComm();
         const rawPrior = await this.readV2FuncInfoRawConcat();
         if (rawPrior && rawPrior.length >= 76) {
           for (let i = 65; i <= 75; i++) buffer[i] = rawPrior[i] ?? 0;
         }
       }
 
-      await this.startComm();
+      if (!isFuncLayout71) {
+        await this.startComm();
+      }
 
       const bufferSize = [0x38, 0x18][this.deviceMode];
       const totalSize = buffer.length;
@@ -1144,7 +1152,7 @@ export class KeyboardDevice {
     const keyData: number[] = new Array(totalKeys * KEY_UNIT_SIZE);
     for (let i = 0; i < totalKeys; i++) {
       const pos = i * KEY_UNIT_SIZE;
-      keyData[pos] = defaultKeys[i].type & 0xff;
+      keyData[pos] = toDeviceKeyType(defaultKeys[i].type) & 0xff;
       keyData[pos + 1] = defaultKeys[i].code1 & 0xff;
       keyData[pos + 2] = defaultKeys[i].code2 & 0xff;
     }

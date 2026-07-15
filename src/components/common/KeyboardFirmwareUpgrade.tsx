@@ -17,6 +17,19 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from "@/app/i18n";
 import { ConnectKbContext } from "@/providers/ConnectKbProvider";
+import { releaseAllKeyboardHidSessions } from "@/utils/keyboardHidSession";
+import { upgradeFlowLog, UF_SOURCE } from '@/utils/upgradeFlowLog';
+
+const UFL = UF_SOURCE.KEYBOARD_8K;
+const ufl = {
+  info: (message: string, detail?: string) => upgradeFlowLog.info(UFL, message, detail),
+  warn: (message: string, detail?: string) => upgradeFlowLog.warn(UFL, message, detail),
+  error: (message: string, detail?: string) => upgradeFlowLog.error(UFL, message, detail),
+  out: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logOut(UFL, label, data, reportId),
+  in: (label: string, data: ArrayLike<number>, reportId?: number) =>
+    upgradeFlowLog.logIn(UFL, label, data, reportId),
+};
 
 // 常量定义 - 严格按照 index.html
 const BIN_HEADER_SIZE = 64;
@@ -193,6 +206,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
       packet[sendSize + 3] = (checksum >> 8) & 0xff;
 
       // 1️⃣ 发送数据（不等待返回）- 使用 NoWait 方法提高速度
+      ufl.out(`DFU 数据包 #${packetCount + 1}`, packet, REPORT_ID);
       await connectedKeyboard.api.sendDeviceDataNoWait(packet[0], packet.slice(1, 63));
       packetCount++;
 
@@ -226,18 +240,21 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
       }
 
       if (needWaitAck) {
-        // 从 NotifyDevice 等待 ACK
         const resp = await waitForAck(ackType === 0x01 ? 5000 : 1500);
+        ufl.in(`DFU ACK type=0x${ackType.toString(16)}`, resp, REPORT_ID);
 
         if (!isAck(resp, ackType)) {
+          ufl.error('DFU ACK 错误', `期望 type=0x${ackType.toString(16)}`);
           throw new Error(t("1263") || "DFU ACK 错误");
         }
+        ufl.debug('DFU ACK 成功', `type=0x${ackType.toString(16)}`);
       }
     }
   };
 
   // 升级过程 - 严格按照 index.html 的 upgradeProcess
   const upgradeProcess = async (firmware: Uint8Array): Promise<void> => {
+    ufl.info('开始 8K 固件升级', `固件大小=${firmware.length}`);
     sentBytes = 0;
     binOffset = 0;
     packetCount = 0;
@@ -264,8 +281,10 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
     while (retries-- > 0 && reply === null) {
       try {
         await connectedKeyboard.api.sendDeviceData(packet[0], packet.slice(1));
+        ufl.out('升级开始命令', packet, REPORT_ID);
 
         const response = await waitForAck(500);
+        ufl.in('升级开始 ACK', response, REPORT_ID);
         if (response[0] === 0xFF && response[1] === 0x70) {
           reply = response[2];
           break;
@@ -286,8 +305,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
     await new Promise(resolve => setTimeout(resolve, 2));
     const header = firmware.slice(0, BIN_HEADER_SIZE);
     await downloadFirmwareData(header, SEND_SIZE, 0x01, firmware);
-
-    // 分块发送固件
+    ufl.info('发送 Header 完成', '开始分块上传 BIN');
     const binLength = firmware.length;
     let downloadLen = BIN_HEADER_SIZE;
 
@@ -300,14 +318,18 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
       const percentage = Math.floor((downloadLen / binLength) * 100);
       updateStatus(`${t("1232")}: ${downloadLen}/${binLength}`, percentage);
     }
+    ufl.info('固件上传完成', '等待最终 ACK');
     const finalResponse = await waitForAck(5000);
+    ufl.in('最终 ACK', finalResponse, REPORT_ID);
     if (finalResponse[0] !== 0xFF || finalResponse[1] !== 0x70 || finalResponse[2] !== 0x03) {
+      ufl.error('最终 ACK 失败', `resp=${finalResponse.slice(0, 4).join(',')}`);
       throw new Error(t("1265") || "固件上传完成失败");
     }
     
     // 移除监听器
     remove8kUpgradeListener();
     
+    ufl.info('8K 固件升级成功');
     updateStatus(t("1234"), 100, undefined, 'normal'); // "升级完成！"
   };
 
@@ -320,6 +342,7 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
 
     try {
       setUpgradeState(prev => ({ ...prev, isUpgrading: true, error: undefined }));
+      ufl.info('开始升级流程');
 
       // 加载固件
       updateStatus(t("1254"), 5); // "加载固件文件..."
@@ -329,13 +352,14 @@ function KeyboardFirmwareUpgrade({ isOpen, onClose }: KeyboardFirmwareUpgradePro
       // 执行升级
       await upgradeProcess(firmware);
 
-      // 升级成功，等待 2 秒后刷新页面
-      await delay(2000);
+      // 升级成功，清理 HID 会话后刷新页面
+      await releaseAllKeyboardHidSessions();
+      await delay(500);
       window.location.reload();
 
     } catch (error: any) {
-      // 升级失败，移除监听器
       remove8kUpgradeListener();
+      ufl.error('8K 固件升级失败', error.message);
       updateStatus(`${t("1235")}: ${error.message}`, 0, error.message, 'error'); // "升级失败"
     } finally {
       setUpgradeState(prev => ({ ...prev, isUpgrading: false }));

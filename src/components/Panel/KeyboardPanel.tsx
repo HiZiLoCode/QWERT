@@ -33,18 +33,43 @@ import KeyMappingPanel from '@/components/KeyBoardPanel/KeyMappingPanel';
 import LayoutPanel from '@/components/KeyBoardPanel/LayoutPanel';
 import BindTest from '@/components/common/BindTest';
 import { throttle } from 'lodash';
-import { QMK_KeyboardDevice } from '@/devices/QMK/QMK_KeyboardDevice';
+import { QMK_KeyboardDevice, resolveQmkKeyboardApiDeviceMode } from '@/devices/QMK/QMK_KeyboardDevice';
 import { KeyboardDevice } from '@/devices/KeyboardDevice';
 import { KeyboardAPI } from '@/devices/KeyboardAPI';
 import { ScreenThemePage } from '@/components/ScreenTheme';
 import HomePage from '@/components/GIFHome/HomePage';
 import { EditorContext } from '@/providers/EditorProvider';
-import { deviceInfo, isDeviceInDeviceInfo } from '@/config/deviceInfo';
+import { deviceInfo, deviceInfoKey, isDeviceInDeviceInfo } from '@/config/deviceInfo';
+import {
+    buildQmkLightingSidebarTabs,
+    getLogoLightingTabI18nKey,
+    isPickupLightingDevice,
+    parseQmkLightTabId,
+} from '@/utils/qmkLightingBridge';
+import {
+    getDevicePreviewSkinOptions,
+    normalizeKeyboardSkinOptions,
+    pickValidDeviceSkin,
+    resolveDeviceKeyboardPreviewSrc,
+    type KeyboardSkinOption,
+} from '@/utils/keyboardPreviewRegistry';
 import { MainContext } from '@/providers/MainProvider';
 import { useTranslation } from '@/app/i18n';
 import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
 import PublicAssetImage from '@/components/common/PublicAssetImage';
 import { alpha, useTheme } from '@mui/material/styles';
+
+const failedKeyboardPreviewSrcs = new Set<string>();
+
+function markKeyboardPreviewFailed(src: string) {
+    if (!src || failedKeyboardPreviewSrcs.has(src)) return false;
+    failedKeyboardPreviewSrcs.add(src);
+    return true;
+}
+
+function isKeyboardPreviewAvailable(src: string): boolean {
+    return Boolean(src) && !failedKeyboardPreviewSrcs.has(src);
+}
 
 /** 来自 `图标.zip` →「机械轴驱动示例 (4)」，见 `public/sidebar/setting-*.svg` */
 const KP_SETTING_ICON_SRC: Record<string, string> = {
@@ -59,16 +84,18 @@ const KP_SETTING_ICON_SRC: Record<string, string> = {
 
 function KeyboardPanelSettingIcon({
     id,
+    iconId,
     active,
     collapsed,
     isDark,
 }: {
     id: string;
+    iconId?: string;
     active: boolean;
     collapsed: boolean;
     isDark: boolean;
 }) {
-    const src = KP_SETTING_ICON_SRC[id];
+    const src = KP_SETTING_ICON_SRC[iconId ?? id];
     if (!src) return null;
     const size = collapsed ? 20 : 18;
     return (
@@ -122,16 +149,6 @@ const KP = {
     dotSize: 12,
 } as const;
 
-type KeyboardSkinOption = {
-    value: string;
-    /** `common` 命名空间下的文案 key；优先于 `label` 展示 */
-    lang?: string;
-    /** 无翻译或未加载时的回退文案 */
-    label?: string;
-    suffix: string;
-    image?: string;
-};
-
 function getKeyboardSkinOptionLabel(
     option: KeyboardSkinOption,
     t: (key: string, options?: { defaultValue?: string }) => string,
@@ -142,14 +159,8 @@ function getKeyboardSkinOptionLabel(
     return option.label ?? option.value;
 }
 
-const DEFAULT_KEYBOARD_SKIN_OPTIONS: KeyboardSkinOption[] = [
-    { value: 'blackWarrior', lang: '2890', label: '黑武士', suffix: '', image: '' },
-    { value: 'lightShine', lang: '2891', label: '银闪闪', suffix: '_lightShine', image: '' },
-    { value: 'strawberryPink', lang: '2892', label: '草莓粉', suffix: '_strawberryPink', image: '' },
-    { value: 'sapphireBlue', lang: '2893', label: '蓝宝石', suffix: '_sapphireBlue', image: '' },
-];
-
-const KEYBOARD_SKIN_STORAGE_KEY = 'keyboard-panel:skin-option';
+const KEYBOARD_SKIN_BY_DEVICE_STORAGE_KEY = 'keyboard-panel:skin-by-device';
+const LEGACY_KEYBOARD_SKIN_STORAGE_KEY = 'keyboard-panel:skin-option';
 const SETTINGS_MENU_COLLAPSED_STORAGE_KEY_MAIN = 'keyboard-panel:settings-menu-collapsed:main';
 const SETTINGS_MENU_COLLAPSED_STORAGE_KEY_TEST = 'keyboard-panel:settings-menu-collapsed:test';
 
@@ -170,28 +181,26 @@ const SETTINGS_MENU_AUTO_COLLAPSE_SCALE = 0.72;
 /** 滞回：离开低压区需 ratio 高于 `SCALE + HYSTERESIS`，避免在边界来回抖 */
 const SETTINGS_MENU_SCALE_HYSTERESIS = 0.04;
 
-function normalizeKeyboardSkinOptions(input: unknown): KeyboardSkinOption[] {
-    if (!Array.isArray(input)) return [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
-    const parsed = input.filter(
-        (item): item is KeyboardSkinOption =>
-            Boolean(item) &&
-            typeof item === 'object' &&
-            typeof (item as { value?: unknown }).value === 'string' &&
-            typeof (item as { suffix?: unknown }).suffix === 'string' &&
-            (typeof (item as { label?: unknown }).label === 'string' ||
-                typeof (item as { lang?: unknown }).lang === 'string') &&
-            (typeof (item as { image?: unknown }).image === 'string' || typeof (item as { image?: unknown }).image === 'undefined'),
-    );
-    return parsed.length ? parsed : [...DEFAULT_KEYBOARD_SKIN_OPTIONS];
+function readDeviceSkinsFromStorage(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = window.localStorage.getItem(KEYBOARD_SKIN_BY_DEVICE_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== 'object') return {};
+        return Object.fromEntries(
+            Object.entries(parsed as Record<string, unknown>).filter(
+                ([, value]) => typeof value === 'string',
+            ),
+        ) as Record<string, string>;
+    } catch {
+        return {};
+    }
 }
 
-function resolveKeyboardPreviewBySkin(src: string, skin: string, options: KeyboardSkinOption[]): string {
-    const option = options.find((item) => item.value === skin);
-    if (option?.image) return option.image;
-    if (!option || !option.suffix) return src;
-    const dotIndex = src.lastIndexOf('.');
-    if (dotIndex <= 0) return src;
-    return `${src.slice(0, dotIndex)}${option.suffix}${src.slice(dotIndex)}`;
+function writeDeviceSkinsToStorage(skins: Record<string, string>) {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(KEYBOARD_SKIN_BY_DEVICE_STORAGE_KEY, JSON.stringify(skins));
 }
 
 interface KeyboardPanelProps {
@@ -211,8 +220,16 @@ function SettingsContent({
     onKeyboardScaleChange?: (ratio: number) => void;
 }) {
     const { t } = useTranslation('common');
+    const qmkLightGroupLabel = parseQmkLightTabId(selectedSetting);
     if (selectedSetting === 'macro') {
         return <MacroTravelAdjustView onKeyboardScaleChange={onKeyboardScaleChange} />;
+    } else if (qmkLightGroupLabel) {
+        return (
+            <LightSettingPanel
+                qmkLightGroupLabel={qmkLightGroupLabel}
+                onKeyboardScaleChange={onKeyboardScaleChange}
+            />
+        );
     } else if (selectedSetting === 'lighting') {
         return <LightSettingPanel onKeyboardScaleChange={onKeyboardScaleChange} />;
     } else if (selectedSetting === 'logolighting') {
@@ -327,8 +344,8 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
         [isDark, theme],
     );
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const [keyboardSkin, setKeyboardSkin] = useState<string>(DEFAULT_KEYBOARD_SKIN_OPTIONS[0].value);
-    const [keyboardSkinHydrated, setKeyboardSkinHydrated] = useState(false);
+    const [deviceSkins, setDeviceSkins] = useState<Record<string, string>>({});
+    const [deviceSkinsHydrated, setDeviceSkinsHydrated] = useState(false);
     const [settingsMenuCollapsed, setSettingsMenuCollapsed] = useState(false);
     const [settingsMenuCollapsedHydrated, setSettingsMenuCollapsedHydrated] = useState(false);
     const [currentKeyboardScaleRatio, setCurrentKeyboardScaleRatio] = useState<number | null>(null);
@@ -336,7 +353,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     /** 因缩放自动收起后：禁止主动展开、换页不展开，直到窗口/视口发生 resize */
     const [sidebarAutoStashUntilResize, setSidebarAutoStashUntilResize] = useState(false);
     const lastScaleZoneRef = useRef<'below' | 'above' | null>(null);
-    const { keyboardData, connectedKeyboard, keyboard, keyboardLayout, connectKeyboard, setConnectKeyboardStauts } =
+    const { keyboardData, connectedKeyboard, keyboard, keyboardLayout, connectKeyboard, setConnectKeyboardStauts, initDataLoaded, beginKeyboardSwitch, abortKeyboardSwitch, refreshAuthorizedKeyboardList } =
         useContext(ConnectKbContext);
     const { deviceStatus } = useContext(MainContext);
     const { selectedSetting, setSelectedSetting } = useContext(EditorContext);
@@ -493,7 +510,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
         [],
     );
     const { deviceBaseInfo } = keyboard;
-    const [previewCandidateIndex, setPreviewCandidateIndex] = useState(0);
+    const [, setPreviewImageTick] = useState(0);
 
     const connectKeyboardNext = useCallback(async () => {
         try {
@@ -504,12 +521,17 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
     }, [connectKeyboard, t]);
 
     const handleSettingSelect = (settingId: string) => {
+        const qmkGroupLabel = parseQmkLightTabId(settingId);
+        if (qmkGroupLabel) {
+            keyboard?.setLightType?.(qmkGroupLabel);
+        }
         setSelectedSetting(settingId);
         onKeyboardSettings?.();
     };
 
     const handleOpenMenu = (event: MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
+        void refreshAuthorizedKeyboardList();
     };
 
     const handleCloseMenu = () => {
@@ -523,24 +545,36 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                     handleCloseMenu();
                     onSelectKeyboard?.(item.id || item.address || item.productName);
 
-                    if (item.devMode === 0 && item.productId === 12290) return;
-                    let device: any = new QMK_KeyboardDevice(new KeyboardAPI(item.address, 1));
-                    // await device.getProtocolVersion();
-                    const version = await device.getProtocolVersion();
-                    if (version !== -1 && version) {
-                        await keyboard.setKeyboardType('QMK');
-                        keyboard.keyboardType = 'QMK';
-                    } else {
-                        device = new KeyboardDevice(new KeyboardAPI(item.address, item.productId === 12290 ? 1 : 0));
-                        await keyboard.setKeyboardType('91683');
-                        keyboard.keyboardType = '91683';
+                    const isDeviceSwitch = initDataLoaded && !!connectedKeyboard;
+                    if (isDeviceSwitch) {
+                        beginKeyboardSwitch(item?.productName ?? '');
                     }
-                    await setConnectKeyboardStauts(device, item);
+
+                    if (item.devMode === 0 && item.productId === 12290) {
+                        if (isDeviceSwitch) abortKeyboardSwitch();
+                        return;
+                    }
+                    let device: any = new QMK_KeyboardDevice(
+                        new KeyboardAPI(item.address, resolveQmkKeyboardApiDeviceMode(item.productId)),
+                    );
+                    let kbType: 'QMK' | '91683' = '91683';
+                    try {
+                        const version = await device.getProtocolVersion();
+                        if (version !== -1 && version) {
+                            kbType = 'QMK';
+                        } else {
+                            device = new KeyboardDevice(new KeyboardAPI(item.address, item.productId === 12290 ? 1 : 0));
+                        }
+                        await setConnectKeyboardStauts(device, item, kbType);
+                    } catch (error) {
+                        if (isDeviceSwitch) abortKeyboardSwitch();
+                        throw error;
+                    }
                 },
                 1000,
                 { trailing: false },
             ),
-        [setConnectKeyboardStauts, onSelectKeyboard, keyboard],
+        [setConnectKeyboardStauts, onSelectKeyboard, keyboard, initDataLoaded, connectedKeyboard, beginKeyboardSwitch, abortKeyboardSwitch],
     );
 
     const keyboardSettings = useMemo(() => {
@@ -556,48 +590,86 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                 ? `${`0x${vid.toString(16).toUpperCase()}`}_${`0x${pid.toString(16).toUpperCase()}`}_${devMode}`
                 : '';
         const keyBoardLayer = key ? !!deviceInfo[key]?.keyBoardLayer : false;
+        const isQMK = keyboard?.keyboardType === 'QMK';
+        const isPickupDevice = isPickupLightingDevice(vid, pid, devMode);
+        const qmkLightingTabs = isQMK
+            ? buildQmkLightingSidebarTabs(keyboardLayout?.menus, isPickupDevice)
+            : [];
+
+        const lightSettingTabs = isQMK
+            ? (qmkLightingTabs.length
+                ? qmkLightingTabs.map((tab) => ({
+                    id: tab.id,
+                    label: tab.label,
+                    iconId: tab.iconId,
+                    keyboardType: true,
+                }))
+                : [{ id: 'lighting', label: t('2704'), keyboardType: true }])
+            : [
+                { id: 'lighting', label: t('2704'), keyboardType: true },
+                { id: 'logolighting', label: t(getLogoLightingTabI18nKey(isPickupDevice)), keyboardType: true },
+            ];
 
         const tabs = [
             { id: 'keypress', label: t('2702'), keyboardType: true },
             { id: 'Led', label: t('2706'), keyboardType: !!deviceBaseInfo?.isLed },
-            { id: 'lighting', label: t('2704'), keyboardType: true },
+            ...lightSettingTabs,
             { id: 'layout', label: t('2703'), keyBoardLayer },
-            { id: 'logolighting', label: t('2705'), keyboardType: true },
             { id: 'matrix', label: t('2707'), keyboardType: !!deviceBaseInfo?.matrixScreen },
         ];
-        return tabs.filter((tab) => (tab.keyboardType ?? true) && (tab.keyBoardLayer ?? true));
-    }, [connectedKeyboard, keyboardData, deviceBaseInfo, t, onlyTestMode]);
+        return tabs.filter((tab) => {
+            if (tab.keyboardType === false) return false;
+            if ('keyBoardLayer' in tab && !tab.keyBoardLayer) return false;
+            return true;
+        });
+    }, [connectedKeyboard, keyboardData, deviceBaseInfo, keyboard?.keyboardType, keyboardLayout?.menus, t, onlyTestMode]);
 
-    const getKeyboardPreviewCandidates = useCallback((vid?: number, pid?: number, devMode: number = 0) => {
-        if (typeof vid !== 'number' || typeof pid !== 'number') return [];
-        const vidHexUpper = `0x${vid.toString(16).toUpperCase()}`;
-        const pidHexUpper = `0x${pid.toString(16).toUpperCase()}`;
-        const vidHexLower = `0x${vid.toString(16).toLowerCase()}`;
-        const pidHexLower = `0x${pid.toString(16).toLowerCase()}`;
-        const vidRawUpper = vid.toString(16).toUpperCase();
-        const pidRawUpper = pid.toString(16).toUpperCase();
-        const vidRawLower = vid.toString(16).toLowerCase();
-        const pidRawLower = pid.toString(16).toLowerCase();
-        const candidates = [
-            `/keyboard/${vidHexUpper}_${pidHexUpper}_${devMode}.png`,
-            `/keyboard/${vidHexUpper}_${pidHexUpper}.png`,
-            `/keyboard/${vidHexLower}_${pidHexLower}_${devMode}.png`,
-            `/keyboard/${vidHexLower}_${pidHexLower}.png`,
-            `/keyboard/${vidRawUpper}_${pidRawUpper}_${devMode}.png`,
-            `/keyboard/${vidRawUpper}_${pidRawUpper}.png`,
-            `/keyboard/${vidRawLower}_${pidRawLower}_${devMode}.png`,
-            `/keyboard/${vidRawLower}_${pidRawLower}.png`,
-        ];
-        return [...new Set(candidates)];
-    }, []);
-
-    const keyboardPreviewCandidates = useMemo(() => {
+    const connectedKeyboardDevMode = useMemo(() => {
         const currentKeyboard = keyboardData.find((item: any) => item.productName === connectedKeyboard?.productName);
-        const devMode = currentKeyboard?.devMode ?? 0;
-        const vid = connectedKeyboard?.vendorId;
-        const pid = connectedKeyboard?.productId;
-        return getKeyboardPreviewCandidates(vid, pid, devMode);
-    }, [connectedKeyboard, keyboardData, getKeyboardPreviewCandidates]);
+        return currentKeyboard?.devMode ?? 0;
+    }, [connectedKeyboard, keyboardData]);
+
+    const connectedDeviceKey = useMemo(() => {
+        if (typeof connectedKeyboard?.vendorId !== 'number' || typeof connectedKeyboard?.productId !== 'number') {
+            return '';
+        }
+        return deviceInfoKey(connectedKeyboard.vendorId, connectedKeyboard.productId, connectedKeyboardDevMode);
+    }, [connectedKeyboard?.vendorId, connectedKeyboard?.productId, connectedKeyboardDevMode]);
+
+    const keyboardSkinOptions = useMemo(() => {
+        const fromLayout = normalizeKeyboardSkinOptions(
+            (keyboardLayout as { previewSkins?: unknown } | undefined)?.previewSkins,
+        );
+        if (
+            Array.isArray((keyboardLayout as { previewSkins?: unknown } | undefined)?.previewSkins)
+            && (keyboardLayout as { previewSkins?: unknown[] }).previewSkins!.length > 0
+        ) {
+            return fromLayout;
+        }
+        return getDevicePreviewSkinOptions(
+            connectedKeyboard?.vendorId,
+            connectedKeyboard?.productId,
+            connectedKeyboardDevMode,
+        );
+    }, [
+        keyboardLayout,
+        connectedKeyboard?.vendorId,
+        connectedKeyboard?.productId,
+        connectedKeyboardDevMode,
+    ]);
+
+    const keyboardSkin = useMemo(
+        () => pickValidDeviceSkin(
+            connectedDeviceKey ? deviceSkins[connectedDeviceKey] : undefined,
+            keyboardSkinOptions,
+        ),
+        [connectedDeviceKey, deviceSkins, keyboardSkinOptions],
+    );
+
+    const setKeyboardSkinForDevice = useCallback((deviceKey: string, skin: string, options: KeyboardSkinOption[]) => {
+        const nextSkin = pickValidDeviceSkin(skin, options);
+        setDeviceSkins((prev) => ({ ...prev, [deviceKey]: nextSkin }));
+    }, []);
 
     /** Popover 中只展示 deviceInfo 已登记的设备 */
     const keyboardDataInConfig = useMemo(
@@ -608,49 +680,73 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
         [keyboardData],
     );
 
-    const keyboardPreviewSrc = keyboardPreviewCandidates[previewCandidateIndex] ?? '';
-    const keyboardSkinOptions = useMemo(
-        () => normalizeKeyboardSkinOptions((keyboardLayout as { previewSkins?: unknown } | undefined)?.previewSkins),
-        [keyboardLayout],
-    );
-    const keyboardPreviewWithSkinSrc = keyboardPreviewSrc
-        ? resolveKeyboardPreviewBySkin(keyboardPreviewSrc, keyboardSkin, keyboardSkinOptions)
-        : '';
+    const keyboardPreviewWithSkinSrc = useMemo(() => {
+        if (typeof connectedKeyboard?.vendorId !== 'number' || typeof connectedKeyboard?.productId !== 'number') {
+            return '';
+        }
+        return resolveDeviceKeyboardPreviewSrc(
+            connectedKeyboard.vendorId,
+            connectedKeyboard.productId,
+            connectedKeyboardDevMode,
+            keyboardSkin,
+        );
+    }, [
+        connectedKeyboard?.vendorId,
+        connectedKeyboard?.productId,
+        connectedKeyboardDevMode,
+        keyboardSkin,
+    ]);
+    const showKeyboardPreviewImage = isKeyboardPreviewAvailable(keyboardPreviewWithSkinSrc);
 
-    useEffect(() => {
-        setPreviewCandidateIndex(0);
-    }, [keyboardPreviewCandidates]);
+    const handleKeyboardPreviewError = useCallback(() => {
+        if (markKeyboardPreviewFailed(keyboardPreviewWithSkinSrc)) {
+            setPreviewImageTick((prev) => prev + 1);
+        }
+    }, [keyboardPreviewWithSkinSrc]);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-        const cached = window.localStorage.getItem(KEYBOARD_SKIN_STORAGE_KEY);
-        if (cached) {
-            const isValid = keyboardSkinOptions.some((item) => item.value === cached);
-            if (isValid) {
-                setKeyboardSkin(cached);
-            }
-        }
-        setKeyboardSkinHydrated(true);
-    }, [keyboardSkinOptions]);
+        setDeviceSkins(readDeviceSkinsFromStorage());
+        setDeviceSkinsHydrated(true);
+    }, []);
 
     useEffect(() => {
-        if (!keyboardSkinHydrated) return;
-        if (typeof window === 'undefined') return;
-        if (!keyboardSkinOptions.some((item) => item.value === keyboardSkin)) return;
-        window.localStorage.setItem(KEYBOARD_SKIN_STORAGE_KEY, keyboardSkin);
-    }, [keyboardSkin, keyboardSkinHydrated, keyboardSkinOptions]);
+        if (!deviceSkinsHydrated || !connectedDeviceKey) return;
+        const legacy = window.localStorage.getItem(LEGACY_KEYBOARD_SKIN_STORAGE_KEY);
+        if (!legacy) return;
+        setDeviceSkins((prev) => {
+            if (prev[connectedDeviceKey]) return prev;
+            return { ...prev, [connectedDeviceKey]: legacy };
+        });
+    }, [deviceSkinsHydrated, connectedDeviceKey]);
 
     useEffect(() => {
-        if (!keyboardSkinOptions.some((item) => item.value === keyboardSkin)) {
-            setKeyboardSkin(keyboardSkinOptions[0].value);
-        }
-    }, [keyboardSkinOptions, keyboardSkin]);
+        if (!deviceSkinsHydrated) return;
+        writeDeviceSkinsToStorage(deviceSkins);
+    }, [deviceSkins, deviceSkinsHydrated]);
+
+    useEffect(() => {
+        if (!connectedDeviceKey) return;
+        setDeviceSkins((prev) => {
+            const current = prev[connectedDeviceKey];
+            const valid = pickValidDeviceSkin(current, keyboardSkinOptions);
+            if (current === valid) return prev;
+            return { ...prev, [connectedDeviceKey]: valid };
+        });
+    }, [connectedDeviceKey, keyboardSkinOptions]);
 
     useEffect(() => {
         if (!keyboardSettings.length) return;
-        if (!keyboardSettings.some((item) => item.id === selectedSetting)) {
-            setSelectedSetting(keyboardSettings[0].id);
-        }
+        const isValid = keyboardSettings.some((item) => item.id === selectedSetting);
+        if (isValid) return;
+
+        const firstLightTab = keyboardSettings.find(
+            (item) =>
+                item.id === 'lighting'
+                || item.id === 'logolighting'
+                || item.id.startsWith('qmk-light:'),
+        );
+        setSelectedSetting(firstLightTab?.id ?? keyboardSettings[0].id);
     }, [keyboardSettings, selectedSetting, setSelectedSetting]);
 
     const open = Boolean(anchorEl);
@@ -813,12 +909,12 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                             ...(settingsMenuCollapsed ? { cursor: 'pointer' } : {}),
                         }}
                     >
-                        {keyboardPreviewWithSkinSrc ? (
+                        {showKeyboardPreviewImage ? (
                             <Box
                                 component="img"
                                 src={keyboardPreviewWithSkinSrc}
                                 alt={t('2712')}
-                                onError={() => setPreviewCandidateIndex((prev) => prev + 1)}
+                                onError={handleKeyboardPreviewError}
                                 sx={{
                                     width: '100%',
                                     height: '100%',
@@ -914,10 +1010,18 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                         <Stack spacing={0} sx={{ gap: '10px' }}>
                             {keyboardDataInConfig.map((kb: any, index: number) => {
                                 const active = (connectedKeyboard?.productName || '') === kb.productName;
-                                const kbPreviewSrc = getKeyboardPreviewCandidates(kb.vendorId, kb.productId, kb.devMode ?? 0)[0] ?? '';
-                                const kbPreviewWithSkinSrc = active
-                                    ? resolveKeyboardPreviewBySkin(kbPreviewSrc, keyboardSkin, keyboardSkinOptions)
-                                    : kbPreviewSrc;
+                                const kbDevMode = kb.devMode ?? 0;
+                                const kbDeviceKey = deviceInfoKey(kb.vendorId, kb.productId, kbDevMode);
+                                const kbSkinOptions = getDevicePreviewSkinOptions(kb.vendorId, kb.productId, kbDevMode);
+                                const kbSkin = pickValidDeviceSkin(deviceSkins[kbDeviceKey], kbSkinOptions);
+                                const kbPreviewWithSkinSrc = resolveDeviceKeyboardPreviewSrc(
+                                    kb.vendorId,
+                                    kb.productId,
+                                    kbDevMode,
+                                    kbSkin,
+                                );
+                                const showKbPreviewImage = isKeyboardPreviewAvailable(kbPreviewWithSkinSrc);
+                                const showKbSkinSelect = kbSkinOptions.length > 1;
                                 return (
                                     <Box
                                         key={kb.id || kb.address || `${kb.productName}-${index}`}
@@ -928,10 +1032,15 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                             cursor: 'pointer',
                                             backgroundColor: active
                                                 ? theme.palette.primary.main
-                                                : isDark
-                                                  ? alpha(theme.palette.primary.main, 0.08)
-                                                  : 'rgba(241, 245, 249, 0.9)',
+                                                : 'transparent',
                                             transition: 'background-color 0.2s ease-out, color 0.2s ease-out',
+                                            '&:hover': {
+                                                backgroundColor: active
+                                                    ? theme.palette.primary.main
+                                                    : isDark
+                                                      ? alpha(theme.palette.primary.main, 0.08)
+                                                      : 'rgba(241, 245, 249, 0.9)',
+                                            },
                                         }}
                                     >
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -947,11 +1056,16 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                     overflow: 'hidden',
                                                 }}
                                             >
-                                                {kbPreviewWithSkinSrc ? (
+                                                {showKbPreviewImage ? (
                                                     <Box
                                                         component="img"
                                                         src={kbPreviewWithSkinSrc}
                                                         alt={kb.productName || t('2713')}
+                                                        onError={() => {
+                                                            if (markKeyboardPreviewFailed(kbPreviewWithSkinSrc)) {
+                                                                setPreviewImageTick((prev) => prev + 1);
+                                                            }
+                                                        }}
                                                         sx={{
                                                             width: '100%',
                                                             height: '100%',
@@ -988,7 +1102,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                     {kb.productName}
                                                 </Typography>
 
-                                                {active ? (
+                                                {showKbSkinSelect ? (
                                                     <FormControl
                                                         fullWidth
                                                         size="small"
@@ -998,10 +1112,10 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                     >
                                                         <Select
                                                             variant="outlined"
-                                                            value={keyboardSkin}
+                                                            value={kbSkin}
                                                             displayEmpty
                                                             renderValue={(value) => {
-                                                                const opt = keyboardSkinOptions.find(
+                                                                const opt = kbSkinOptions.find(
                                                                     (o) => o.value === value,
                                                                 );
                                                                 return opt ? getKeyboardSkinOptionLabel(opt, t) : '';
@@ -1010,7 +1124,11 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                                 'aria-label': t('2712'),
                                                             }}
                                                             onChange={(event: SelectChangeEvent<string>) => {
-                                                                setKeyboardSkin(event.target.value);
+                                                                setKeyboardSkinForDevice(
+                                                                    kbDeviceKey,
+                                                                    event.target.value,
+                                                                    kbSkinOptions,
+                                                                );
                                                             }}
                                                             onClick={(event) => event.stopPropagation()}
                                                             MenuProps={{
@@ -1106,7 +1224,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                                                 },
                                                             }}
                                                         >
-                                                            {keyboardSkinOptions.map((option) => (
+                                                            {kbSkinOptions.map((option) => (
                                                                 <MenuItem
                                                                     key={option.value}
                                                                     value={option.value}
@@ -1236,6 +1354,7 @@ export default function KeyboardPanel({ onSelectKeyboard, onKeyboardSettings, on
                                         startIcon={
                                             <KeyboardPanelSettingIcon
                                                 id={setting.id}
+                                                iconId={'iconId' in setting ? setting.iconId : undefined}
                                                 active={active}
                                                 collapsed={settingsMenuCollapsed}
                                                 isDark={isDark}

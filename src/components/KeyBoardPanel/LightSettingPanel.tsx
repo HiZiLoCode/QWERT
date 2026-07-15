@@ -11,8 +11,22 @@ import TravelVirtualKeyboard from '@/components/TravelVirtualKeyboard';
 import ColorPicker from '@/components/ColorPicker';
 import { ButtonRem, SliderRem } from '@/styled/ReconstructionRem';
 import Matrix from '@/components/Matrix';
+import QmkMatrixPanel from '@/components/Matrix/QmkMatrixPanel';
 import ToggleSlider from '@/components/common/ToggleSlider';
 import { mergeLayoutKeysWithUserKeyNames } from '@/utils/mergeLayoutKeysWithUserKeyNames';
+import { resolveQMKDisplayLayoutKeys } from '@/utils/qmkLayoutBridge';
+import {
+  findMenuContentIdByGroupLabel,
+  findQmkLightingGroup,
+  getQmkLightingGroupControls,
+  hexToQmkHueSatBytes,
+  isPickupLightingDevice,
+  parseQmkLightingGroups,
+  qmkHueSatBytesToHex,
+  resolveQmkEffectsKeyForLabel,
+  resolveQmkFuncInfoPrefixForLabel,
+} from '@/utils/qmkLightingBridge';
+import { debounce } from 'lodash';
 import { useSnackbarDialog } from '@/providers/useSnackbarProvider';
 import {
   lightingBrightnessInputSx,
@@ -129,26 +143,144 @@ const EYEDROPPER_LONG_PRESS_MS = 220;
 
 type LightSettingPanelProps = {
   forcedLightType?: 'backlight' | 'logolight' | 'sidelight' | 'matrixlight';
+  /** QMK：侧边栏选中的 VIA 灯光分组 label */
+  qmkLightGroupLabel?: string;
   onKeyboardScaleChange?: (ratio: number) => void;
 };
 
-export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChange }: LightSettingPanelProps = {}) {
+export default function LightSettingPanel({
+  forcedLightType,
+  qmkLightGroupLabel,
+  onKeyboardScaleChange,
+}: LightSettingPanelProps = {}) {
   const { t } = useTranslation('common');
   const theme = useTheme();
   const { showDialog, showMessage } = useSnackbarDialog();
   const isMatrixOnly = forcedLightType === 'matrixlight';
 
-  const { connectedKeyboard, keyboard, keyboardLayout } = useContext(ConnectKbContext);
+  const { connectedKeyboard, keyboard, keyboardLayout, keyboardData } = useContext(ConnectKbContext);
 
   const layoutKeys: LayoutKey[] = keyboard?.layoutKeys ?? [];
   const travelKeys = keyboard?.travelKeys ?? [];
   const defaultLayerUserKeys = keyboard?.userKeys?.[0] ?? [];
-  const displayLayoutKeys = useMemo(
-    () => mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys),
-    [layoutKeys, defaultLayerUserKeys],
-  );
-
   const isQMK = keyboard?.keyboardType === 'QMK';
+  const qmkMenus: any[] | undefined = keyboardLayout?.menus;
+  const qmkLightingGroups = useMemo(
+    () => (isQMK ? parseQmkLightingGroups(qmkMenus) : []),
+    [isQMK, qmkMenus],
+  );
+  const devMode = useMemo(() => {
+    const current = keyboardData.find((item: { productName?: string; devMode?: number }) => item.productName === connectedKeyboard?.productName);
+    return current?.devMode ?? 0;
+  }, [keyboardData, connectedKeyboard?.productName]);
+  const isPickupDevice = useMemo(
+    () => isPickupLightingDevice(connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode),
+    [connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode],
+  );
+  const lightType = isQMK
+    ? (qmkLightGroupLabel ?? keyboard?.lightType ?? qmkLightingGroups[0]?.label ?? 'backlight')
+    : (forcedLightType ?? keyboard?.lightType ?? 'backlight');
+
+  useEffect(() => {
+    if (!isQMK || !qmkLightGroupLabel) return;
+    if (keyboard?.lightType !== qmkLightGroupLabel) {
+      keyboard?.setLightType?.(qmkLightGroupLabel);
+    }
+  }, [isQMK, qmkLightGroupLabel, keyboard?.lightType, keyboard]);
+  const currentQmkGroup = useMemo(
+    () => (isQMK ? findQmkLightingGroup(qmkMenus, lightType) : null),
+    [isQMK, qmkMenus, lightType],
+  );
+  const effectsStorageKey = isQMK
+    ? resolveQmkEffectsKeyForLabel(qmkMenus, lightType)
+    : lightType;
+  const isPickupLightingModule = isQMK
+    ? currentQmkGroup?.groupType === 'logo' && isPickupDevice
+    : forcedLightType === 'logolight' && isPickupDevice;
+  const legacyPrefix = isQMK
+    ? resolveQmkFuncInfoPrefixForLabel(qmkMenus, lightType)
+    : lightType === 'logolight'
+      ? 'logoLight'
+      : lightType === 'sidelight'
+        ? 'sideLight'
+        : 'light';
+  const brightnessRange = useMemo(() => {
+    if (isQMK) {
+      const range = keyboardLayout?.lighting?.maxBrightness?.[effectsStorageKey];
+      if (Array.isArray(range) && range.length >= 2) {
+        return { min: Number(range[0]) || 0, max: Number(range[1]) || 255 };
+      }
+    }
+    const max = keyboard?.deviceBaseInfo?.lightMaxBrightness ?? 255;
+    return { min: 0, max };
+  }, [isQMK, keyboardLayout?.lighting?.maxBrightness, effectsStorageKey, keyboard?.deviceBaseInfo?.lightMaxBrightness]);
+
+  const maxBrightness = brightnessRange.max;
+
+  const rawBrightnessToPercent = useCallback((raw: number) => {
+    const { min, max } = brightnessRange;
+    const span = max - min;
+    if (span <= 0) return 0;
+    return Math.max(0, Math.min(100, Math.round(((raw - min) / span) * 100)));
+  }, [brightnessRange]);
+
+  const percentToRawBrightness = useCallback((pct: number) => {
+    const { min, max } = brightnessRange;
+    const clamped = Math.max(0, Math.min(100, pct));
+    return Math.round(min + (clamped / 100) * (max - min));
+  }, [brightnessRange]);
+
+  const maxSpeed = useMemo(() => {
+    if (isQMK) {
+      return keyboardLayout?.lighting?.maxSpeed?.[effectsStorageKey]?.[1]
+        ?? keyboard?.deviceBaseInfo?.lightMaxSpeed
+        ?? 255;
+    }
+    return keyboard?.deviceBaseInfo?.lightMaxSpeed ?? 255;
+  }, [isQMK, keyboardLayout?.lighting?.maxSpeed, effectsStorageKey, keyboard?.deviceBaseInfo?.lightMaxSpeed]);
+  const isEffectSwitchRef = useRef(false);
+
+  const debouncedQmkSetColor = useRef(
+    debounce(
+      async (hex: string, groupLabel: string, menus: any[], kb: any) => {
+        const ci = findMenuContentIdByGroupLabel(menus, groupLabel, (i) => i.type === 'color');
+        if (!ci) return;
+        const { hByte, sByte } = hexToQmkHueSatBytes(hex);
+        await kb?.setLightingValue?.(ci[0], ci[1], hByte, sByte);
+      },
+      150,
+      { leading: false, trailing: true },
+    ),
+  ).current;
+
+  const debouncedQmkSetSpeed = useRef(
+    debounce(
+      async (speedValue: number, groupLabel: string, menus: any[], kb: any) => {
+        const ci = findMenuContentIdByGroupLabel(menus, groupLabel, (i) => i.type === 'range' && i.label === 'Effect Speed');
+        if (ci) await kb?.setLightingValue?.(ci[0], ci[1], speedValue);
+      },
+      200,
+      { leading: false, trailing: true },
+    ),
+  ).current;
+
+  const debouncedQmkSetBrightness = useRef(
+    debounce(
+      async (rawBrightness: number, groupLabel: string, menus: any[], kb: any) => {
+        const ci = findMenuContentIdByGroupLabel(menus, groupLabel, (i) => i.type === 'range' && i.label === 'Brightness');
+        if (ci) await kb?.setLightingValue?.(ci[0], ci[1], rawBrightness);
+      },
+      200,
+      { leading: false, trailing: true },
+    ),
+  ).current;
+
+  const displayLayoutKeys = useMemo(() => {
+    if (isQMK) {
+      return resolveQMKDisplayLayoutKeys(layoutKeys, keyboard?.allQMKLayers, keyboard?.layer ?? 0);
+    }
+    return mergeLayoutKeysWithUserKeyNames(layoutKeys, defaultLayerUserKeys);
+  }, [isQMK, layoutKeys, keyboard?.allQMKLayers, keyboard?.layer, defaultLayerUserKeys]);
 
   const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
   const [openLight, setOpenLight] = useState(true);
@@ -186,21 +318,26 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     };
   }, [eyedropperActive]);
 
-  const lightType = forcedLightType ?? keyboard?.lightType ?? 'backlight';
-  const isPickupLightingModule = forcedLightType === 'logolight';
-  const legacyPrefix = lightType === 'logolight' ? 'logoLight' : lightType === 'sidelight' ? 'sideLight' : 'light';
-  const maxBrightness = useMemo(() => keyboard?.deviceBaseInfo?.lightMaxBrightness ?? 255, [keyboard?.deviceBaseInfo?.lightMaxBrightness]);
-
-  const maxSpeed = useMemo(() => keyboard?.deviceBaseInfo?.lightMaxSpeed ?? 255, [keyboard?.deviceBaseInfo?.lightMaxSpeed]);
-
   const lightEffects = useMemo(() => {
-    const list = keyboardLayout?.lighting?.[lightType] ?? [];
+    let list: any[] = [];
+    if (isQMK) {
+      const effectsMap = keyboardLayout?.lighting?.effects ?? {};
+      list = effectsMap[effectsStorageKey] ?? [];
+    } else {
+      list = keyboardLayout?.lighting?.[lightType] ?? [];
+    }
     return list.map((effect: any, idx: number) => ({
       ...effect,
       value: effect.value ?? idx,
-      label: resolveLightEffectLabel(effect, idx, t),
+      label: (() => {
+        if (!isQMK && lightType === 'logolight' && !isPickupDevice && effect.name) {
+          return String(effect.name);
+        }
+        if (isQMK && effect.name) return String(effect.name);
+        return resolveLightEffectLabel(effect, idx, t);
+      })(),
     }));
-  }, [keyboardLayout, lightType, t]);
+  }, [isQMK, keyboardLayout, lightType, effectsStorageKey, t, isPickupDevice]);
 
   const selectedEffect = useMemo(() => {
     const mode = keyboard?.deviceFuncInfo?.[`${legacyPrefix}Mode`] ?? 0;
@@ -286,7 +423,30 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     currentLightInfo?.palette !== false &&
     (canEnableColorful || (currentLightInfo?.color === false && !isAllOffLight));
   const isCustomEffect = selectedEffect >= 253;
+  const qmkGroupControls = useMemo(
+    () => (isQMK ? getQmkLightingGroupControls(qmkMenus, lightType) : null),
+    [isQMK, qmkMenus, lightType],
+  );
+  const showBrightnessSection = isQMK
+    ? Boolean(qmkGroupControls?.hasBrightness && canAdjustBrightness)
+    : canAdjustBrightness;
+  const showSpeedSection = isQMK
+    ? Boolean(qmkGroupControls?.hasSpeed && canAdjustSpeed)
+    : canAdjustSpeed;
+  const showColorSection = isQMK
+    ? Boolean(qmkGroupControls?.hasColor && currentLightInfo?.color)
+    : Boolean(currentLightInfo?.color !== false && !isAllOffLight);
+  const qmkColorPickerDisabled = isQMK && !currentLightInfo?.color;
   const canCustomPaint = !isQMK && lightType === 'backlight' && lightGatesEffectControls && isCustomEffect;
+  const hasMiddlePanel = Boolean(
+    isPickupLightingModule
+    || showBrightnessSection
+    || showSpeedSection
+    || canAdjustDirection
+    || (showColorSection && !isQMK)
+    || canCustomPaint,
+  );
+  const hasColorPickerPanel = showColorSection;
   const switchingCustomEffectRef = useRef(false);
   const customPaintDragRef = useRef(false);
   const customPaintDragColorRef = useRef<string | null>(null);
@@ -306,6 +466,16 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   }, [currentLightInfo?.directionDescription]);
 
   const effectGroups = useMemo<EffectGroup[]>(() => {
+    if (isQMK) {
+      if (!lightEffects.length) {
+        return [{ title: t('1672'), items: [] }];
+      }
+      return [{
+        title: t('1672'),
+        items: lightEffects.map((e) => ({ value: e.value, label: e.label })),
+      }];
+    }
+
     if (!lightEffects.length) {
       return [
         { title: t('1672'), items: [{ value: 253, label: t('1673') }] },
@@ -357,9 +527,36 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       { title: t('1672'), items: staticEffects.length ? staticEffects : lightEffects.slice(0, 1) },
       { title: t('1674'), items: dynamicEffects },
     ];
-  }, [lightEffects, lightType, t]);
+  }, [lightEffects, lightType, t, isQMK]);
 
   useEffect(() => {
+    if (!isQMK || !keyboard?.deviceFuncInfo) return;
+    const prefix = legacyPrefix;
+    const info = keyboard.deviceFuncInfo;
+    if (isPickupLightingModule) {
+      const lightSwitchRaw = Number(info.pickupLightEffectSwitch ?? 0);
+      setOpenLight(lightSwitchRaw === 1);
+    } else {
+      setOpenLight((info[`${prefix}Switch`] ?? 0) === 0);
+    }
+    if (!isEffectSwitchRef.current) {
+      const rawBrightness = info[`${prefix}Brightness`] ?? 0;
+      const nextBrightness = isQMK
+        ? rawBrightnessToPercent(rawBrightness)
+        : Math.round((rawBrightness / (maxBrightness || 1)) * 100);
+      setBrightness(Number.isFinite(nextBrightness) ? nextBrightness : 0);
+      setBrightnessInput(String(Number.isFinite(nextBrightness) ? nextBrightness : 0));
+      setSpeed(info[`${prefix}Speed`] ?? 0);
+    }
+    isEffectSwitchRef.current = false;
+    setSingleColorMode((info[`${prefix}MixColor`] ?? 1) === 0);
+    const hueByte = info[`${prefix}RValue`] ?? 0;
+    const satByte = info[`${prefix}GValue`] ?? 0;
+    setSelectedColor(qmkHueSatBytesToHex(hueByte, satByte));
+  }, [isQMK, isPickupLightingModule, keyboard?.deviceFuncInfo, lightType, legacyPrefix, maxBrightness, rawBrightnessToPercent]);
+
+  useEffect(() => {
+    if (isQMK) return;
     const info = keyboard?.deviceFuncInfo;
     if (!info) return;
 
@@ -516,7 +713,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const updateFuncInfo = (patch: Record<string, unknown>) => {
     const next = { ...(keyboard?.deviceFuncInfo ?? {}), ...patch };
     keyboard?.setDeviceFuncInfo?.(next);
-    if (!connectedKeyboard?.test) {
+    if (!isQMK && !connectedKeyboard?.test) {
       void connectedKeyboard?.setFuncInfo?.(next, keyboard?.deviceBaseInfo?.protocolVer);
     }
   };
@@ -613,7 +810,13 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     const v = Math.max(0, Math.min(100, Array.isArray(value) ? value[0] : value));
     setBrightness(v);
     setBrightnessInput(String(v));
-    const raw = Math.round((v / 100) * maxBrightness);
+    const raw = isQMK ? percentToRawBrightness(v) : Math.round((v / 100) * maxBrightness);
+
+    if (isQMK) {
+      debouncedQmkSetBrightness(raw, lightType, qmkMenus ?? [], connectedKeyboard);
+      updateFuncInfo({ [`${legacyPrefix}Brightness`]: raw });
+      return;
+    }
 
     updateFuncInfo({ [`${legacyPrefix}Brightness`]: raw });
   };
@@ -628,10 +831,29 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
     const v = Array.isArray(value) ? value[0] : value;
     setSpeed(v);
 
+    if (isQMK) {
+      debouncedQmkSetSpeed(v, lightType, qmkMenus ?? [], connectedKeyboard);
+      updateFuncInfo({ [`${legacyPrefix}Speed`]: v });
+      return;
+    }
+
     updateFuncInfo({ [`${legacyPrefix}Speed`]: v });
   };
 
   const handleEffectChange = async (effectId: number) => {
+    if (isQMK) {
+      const ci = findMenuContentIdByGroupLabel(qmkMenus, lightType, (i) => i.type === 'dropdown');
+      if (ci) {
+        await connectedKeyboard?.setLightingValue?.(ci[0], ci[1], effectId);
+      }
+      isEffectSwitchRef.current = true;
+      updateFuncInfo({
+        [`${legacyPrefix}Mode`]: effectId,
+        lightCustomIndex: 0,
+      });
+      return;
+    }
+
     // 拾音灯：动态灯效或全灭时关闭音频响应（字节 63 = 0）
     const effectMeta = effectId >= 253 ? null : lightEffects.find((e: any) => e.value === effectId);
     let closePickupAudio = false;
@@ -698,6 +920,17 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const handleColorChange = async (hex: string) => {
     setSelectedColor(hex);
 
+    if (isQMK) {
+      if (!currentLightInfo?.color) return;
+      debouncedQmkSetColor(hex, lightType, qmkMenus ?? [], connectedKeyboard);
+      const { hByte, sByte } = hexToQmkHueSatBytes(hex);
+      updateFuncInfo({
+        [`${legacyPrefix}RValue`]: hByte,
+        [`${legacyPrefix}GValue`]: sByte,
+      });
+      return;
+    }
+
     const { r, g, b } = toRgb(hex);
 
     updateFuncInfo({
@@ -752,6 +985,16 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   const handlePickupAudioSwitch = async (checked: boolean) => {
     if (isPickupLightingModule && (isPickupDynamicLighting || isPickupAllOff)) return;
     setOpenLight(checked);
+
+    if (isQMK && !isPickupLightingModule) {
+      const ci = findMenuContentIdByGroupLabel(qmkMenus, lightType, (i) => i.type === 'range' && i.label === 'Brightness');
+      if (ci) {
+        await connectedKeyboard?.setLightingValue?.(ci[0], ci[1], checked ? percentToRawBrightness(100) : percentToRawBrightness(0));
+      }
+      updateFuncInfo({ [`${legacyPrefix}Switch`]: checked ? 0 : 1 });
+      return;
+    }
+
     const switchByte = isPickupLightingModule
       ? (checked ? 1 : 0) // 拾音：1=开，0=关
       : checked
@@ -765,7 +1008,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
   };
 
   if (isMatrixOnly) {
-    return <Matrix />;
+    return isQMK ? <QmkMatrixPanel /> : <Matrix />;
   }
 
   return (
@@ -962,7 +1205,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       </Box>
       <Box sx={{
         flex: 1, display: 'flex', justifyContent: "center", gap: '16px', maxWidth: "1800px",
-        minWidth: "1200px",
+        minWidth: hasMiddlePanel || hasColorPickerPanel ? "1200px" : "auto",
         maxHeight: "500px",
         height: '100%',
         width: '100%',
@@ -971,8 +1214,9 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
       }}>
         <Box
           sx={{
-            width: "550px",
-            minWidth: "450px",
+            width: hasMiddlePanel || hasColorPickerPanel ? "550px" : "100%",
+            maxWidth: hasMiddlePanel || hasColorPickerPanel ? "550px" : "720px",
+            minWidth: hasMiddlePanel || hasColorPickerPanel ? "450px" : "auto",
             ...lightingPanelCardSx(theme),
             p: 20,
             overflow: "auto"
@@ -1013,6 +1257,7 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           ))}
         </Box>
 
+        {hasMiddlePanel ? (
         <Box
           sx={{
             width: "400px", minWidth: "350px",
@@ -1037,51 +1282,58 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
               />
             </Box>
           ) : null}
-          <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1676')}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-            <SliderRem
-              value={brightness}
-              min={0}
-              max={100}
-              disabled={!canAdjustBrightness}
-              onChange={(_, v) => setBrightness(Array.isArray(v) ? v[0] : v)}
-              onChangeCommitted={handleBrightnessCommit}
-              sx={lightingSliderSx(theme)}
-            />
-            <Box
-              component="input"
-              value={brightnessInput}
-              disabled={!canAdjustBrightness}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                const onlyDigits = e.target.value.replace(/[^\d]/g, '').slice(0, 3);
-                setBrightnessInput(onlyDigits);
-              }}
-              onBlur={() => { void commitBrightnessInput(); }}
-              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter') {
-                  e.currentTarget.blur();
-                }
-              }}
-              sx={lightingBrightnessInputSx(theme)}
-            />
-            <Typography sx={lightingPercentMutedSx(theme)}>%</Typography>
-          </Box>
+          {showBrightnessSection ? (
+            <>
+              <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1676')}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+                <SliderRem
+                  value={brightness}
+                  min={0}
+                  max={100}
+                  disabled={!canAdjustBrightness}
+                  onChange={(_, v) => setBrightness(Array.isArray(v) ? v[0] : v)}
+                  onChangeCommitted={handleBrightnessCommit}
+                  sx={lightingSliderSx(theme)}
+                />
+                <Box
+                  component="input"
+                  value={brightnessInput}
+                  disabled={!canAdjustBrightness}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    const onlyDigits = e.target.value.replace(/[^\d]/g, '').slice(0, 3);
+                    setBrightnessInput(onlyDigits);
+                  }}
+                  onBlur={() => { void commitBrightnessInput(); }}
+                  onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === 'Enter') {
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  sx={lightingBrightnessInputSx(theme)}
+                />
+                <Typography sx={lightingPercentMutedSx(theme)}>%</Typography>
+              </Box>
+            </>
+          ) : null}
 
-
-          <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1677')}</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 9, mb: 3.5 }}>
-            <SliderRem
-              value={speed}
-              min={0}
-              max={maxSpeed}
-              disabled={!canAdjustSpeed}
-              onChange={(_, v) => setSpeed(Array.isArray(v) ? v[0] : v)}
-              onChangeCommitted={handleSpeedCommit}
-              sx={lightingSliderSx(theme)}
-            />
-            <Box sx={{ width: '50px', height: '32px' }} />
-            <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
-          </Box>
+          {showSpeedSection ? (
+            <>
+              <Typography sx={{ ...lightingSectionLabelSx(theme), mb: 8 }}>{t('1677')}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 9, mb: 3.5 }}>
+                <SliderRem
+                  value={speed}
+                  min={0}
+                  max={maxSpeed}
+                  disabled={!canAdjustSpeed}
+                  onChange={(_, v) => setSpeed(Array.isArray(v) ? v[0] : v)}
+                  onChangeCommitted={handleSpeedCommit}
+                  sx={lightingSliderSx(theme)}
+                />
+                <Box sx={{ width: '50px', height: '32px' }} />
+                <Typography sx={{ color: 'transparent', fontSize: '20px', fontWeight: 600, userSelect: 'none' }}>%</Typography>
+              </Box>
+            </>
+          ) : null}
 
           {canAdjustDirection ? (
             <>
@@ -1105,25 +1357,29 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
             </>
           ) : null}
 
-          <Typography sx={{ ...lightingSectionLabelSx(theme), mt: 14, mb: 8 }}>{t('206')}</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            <ButtonRem
-              disabled={pickupStaticDisableSwatch || !canEnableSingleColor}
-              onClick={() => void handleColorfulSwitch(false)}
-              variant="text"
-              sx={lightingToggleGridButtonSx(theme, singleColorMode)}
-            >
-              {t('1690')}
-            </ButtonRem>
-            <ButtonRem
-              disabled={!canEnableColorful || pickupStaticDisableSwatch}
-              onClick={() => void handleColorfulSwitch(true)}
-              variant="text"
-              sx={lightingToggleGridButtonSx(theme, !singleColorMode)}
-            >
-              {t('1691')}
-            </ButtonRem>
-          </Box>
+          {showColorSection && !isQMK ? (
+            <>
+              <Typography sx={{ ...lightingSectionLabelSx(theme), mt: 14, mb: 8 }}>{t('206')}</Typography>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <ButtonRem
+                  disabled={pickupStaticDisableSwatch || !canEnableSingleColor}
+                  onClick={() => void handleColorfulSwitch(false)}
+                  variant="text"
+                  sx={lightingToggleGridButtonSx(theme, singleColorMode)}
+                >
+                  {t('1690')}
+                </ButtonRem>
+                <ButtonRem
+                  disabled={!canEnableColorful || pickupStaticDisableSwatch}
+                  onClick={() => void handleColorfulSwitch(true)}
+                  variant="text"
+                  sx={lightingToggleGridButtonSx(theme, !singleColorMode)}
+                >
+                  {t('1691')}
+                </ButtonRem>
+              </Box>
+            </>
+          ) : null}
 
           {canCustomPaint ? (
             <ButtonRem
@@ -1172,7 +1428,9 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
             </ButtonRem>
           ) : null}
         </Box>
+        ) : null}
 
+        {hasColorPickerPanel ? (
         <Box
           sx={{
             width: "350px",
@@ -1183,13 +1441,15 @@ export default function LightSettingPanel({ forcedLightType, onKeyboardScaleChan
           }}
         >
           <ColorPicker
-            disabled={!singleColorMode || !canPickSolidColorOnPalette}
+            hueSatOnly={isQMK}
+            disabled={isQMK ? qmkColorPickerDisabled : (!singleColorMode || !canPickSolidColorOnPalette)}
             selectColor={selectedColor}
             setSelectColor={(hex) => {
               void handleColorChange(hex);
             }}
           />
         </Box>
+        ) : null}
       </Box>
     </>
   );

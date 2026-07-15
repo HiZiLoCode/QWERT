@@ -3,13 +3,16 @@
 import { Box, Typography } from '@mui/material';
 import type { LayoutKey } from '@/types/types_v1';
 import type { CompositeLayoutKey, PatternKey } from './types';
-import { getActuationLabel, getCompositeKeyClipPath, getNameColor, renderPattern } from './render';
+import { getActuationLabel, getKeyClipPath, getNameColor, getUKEnterBorderImage, renderPattern } from './render';
 import UnifiedTooltip from '@/components/common/UnifiedTooltip';
 import customKeys from '@/data/customkeys.json';
 import { useTranslation } from '@/app/i18n';
 import { alpha, useTheme } from '@mui/material/styles';
 import { KEY_TYPE_ICON_BOX_PX } from '@/constants/keyTypeIconDisplay';
 import PublicAssetImage from '@/components/common/PublicAssetImage';
+import { useContext, useMemo } from 'react';
+import { ConnectKbContext } from '@/providers/ConnectKbProvider';
+import { isPickupLightingDevice, resolveLogoLightingLangKey } from '@/utils/qmkLightingBridge';
 
 const iconPathToNameMap: Record<string, string> = (customKeys as any[])
     .flatMap((group) => group?.keycodes ?? [])
@@ -97,6 +100,15 @@ export default function KeyboardKeys({
     const { t } = useTranslation('common');
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
+    const { connectedKeyboard, keyboardData } = useContext(ConnectKbContext);
+    const devMode = useMemo(() => {
+        const current = keyboardData.find((item: { productName?: string; devMode?: number }) => item.productName === connectedKeyboard?.productName);
+        return current?.devMode ?? 0;
+    }, [keyboardData, connectedKeyboard?.productName]);
+    const isPickupDevice = useMemo(
+        () => isPickupLightingDevice(connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode),
+        [connectedKeyboard?.vendorId, connectedKeyboard?.productId, devMode],
+    );
 
     const isImageIcon = (value: string) => {
         const normalized = String(value || '').trim();
@@ -114,7 +126,7 @@ export default function KeyboardKeys({
     const resolveIconTooltipTitle = (keyDisplay: string, keyName: string): string | undefined => {
         if (!isIconPrimaryDisplay(keyDisplay)) return undefined;
         const iconKey = keyDisplay.trim();
-        const i18nLookup = iconPathToI18nKey[iconKey];
+        const i18nLookup = resolveLogoLightingLangKey(iconPathToI18nKey[iconKey], isPickupDevice) ?? iconPathToI18nKey[iconKey];
         if (i18nLookup) {
             const translated = t(i18nLookup);
             if (translated && translated !== i18nLookup) return translated;
@@ -144,7 +156,8 @@ export default function KeyboardKeys({
                 const nameColor = getNameColor(colorMode, colorMode ? keyBg : undefined, isDark ? 'dark' : 'light');
                 const keyWidth = Math.max(key.w ?? 1, (composite.w2 ?? 0) + (composite.x2 ?? 0));
                 const keyHeight = Math.max(key.h ?? 1, (composite.h2 ?? 0) + (composite.y2 ?? 0));
-                const clipPath = getCompositeKeyClipPath(composite);
+                const isUKEnter = key.mode === 3;
+                const clipPath = getKeyClipPath(composite);
                 const border = isDemoHighlight
                     ? '2px solid #ff9100'
                     : selected
@@ -152,6 +165,16 @@ export default function KeyboardKeys({
                       : isDark
                         ? `1px solid var(--border-default)`
                         : '1px solid #e5e7eb';
+                const ukEnterStrokeColor = isDemoHighlight
+                    ? '#ff9100'
+                    : selected
+                      ? isDark
+                          ? theme.palette.primary.main
+                          : '#4A86F7'
+                      : isDark
+                        ? 'rgba(255,255,255,0.14)'
+                        : '#e5e7eb';
+                const ukEnterStrokeWidth = isDemoHighlight || selected ? 2 : 1;
 
                 const keyName = String(key.name ?? '').trim();
                 const keyDisplay = String(key.icon || key.name || keyIndex + 1);
@@ -180,9 +203,19 @@ export default function KeyboardKeys({
                             top: `${(key.y ?? 0) * (ku + kg)}px`,
                             width: `${keyWidth * ku + (keyWidth - 1) * kg}px`,
                             height: `${keyHeight * ku + (keyHeight - 1) * kg}px`,
-                            borderRadius: '6px',
-                            border,
-                            background: keyBg,
+                            borderRadius: isUKEnter ? 0 : '6px',
+                            ...(isUKEnter
+                                ? {
+                                      border: 'none',
+                                      backgroundColor: keyBg,
+                                      backgroundImage: getUKEnterBorderImage(ukEnterStrokeColor, ukEnterStrokeWidth),
+                                      backgroundSize: '100% 100%',
+                                      backgroundRepeat: 'no-repeat',
+                                  }
+                                : {
+                                      border,
+                                      background: keyBg,
+                                  }),
                             clipPath: clipPath ?? undefined,
                             color: nameColor,
                             cursor: colorMode ? 'inherit' : 'pointer',
@@ -199,6 +232,14 @@ export default function KeyboardKeys({
                                       '&:hover': {
                                           transform: 'scale(0.9)',
                                           zIndex: 1,
+                                          ...(isUKEnter && !selected && !isDemoHighlight
+                                              ? {
+                                                    backgroundImage: getUKEnterBorderImage(
+                                                        isDark ? theme.palette.primary.main : '#4A86F7',
+                                                        2,
+                                                    ),
+                                                }
+                                              : {}),
                                       },
                                   }
                                 : {}),

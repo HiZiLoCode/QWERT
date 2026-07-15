@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Typography } from '@mui/material';
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import Saturation from '@uiw/react-color-saturation';
 import Alpha from '@uiw/react-color-alpha';
 import Swatch from '@uiw/react-color-swatch';
@@ -9,6 +9,8 @@ import { hsvaToHex, hexToHsva } from '@uiw/color-convert';
 
 type ColorPickerProps = {
   disabled?: boolean;
+  /** QMK VIA 仅支持 Hue+Sat，不含明度(V) */
+  hueSatOnly?: boolean;
   /** 为 true 时禁用底部预设色块（Swatch），主色盘与 HEX 仍可用 */
   swatchDisabled?: boolean;
   selectColor: string;
@@ -69,7 +71,86 @@ function HuePointer({ left, bg }: { left: number | string; bg: string }) {
   );
 }
 
-export default function ColorPicker({ disabled, swatchDisabled = false, selectColor, setSelectColor }: ColorPickerProps) {
+function clamp01(n: number) {
+  return Math.max(0, Math.min(1, n));
+}
+
+function HueSatPlane({
+  hsva,
+  disabled,
+  onChange,
+}: {
+  hsva: { h: number; s: number; v: number; a: number };
+  disabled?: boolean;
+  onChange: (next: { h: number; s: number; v: number; a: number }) => void;
+}) {
+  const planeRef = useRef<HTMLDivElement | null>(null);
+  const draggingRef = useRef(false);
+
+  const pickAt = (clientX: number, clientY: number) => {
+    const el = planeRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const x = clamp01((clientX - rect.left) / rect.width);
+    const y = clamp01((clientY - rect.top) / rect.height);
+    onChange({
+      h: x * 360,
+      s: (1 - y) * 100,
+      v: 100,
+      a: 1,
+    });
+  };
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pickAt(e.clientX, e.clientY);
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current || disabled) return;
+    pickAt(e.clientX, e.clientY);
+  };
+
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    draggingRef.current = false;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  const left = `${(hsva.h / 360) * 100}%`;
+  const top = `${(1 - hsva.s / 100) * 100}%`;
+
+  return (
+    <Box
+      ref={planeRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      sx={{
+        width: '100%',
+        height: '216px',
+        borderRadius: '8px',
+        position: 'relative',
+        cursor: disabled ? 'not-allowed' : 'crosshair',
+        touchAction: 'none',
+        backgroundImage: [
+          'linear-gradient(to bottom, rgba(255,255,255,0), #ffffff)',
+          'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+        ].join(', '),
+        backgroundColor: '#ff0000',
+      }}
+    >
+      <SaturationPointer top={top} left={left} color={hsvaToHex({ ...hsva, v: 100, a: 1 }) || '#FF0000'} />
+    </Box>
+  );
+}
+
+export default function ColorPicker({ disabled, hueSatOnly = false, swatchDisabled = false, selectColor, setSelectColor }: ColorPickerProps) {
   const [hsva, setHsva] = useState(() => hexToHsva(selectColor || '#ff0000'));
   const [hexInput, setHexInput] = useState((selectColor || '#ff0000').toUpperCase());
 
@@ -102,15 +183,27 @@ export default function ColorPicker({ disabled, swatchDisabled = false, selectCo
         />
       )}
       <Box sx={{ width: '100%' }}>
-        <Saturation
-          hsva={hsva}
-          style={{ width: '100%', height: '216px', borderRadius: '8px', zIndex: 10 }}
-          pointer={({ top, left }) => <SaturationPointer top={top ?? 0} left={left ?? 0} color={hsvaToHex({ ...hsva, a: 1 }) || '#FF0000'} />}
-          onChange={(newColor) => {
-            changeColor(hsvaToHex(newColor));
-            setHsva({ ...hsva, ...newColor, a: hsva.a });
-          }}
-        />
+        {hueSatOnly ? (
+          <HueSatPlane
+            hsva={hsva}
+            disabled={disabled}
+            onChange={(next) => {
+              changeColor(hsvaToHex(next));
+              setHsva({ ...hsva, ...next, v: 100, a: 1 });
+              setHexInput(hsvaToHex(next).toUpperCase());
+            }}
+          />
+        ) : (
+          <Saturation
+            hsva={hsva}
+            style={{ width: '100%', height: '216px', borderRadius: '8px', zIndex: 10 }}
+            pointer={({ top, left }) => <SaturationPointer top={top ?? 0} left={left ?? 0} color={hsvaToHex({ ...hsva, a: 1 }) || '#FF0000'} />}
+            onChange={(newColor) => {
+              changeColor(hsvaToHex(newColor));
+              setHsva({ ...hsva, ...newColor, a: hsva.a });
+            }}
+          />
+        )}
 
         <Alpha
           width={"100%"}

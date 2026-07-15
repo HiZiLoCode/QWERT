@@ -15,6 +15,12 @@ function isRetriableWriteError(e: unknown): boolean {
   );
 }
 
+export function isHidWriteNotAllowedError(e: unknown): boolean {
+  const name = (e as Error)?.name ?? '';
+  const msg = String((e as Error)?.message ?? e ?? '');
+  return name === 'NotAllowedError' || /failed to write the report/i.test(msg);
+}
+
 /** 对同一 device 串行执行 fn（fn 内应完成一次或多次 sendReport） */
 export async function withHidOutputWriteLock<T>(device: HIDDevice, fn: () => Promise<T>): Promise<T> {
   const prev = writeChains.get(device) ?? Promise.resolve();

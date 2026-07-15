@@ -19,6 +19,41 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from "@/app/i18n";
 import { lightingPanelCardSx } from "@/constants/lightingPanelChrome";
 import { useSnackbarDialog } from "@/providers/useSnackbarProvider";
+import {
+  clearFirmwareUpgradeState,
+  isIapBootUpgradePersistStep,
+  readFirmwareUpgradeState,
+  resolveKeyboardUpgradeCurrentVersion,
+  saveFirmwareUpgradeState,
+  type FirmwareUpgradePersistStep,
+} from "@/utils/firmwareUpgradeState";
+import { releaseAllKeyboardHidSessions } from "@/utils/keyboardHidSession";
+import { upgradeFlowLog, UF_SOURCE, formatBytesHex } from "@/utils/upgradeFlowLog";
+import {
+  formatIapAckStatus,
+  parseIapAck,
+  type IapAckInfo,
+} from "@/utils/iapAckParse";
+
+const UFL = UF_SOURCE.KEYBOARD_IAP;
+const ufl = {
+  info: (message: string, detail?: string) => upgradeFlowLog.info(UFL, message, detail),
+  warn: (message: string, detail?: string) => upgradeFlowLog.warn(UFL, message, detail),
+  error: (message: string, detail?: string) => upgradeFlowLog.error(UFL, message, detail),
+  debug: (message: string, detail?: string) => upgradeFlowLog.debug(UFL, message, detail),
+  out: (label: string, data: ArrayLike<number>, reportId?: number, maxBytes?: number) =>
+    upgradeFlowLog.logOut(UFL, label, data, reportId, maxBytes),
+  in: (label: string, data: ArrayLike<number>, reportId?: number, maxBytes?: number) =>
+    upgradeFlowLog.logIn(UFL, label, data, reportId, maxBytes),
+  exchange: (
+    outLabel: string,
+    outData: ArrayLike<number>,
+    inLabel: string,
+    inData: ArrayLike<number> | null,
+    reportId?: number,
+    maxBytes?: number,
+  ) => upgradeFlowLog.logExchange(UFL, outLabel, outData, inLabel, inData, reportId, maxBytes),
+};
 
 // WebHID API 类型声明
 declare global {
@@ -114,6 +149,58 @@ const ACK_CODE = {
   HEADER_BLOCK_INFO_ERROR: 0xF6
 };
 
+const IAP_MAX_RETRIES = 3;
+/** Flash 写入 / 切换 APP */
+const IAP_ACK_TIMEOUT_FAST = 250;
+/** START：设备校验 Header 后应答，可达数秒 */
+const IAP_ACK_TIMEOUT_START = 8000;
+/** 切换 Boot 应答 */
+const IAP_ACK_TIMEOUT_BOOT = 1200;
+/** SWITCH_BOOT 命令内延时参数（设备协议字段，非主机 sleep）；0 会被设备拒绝 */
+const IAP_SWITCH_BOOT_DELAY_MS = 0x64;
+/** START ACK 成功后等待设备校验 Header */
+const IAP_HEADER_READY_MS = 600;
+/** 每包传输层回显等待 */
+const IAP_ECHO_TIMEOUT_MS = 30;
+/** 极速通道回显等待 */
+const IAP_ECHO_TIMEOUT_TURBO = 18;
+/** 普通 Flash 块业务 ACK 上限（严格模式） */
+const IAP_ACK_TIMEOUT_FLASH = 120;
+/** 4KB 扇区边界块（可能触发擦除） */
+const IAP_ACK_TIMEOUT_FLASH_SECTOR = 800;
+/** 发完分包后额外 soak，与 receiveIapAck 共享 ackTimeout 预算 */
+const IAP_POST_ACK_SOAK_MS = 25;
+/** ACK 单次轮询间隔 */
+const IAP_POLL_INTERVAL_MS = 4;
+/** 重试间隔 */
+const IAP_RETRY_DELAY_MS = 2;
+/** 批量写入时每隔 N 块清一次输入缓冲 */
+const IAP_FLASH_BUFFER_FLUSH_INTERVAL = 256;
+/** 批量写入日志抽样间隔 */
+const IAP_FLASH_LOG_EVERY = 100;
+/** 极速模式下每隔 N 块做一次严格 ACK 校验 */
+const IAP_FLASH_CHECKPOINT_EVERY = 128;
+const FLASH_SECTOR_SIZE = 4096;
+
+const getFlashBlockAckTimeout = (offset: number): number =>
+  offset % FLASH_SECTOR_SIZE === 0 ? IAP_ACK_TIMEOUT_FLASH_SECTOR : IAP_ACK_TIMEOUT_FLASH;
+
+/** 须严格等 ACK 的块：首块 / 末块 / 扇区边界 / 定期检查点 */
+const needsStrictFlashAck = (blockIdx: number, blockNum: number, offset: number): boolean =>
+  blockIdx === 0 ||
+  blockIdx === blockNum - 1 ||
+  offset % FLASH_SECTOR_SIZE === 0 ||
+  (blockIdx > 0 && blockIdx % IAP_FLASH_CHECKPOINT_EVERY === 0);
+/** 切换 APP 后等待设备复位 */
+const IAP_SWITCH_APP_SETTLE_MS = 250;
+/** 切换 Boot 后等待设备重新枚举 */
+const IAP_BOOT_REENUMERATE_MS = 800;
+/** Boot 设备轮询间隔（原 500ms，约 2 倍速） */
+const IAP_DEVICE_MONITOR_MS = 250;
+
+/** IAP 升级 IN 队列上限，防止刷写阶段 report 洪泛导致 OOM */
+const IAP_INPUT_QUEUE_MAX = 512;
+
 // HID Report ID
 const REPORT_ID = 0x3F;
 
@@ -196,6 +283,15 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     isAuthorized: false,
   });
 
+  const displayCurrentVersion = useMemo(
+    () => resolveKeyboardUpgradeCurrentVersion({
+      deviceVersion: deviceInfo?.currentVersion,
+      upgradeStep: readFirmwareUpgradeState()?.step,
+      iapBootConnected: iapDevice.isConnected,
+    }),
+    [deviceInfo?.currentVersion, iapDevice.isConnected, upgradeState.currentStep, isOpen],
+  );
+
   const [fileData, setFileData] = useState<FileData | null>(null);
   const [pendingResponse, setPendingResponse] = useState<any>(null);
 
@@ -208,6 +304,15 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   const deviceMonitorRef = useRef<NodeJS.Timeout | null>(null);
   const iapWaitTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingIAPRef = useRef<boolean>(false);
+  /** 刷写完成后置 true，禁止监控循环在设备重枚举时继续 setState（易引发 tab 崩溃） */
+  const upgradeFinishedRef = useRef(false);
+  const monitorInFlightRef = useRef(false);
+  const keyboardDeviceRef = useRef(keyboardDevice);
+  const iapDeviceRef = useRef(iapDevice);
+  const upgradeStateRef = useRef(upgradeState);
+  const originalKeyboardPIDRef = useRef<number | null>(originalKeyboardPID);
+  const resumeAttemptedRef = useRef(false);
+  const handleBootDeviceDetectedRef = useRef<(device: HIDDevice) => Promise<void>>(async () => {});
   const pendingResponseRef = useRef<{
     resolve: (data: Uint8Array) => void;
     reject: (error: Error) => void;
@@ -219,6 +324,27 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     resolve: (data: Uint8Array) => void;
     reject: (error: Error) => void;
   }>>([]);
+
+  /** START(0xA0) 已成功且设备 Header 已就绪，才允许 FLASH_WRITE */
+  const iapHeaderReadyRef = useRef(false);
+
+  useEffect(() => { keyboardDeviceRef.current = keyboardDevice; }, [keyboardDevice]);
+  useEffect(() => { iapDeviceRef.current = iapDevice; }, [iapDevice]);
+  useEffect(() => { upgradeStateRef.current = upgradeState; }, [upgradeState]);
+  useEffect(() => { originalKeyboardPIDRef.current = originalKeyboardPID; }, [originalKeyboardPID]);
+
+  const releaseUpgradeMemory = useCallback(() => {
+    inputQueueRef.current = [];
+    inputQueueWaitersRef.current = [];
+    setFileData(null);
+  }, []);
+
+  const stopDeviceMonitoring = useCallback(() => {
+    if (deviceMonitorRef.current) {
+      clearInterval(deviceMonitorRef.current);
+      deviceMonitorRef.current = null;
+    }
+  }, []);
 
   // 延时函数
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -254,10 +380,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     const data = new Uint8Array(event.data.buffer);
     const bytes = new Uint8Array(data.buffer);
 
-    console.log(`[输入报告] 收到数据: ID=0x${event.reportId.toString(16)}, 前3字节: ${bytes[0].toString(16)} ${bytes[1].toString(16)} ${bytes[2].toString(16)}`);
-
-    // 将数据放入队列
     inputQueueRef.current.push(bytes);
+    if (inputQueueRef.current.length > IAP_INPUT_QUEUE_MAX) {
+      inputQueueRef.current.splice(0, inputQueueRef.current.length - IAP_INPUT_QUEUE_MAX);
+    }
 
     // 唤醒等待者
     if (inputQueueWaitersRef.current.length > 0) {
@@ -269,41 +395,48 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   }, []);
 
   // 发送HID报告
-  const sendReport = async (device: HIDDevice, reportId: number, data: Uint8Array): Promise<void> => {
+  const sendReport = async (
+    device: HIDDevice,
+    reportId: number,
+    data: Uint8Array,
+    opts?: { silent?: boolean },
+  ): Promise<void> => {
     if (!device || !device.opened) {
       throw new Error('设备未连接');
     }
 
-    // HID报告：Report ID (1字节) + 数据 (63字节) = 64字节
-    // WebHID API的sendReport不包含Report ID，数据部分是63字节
     const reportData = new Uint8Array(63);
     reportData.set(data.slice(0, 63));
 
     try {
-      console.log(`[发送前] 准备发送 Report ID: 0x${reportId.toString(16)}`);
+      if (!opts?.silent) {
+        ufl.out('HID OUT', reportData, reportId);
+      }
       await device.sendReport(reportId, reportData.buffer);
-      console.log(`[发送后] 成功发送 Report ID: 0x${reportId.toString(16)}`);
     } catch (error: any) {
-      console.error('[发送失败]', error);
+      ufl.error('发送数据失败', error.message);
       throw new Error('发送数据失败: ' + error.message);
     }
   };
 
   // 接收HID报告 (带超时) - 从队列读取
-  const receiveReport = async (device: HIDDevice, timeout: number = 2000): Promise<Uint8Array> => {
-    // 如果队列中已有数据，立即返回
+  const receiveReport = async (
+    device: HIDDevice,
+    timeout: number = 2000,
+    opts?: { silent?: boolean },
+  ): Promise<Uint8Array> => {
     if (inputQueueRef.current.length > 0) {
       const data = inputQueueRef.current.shift();
       if (data) {
-        console.log(`[接收] 从队列获取数据`);
+        if (!opts?.silent) {
+          ufl.in('HID IN (queue)', data, REPORT_ID);
+        }
         return data;
       }
     }
 
-    // 否则等待新数据
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        // 从等待列表中移除
         const index = inputQueueWaitersRef.current.findIndex(w => w.resolve === resolve);
         if (index >= 0) {
           inputQueueWaitersRef.current.splice(index, 1);
@@ -314,6 +447,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       inputQueueWaitersRef.current.push({
         resolve: (data: Uint8Array) => {
           clearTimeout(timer);
+          if (!opts?.silent) {
+            ufl.in('HID IN', data, REPORT_ID);
+          }
           resolve(data);
         },
         reject: (error: Error) => {
@@ -332,9 +468,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     // 持续读取直到没有数据或超时
     while (Date.now() - startTime < 2000) {
       try {
-        const data = await receiveReport(device, 100);
+        const data = await receiveReport(device, 100, { silent: true });
         flushedCount++;
-        console.log(`清除残留数据 #${flushedCount}: [6]=0x${data[6].toString(16)}`);
+        ufl.debug(`清除残留数据 #${flushedCount}`, `byte[6]=0x${data[6].toString(16)}`);
       } catch (e) {
         // 超时表示没有更多数据
         break;
@@ -342,9 +478,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     }
 
     if (flushedCount > 0) {
-      console.log(`已清除 ${flushedCount} 个残留数据包`);
+      ufl.info(`已清除 ${flushedCount} 个残留数据包`);
     } else {
-      console.log(`输入缓冲区干净`);
+      ufl.debug('输入缓冲区干净');
     }
   };
 
@@ -352,61 +488,304 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   const clearInputBufferQuick = async (device: HIDDevice): Promise<void> => {
     let count = 0;
     const startTime = Date.now();
-    while (Date.now() - startTime < 500) {
+    while (Date.now() - startTime < 150) {
       try {
-        await receiveReport(device, 50);
+        await receiveReport(device, 30, { silent: true });
         count++;
-        if (count > 100) break; // 最多清除100个
-      } catch (e) {
+        if (count > 50) break;
+      } catch {
         break;
       }
     }
   };
 
-  // 发送业务包（自定义协议，非标准Transfer层）
-  const sendBusinessPacket = async (device: HIDDevice, data: Uint8Array): Promise<void> => {
-    const reportId = REPORT_ID;
-    const maxPayloadSize = 56;  // 每包最大56字节有效数据（0x38）
-    const packetNum = Math.ceil(data.length / maxPayloadSize);
+  // 判断是否为 IAP ACK 包（支持传输层 aa...[6]=b0 与直连 b0 两种格式）
+  const isIapAckReport = (pkt: Uint8Array): boolean => {
+    if (pkt[0] === IAP_CMD.ACK) {
+      return true;
+    }
+    return pkt.length > 6 && pkt[0] === 0xAA && pkt[6] === IAP_CMD.ACK;
+  };
 
-    console.log(`📦 发送业务包: ${data.length}字节, 分${packetNum}包`);
+  const hasPendingIapAck = (): boolean => inputQueueRef.current.some(isIapAckReport);
+
+  const peekIapAckFromQueue = (): IapAckInfo | null => {
+    for (const pkt of inputQueueRef.current) {
+      const ack = parseIapAck(pkt);
+      if (ack) return ack;
+    }
+    return null;
+  };
+
+  /** 从队列取出已到达的 IAP ACK，保留非 ACK 包顺序 */
+  const takeIapAckFromQueue = (): { ack: IapAckInfo; packet: Uint8Array } | null => {
+    const kept: Uint8Array[] = [];
+    let ackInfo: IapAckInfo | null = null;
+    let ackPacket: Uint8Array | null = null;
+    for (const pkt of inputQueueRef.current) {
+      const ack = parseIapAck(pkt);
+      if (ack && ackInfo === null) {
+        ackInfo = ack;
+        ackPacket = pkt;
+      } else {
+        kept.push(pkt);
+      }
+    }
+    inputQueueRef.current = kept;
+    if (ackInfo && ackPacket) {
+      return { ack: ackInfo, packet: ackPacket };
+    }
+    return null;
+  };
+
+  // 等待单包传输层回显；ACK 保留给 receiveIapAck
+  const waitTransferEcho = async (
+    device: HIDDevice,
+    timeoutMs: number = IAP_ECHO_TIMEOUT_MS,
+  ): Promise<Uint8Array | null> => {
+    const takeFromQueue = (): Uint8Array | null => {
+      if (inputQueueRef.current.length === 0) return null;
+      const pkt = inputQueueRef.current.shift()!;
+      if (isIapAckReport(pkt)) {
+        inputQueueRef.current.unshift(pkt);
+        return null;
+      }
+      return pkt;
+    };
+
+    const queued = takeFromQueue();
+    if (queued) return queued;
+
+    try {
+      const echo = await receiveReport(device, timeoutMs, { silent: true });
+      if (parseIapAck(echo)) {
+        inputQueueRef.current.unshift(echo);
+        return null;
+      }
+      return echo;
+    } catch {
+      // 回显可能晚于超时到达，再扫一次队列
+      return takeFromQueue();
+    }
+  };
+
+  const peekFirstIapAckPacket = (): Uint8Array | null => {
+    for (const pkt of inputQueueRef.current) {
+      if (isIapAckReport(pkt)) return pkt;
+    }
+    return null;
+  };
+
+  // 发送业务包：每包 OUT 后等回显；一旦收到 B0 ACK（含错误 FC）立即停止，不得继续发后续分包
+  const sendBusinessPacket = async (
+    device: HIDDevice,
+    data: Uint8Array,
+    opts?: { postAckWaitMs?: number; quiet?: boolean; turbo?: boolean; echoTimeoutMs?: number },
+  ): Promise<void> => {
+    const reportId = REPORT_ID;
+    const maxPayloadSize = 56;
+    const packetNum = Math.ceil(data.length / maxPayloadSize);
+    const echoTimeout = opts?.echoTimeoutMs ?? (opts?.turbo ? IAP_ECHO_TIMEOUT_TURBO : IAP_ECHO_TIMEOUT_MS);
+    const turbo = opts?.turbo === true;
 
     for (let i = 0; i < packetNum; i++) {
       const offset = i * maxPayloadSize;
       const payloadSize = Math.min(maxPayloadSize, data.length - offset);
       const payload = data.slice(offset, offset + payloadSize);
 
-      const packIdx = packetNum - i - 1;  // 倒序包索引
-      const isFirstPacket = (i === 0);  // 是否是第一个包
+      const packIdx = packetNum - i - 1;
+      const isFirstPacket = (i === 0);
 
-      // 自定义协议包
       const packet = new Uint8Array(63);
-      packet[0] = 0xAA;  // 协议头
-      packet[1] = 0x00;  // 包索引低字节（固定0x00）
-      packet[2] = packIdx & 0xFF;  // 包索引高字节（实际值）
-      packet[3] = isFirstPacket ? 0x80 : 0x00;  // 控制字节：首包=0x80，后续=0x00
-      packet[4] = payloadSize & 0xFF;  // 长度低字节
-      packet[5] = (payloadSize >> 8) & 0xFF;  // 长度高字节
-      packet.set(payload, 6);  // 数据从第6字节开始
+      packet[0] = 0xAA;
+      packet[1] = 0x00;
+      packet[2] = packIdx & 0xFF;
+      packet[3] = isFirstPacket ? 0x80 : 0x00;
+      packet[4] = payloadSize & 0xFF;
+      packet[5] = (payloadSize >> 8) & 0xFF;
+      packet.set(payload, 6);
 
-      // 计算BCC校验：从packet[1]开始，包括传输层头（5字节）+ 有效载荷（payloadSize字节）
       const bcc = bccCheck(packet.slice(1, 6 + payloadSize));
-      packet[6 + payloadSize] = bcc;  // BCC放在有效载荷后面
+      packet[6 + payloadSize] = bcc;
 
-      console.log(`[业务包] 准备发送包${i + 1}/${packetNum}, 索引=${packIdx}`);
-      await sendReport(device, reportId, packet);
-      console.log(`[业务包] 包${i + 1}/${packetNum} 发送完成，等待回显...`);
+      const sentSnapshot = packet.slice();
+      await sendReport(device, reportId, packet, { silent: true });
 
-      // 读取回显（必须读取，否则输入缓冲区会满）
-      try {
-        const echo = await receiveReport(device, 200);  // 减少到200ms超时
-        console.log(`[业务包] 收到回显: ${echo[0].toString(16)} ${echo[1].toString(16)} ${echo[2].toString(16)}...`);
-      } catch (e) {
-        console.warn(`[业务包] 回显超时（可能设备未返回）`);
+      let echo = await waitTransferEcho(device, echoTimeout);
+      // 极速模式不重发分包；普通模式中间分包无回显时重发一次
+      if (!turbo && !echo && !hasPendingIapAck() && i < packetNum - 1) {
+        if (!opts?.quiet) {
+          ufl.warn(`传输 ${i + 1}/${packetNum} 无回显`, '重发该分包');
+        }
+        await sendReport(device, reportId, packet, { silent: true });
+        echo = await waitTransferEcho(device, echoTimeout);
+      }
+
+      const ackInstead = !echo && hasPendingIapAck();
+      if (!opts?.quiet) {
+        ufl.exchange(
+          `传输 ${i + 1}/${packetNum} idx=${packIdx} len=${payloadSize}`,
+          sentSnapshot,
+          echo ? '回显' : ackInstead ? 'IAP ACK(代替回显)' : '(无回显)',
+          echo ?? (ackInstead ? peekFirstIapAckPacket() : null),
+          reportId,
+          64,
+        );
+      }
+
+      if (hasPendingIapAck()) {
+        if (!opts?.quiet) {
+          const midAck = peekIapAckFromQueue();
+          ufl.info(
+            `收到中途 ACK，停止发送后续分包`,
+            `${midAck ? formatIapAckStatus(midAck) : 'ACK'} | 已发 ${i + 1}/${packetNum}`,
+          );
+        }
+        break;
       }
     }
 
-    console.log(`[业务包] 所有${packetNum}个包发送完成`);
+    // 末包发完后 ACK 可能晚于回显到达（极速模式跳过 soak）
+    if (!turbo && !hasPendingIapAck()) {
+      const postWait = opts?.postAckWaitMs ?? IAP_ECHO_TIMEOUT_MS;
+      const deadline = Date.now() + postWait;
+      while (Date.now() < deadline) {
+        if (hasPendingIapAck()) break;
+        const remain = deadline - Date.now();
+        if (remain <= 0) break;
+        try {
+          const late = await receiveReport(device, Math.min(remain, IAP_POLL_INTERVAL_MS), {
+            silent: true,
+          });
+          if (parseIapAck(late)) {
+            inputQueueRef.current.unshift(late);
+            break;
+          }
+          inputQueueRef.current.push(late);
+        } catch {
+          // 继续等到 postWait 结束
+        }
+      }
+    }
+  };
+
+  // 等待 IAP ACK（0xB0）并返回 ErrCode 与原始包
+  const receiveIapAck = async (
+    device: HIDDevice,
+    timeout: number = IAP_ACK_TIMEOUT_FAST,
+  ): Promise<{ ack: IapAckInfo; packet: Uint8Array }> => {
+    const startTime = Date.now();
+    const deferredEchoes: Uint8Array[] = [];
+
+    const flushDeferred = () => {
+      if (deferredEchoes.length > 0) {
+        inputQueueRef.current.push(...deferredEchoes);
+        deferredEchoes.length = 0;
+      }
+    };
+
+    while (Date.now() - startTime < timeout) {
+      const queued = takeIapAckFromQueue();
+      if (queued) {
+        flushDeferred();
+        return queued;
+      }
+
+      const remainingTime = timeout - (Date.now() - startTime);
+      if (remainingTime <= 0) {
+        break;
+      }
+
+      let response: Uint8Array;
+      try {
+        response = await receiveReport(device, Math.min(remainingTime, IAP_POLL_INTERVAL_MS), {
+          silent: true,
+        });
+      } catch {
+        continue;
+      }
+
+      const ack = parseIapAck(response);
+      if (ack) {
+        flushDeferred();
+        return { ack, packet: response };
+      }
+
+      deferredEchoes.push(response);
+    }
+
+    flushDeferred();
+    ufl.error('读取ACK超时', `timeout=${timeout}ms`);
+    throw new Error('读取ACK超时');
+  };
+
+  // 发送 IAP 业务命令并在 ErrCode 非 0 时重试
+  const sendIapBusinessCommandWithRetry = async (
+    device: HIDDevice,
+    buildBusinessData: () => Uint8Array,
+    context: string,
+    ackTimeout: number = IAP_ACK_TIMEOUT_FAST,
+    onErrCode?: (errCode: number) => Promise<void>,
+    sendOpts?: { quiet?: boolean; skipBufferClear?: boolean },
+  ): Promise<IapAckInfo> => {
+    let lastError = '';
+
+    for (let attempt = 1; attempt <= IAP_MAX_RETRIES; attempt++) {
+      if (attempt > 1 || !sendOpts?.skipBufferClear) {
+        await clearInputBufferQuick(device);
+      }
+
+      const businessData = buildBusinessData();
+      const cmdHex = businessData[0]?.toString(16).toUpperCase().padStart(2, '0') ?? '??';
+      if (!sendOpts?.quiet) {
+        ufl.info(`${context}`, `尝试 ${attempt}/${IAP_MAX_RETRIES} | CMD=0x${cmdHex} | ${businessData.length}B`);
+      }
+
+      const ackWaitStart = Date.now();
+      const postSoak = Math.min(IAP_POST_ACK_SOAK_MS, ackTimeout);
+      await sendBusinessPacket(device, businessData, { postAckWaitMs: postSoak, quiet: sendOpts?.quiet });
+
+      try {
+        const remaining = Math.max(ackTimeout - (Date.now() - ackWaitStart), IAP_POLL_INTERVAL_MS);
+        const immediate = takeIapAckFromQueue();
+        const { ack, packet } = immediate ?? (await receiveIapAck(device, remaining));
+        if (!sendOpts?.quiet) {
+          ufl.exchange(
+            `${context} | CMD=0x${cmdHex}`,
+            businessData,
+            'IAP ACK',
+            packet,
+            REPORT_ID,
+            64,
+          );
+        }
+        if (ack.errCode === ACK_CODE.SUCCESS) {
+          if (!sendOpts?.quiet) {
+            ufl.info(`${context} 成功`, formatIapAckStatus(ack));
+          }
+          return ack;
+        }
+
+        lastError = formatIapAckStatus(ack);
+        ufl.warn(
+          `${context} ${formatIapAckStatus(ack)}`,
+          `重发整笔命令 ${attempt}/${IAP_MAX_RETRIES}`,
+        );
+
+        if (onErrCode) {
+          await onErrCode(ack.errCode);
+        }
+      } catch (error: any) {
+        lastError = error.message;
+        ufl.warn(`${context} ${lastError}`, `重发整笔命令 ${attempt}/${IAP_MAX_RETRIES}`);
+      }
+
+      if (attempt < IAP_MAX_RETRIES) {
+        await delay(IAP_RETRY_DELAY_MS);
+      }
+    }
+
+    throw new Error(`${context}失败: ${lastError}（已重试 ${IAP_MAX_RETRIES} 次）`);
   };
 
   // 更新升级状态
@@ -421,8 +800,46 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     }));
   }, []);
 
-  // 显示错误
+  /** 仅更新进度条（高频调用，避免整段 status 文本频繁刷新） */
+  const setUpgradeProgress = useCallback((progress: number) => {
+    setUpgradeState(prev => {
+      if (Math.abs(prev.progress - progress) < 0.02) return prev;
+      return { ...prev, progress };
+    });
+  }, []);
+
+  const persistUpgradeStep = useCallback((step: FirmwareUpgradePersistStep) => {
+    const prev = readFirmwareUpgradeState();
+    const omitCurrentVersion = isIapBootUpgradePersistStep(step);
+    saveFirmwareUpgradeState({
+      isUpgrading: true,
+      startTime: prev?.startTime ?? new Date().toISOString(),
+      step,
+      deviceInfo: {
+        vendorId: deviceInfo?.vendorId || 0x36B0,
+        productId: deviceInfo?.productId || originalKeyboardPID || 0,
+        firmwareFile: deviceInfo?.firmwareFile,
+        currentVersion: omitCurrentVersion ? undefined : deviceInfo?.currentVersion,
+        upgradeVersion: deviceInfo?.upgradeVersion,
+      },
+    });
+  }, [deviceInfo, originalKeyboardPID]);
+
+  // 显示错误（启动阶段，关闭升级流程）
   const showError = useCallback((message: string) => {
+    setUpgradeState(prev => ({
+      ...prev,
+      error: message,
+      isUpgrading: false,
+      currentStep: UpgradeStep.ERROR,
+      statusType: 'error',
+      status: t('1219'),
+      progress: prev.progress,
+    }));
+  }, [t]);
+
+  // Boot 模式下升级失败：保留弹窗与设备连接，允许重试
+  const showUpgradeFailed = useCallback((message: string) => {
     setUpgradeState(prev => ({
       ...prev,
       error: message,
@@ -436,6 +853,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
 
   // 显示成功
   const showSuccess = useCallback(() => {
+    upgradeFinishedRef.current = true;
+    stopDeviceMonitoring();
+    releaseUpgradeMemory();
+
     setUpgradeState(prev => ({
       ...prev,
       currentStep: UpgradeStep.COMPLETED,
@@ -450,12 +871,20 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       content: t('2906'),
       confirmText: t('1111'),
       onConfirm: () => {
-        window.location.reload();
+        stopDeviceMonitoring();
+        releaseUpgradeMemory();
+        clearFirmwareUpgradeState();
+        void (async () => {
+          await releaseAllKeyboardHidSessions();
+          window.setTimeout(() => {
+            window.location.reload();
+          }, 350);
+        })();
       },
       onCancel: () => {},
       confirmOnly: true,
     });
-  }, [showDialog, t]);
+  }, [showDialog, t, releaseUpgradeMemory, stopDeviceMonitoring]);
 
   // 检测APP模式设备
   const detectAppModeDevice = useCallback(async (): Promise<HIDDevice | null> => {
@@ -472,7 +901,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       );
       return targetDevice || null;
     } catch (error) {
-      console.error('APP模式设备检测失败:', error);
+      ufl.error('APP模式设备检测失败', String(error));
       return null;
     }
   }, [deviceInfo]);
@@ -492,7 +921,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       );
       return targetDevice || null;
     } catch (error) {
-      console.error('Boot模式设备检测失败:', error);
+      ufl.error('Boot模式设备检测失败', String(error));
       return null;
     }
   }, [deviceInfo]);
@@ -514,7 +943,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       });
       return devices.length > 0 ? devices[0] : null;
     } catch (error) {
-      console.error('设备授权失败:', error);
+      ufl.error('设备授权失败', String(error));
       return null;
     }
   }, [deviceInfo]);
@@ -530,10 +959,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       inputQueueWaitersRef.current = [];
       // 监听输入报告（使用全局处理器）
       device.addEventListener('inputreport', globalInputHandler);
-      console.log('[设备连接] 已安装全局输入监听器');
+      ufl.info('设备连接', '已安装全局输入监听器');
       return true;
     } catch (error) {
-      console.error('设备连接失败:', error);
+      ufl.error('设备连接失败', String(error));
       return false;
     }
   }, [globalInputHandler]);
@@ -545,7 +974,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         device.removeEventListener('inputreport', globalInputHandler);
         await device.close();
       } catch (error) {
-        console.warn('断开设备时出错:', error);
+        ufl.warn('断开设备时出错', String(error));
       }
     }
   }, [globalInputHandler]);
@@ -578,8 +1007,8 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       const firmwarePath = deviceInfo.firmwareFile;
       const firmwareFileName = firmwarePath.split('/').pop() || firmwarePath;
 
-      console.log(`loadLocalFirmware: 使用传入的固件文件: ${firmwareFileName}`);
-      console.log(`loadLocalFirmware: 开始加载固件文件: ${firmwarePath}`);
+      ufl.info('加载固件', `文件: ${firmwareFileName}`);
+      ufl.info('加载固件', `路径: ${firmwarePath}`);
 
       const response = await fetch(firmwarePath);
       if (!response.ok) {
@@ -617,7 +1046,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         partIndex++;
       }
 
-      console.log(`loadLocalFirmware: 固件文件 ${firmwareFileName} 加载成功，大小: ${data.length} 字节，分块数: ${parts.length}`);
+      ufl.info('固件加载成功', `${firmwareFileName} ${data.length} 字节，分块 ${parts.length}`);
 
       return {
         startAddress: 0,
@@ -636,7 +1065,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       const initPID = deviceInfo?.productId || originalKeyboardPID;
 
       if (initPID) {
-        console.log("使用传入的设备信息，PID:", initPID);
+        ufl.info('使用传入设备信息', `PID=0x${initPID.toString(16)}`);
         setOriginalKeyboardPID(initPID);
       }
 
@@ -644,7 +1073,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       detectAppModeDevice()
         .then((appDevice) => {
           if (appDevice && !initPID) {
-            console.log("检测到APP模式设备，记录PID:", appDevice.productId);
+            ufl.info('检测到APP模式设备', `PID=0x${appDevice.productId.toString(16)}`);
             setOriginalKeyboardPID(appDevice.productId);
           }
 
@@ -657,15 +1086,15 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         .then((data) => {
           if (data) {
             setFileData(data);
-            const versionInfo = deviceInfo?.currentVersion && deviceInfo?.upgradeVersion
-              ? ` (${t("1206")}: ${deviceInfo.currentVersion} → ${t("1207")}: ${deviceInfo.upgradeVersion})`
+            const versionInfo = displayCurrentVersion && deviceInfo?.upgradeVersion
+              ? ` (${t("1206")}: ${displayCurrentVersion} → ${t("1207")}: ${deviceInfo.upgradeVersion})`
               : '';
             updateStatus(`${t("1209")} (${data.totalSize} ${t("字节")})${versionInfo}`, 0, UpgradeStep.IDLE);
-            console.log("初始化加载固件成功，当前原始PID:", initPID || originalKeyboardPID);
+            ufl.info('初始化加载固件成功', `PID=0x${(initPID || originalKeyboardPID || 0).toString(16)}`);
           }
         })
         .catch((error) => {
-          console.error("初始化检测设备失败:", error);
+          ufl.error('初始化检测设备失败', String(error));
           if (!fileData) {
             showError(error.message);
           }
@@ -682,113 +1111,134 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     updateStatus(t("1221"), 5, UpgradeStep.ENTERING_IAP_MODE); // '正在发送切换Boot模式命令...'
 
     const reportId = REPORT_ID;
-    // 数据部分63字节
-    const cmdData = new Uint8Array(63);
-    cmdData[0] = 0xAA;  // 协议头
-    cmdData[1] = 0x00;  // 序列号低字节
-    cmdData[2] = 0x00;  // 序列号高字节
-    cmdData[3] = 0x80;  // 控制字
-    cmdData[4] = 0x07;  // 参数2低字节
-    cmdData[5] = 0x00;  // 参数2高字节
-    cmdData[6] = IAP_CMD.SWITCH_BOOT;  // 命令码 0xC0
-    cmdData[7] = 0x02;  // 参数3低字节
-    cmdData[8] = 0x00;  // 参数3高字节
-    cmdData[9] = 0x64;  // 延时100ms低字节
-    cmdData[10] = 0x00; // 延时100ms高字节
-    cmdData[11] = 0x69; // 参数5低字节 (0x0F69 = 3945)
-    cmdData[12] = 0x0F; // 参数5高字节
-    cmdData[13] = 0x47; // 参数6低字节 (0x0047 = 71)
-    cmdData[14] = 0x00; // 参数6高字节
+    const buildSwitchBootCmd = () => {
+      const cmdData = new Uint8Array(63);
+      cmdData[0] = 0xAA;
+      cmdData[1] = 0x00;
+      cmdData[2] = 0x00;
+      cmdData[3] = 0x80;
+      cmdData[4] = 0x07;
+      cmdData[5] = 0x00;
+      cmdData[6] = IAP_CMD.SWITCH_BOOT;
+      cmdData[7] = 0x02;
+      cmdData[8] = 0x00;
+      cmdData[9] = IAP_SWITCH_BOOT_DELAY_MS & 0xFF;
+      cmdData[10] = (IAP_SWITCH_BOOT_DELAY_MS >> 8) & 0xFF;
+      cmdData[11] = 0x69;
+      cmdData[12] = 0x0F;
+      cmdData[13] = 0x47;
+      cmdData[14] = 0x00;
+      return cmdData;
+    };
 
-    await sendReport(device, reportId, cmdData);
+    await clearInputBufferQuick(device);
+    await sendReport(device, reportId, buildSwitchBootCmd());
 
-    // 等待应答
-    try {
-      const response = await receiveReport(device, 5000);
-      // 解析应答: [0]=0xAA 协议头, [6]=0xB0 ACK命令, [7]=0x00 ACK代码
-      if (response[0] === 0xAA && response[6] === 0xB0 && response[7] === 0x00) {
-        updateStatus(t("1222"), 8, UpgradeStep.ENTERING_IAP_MODE);
-        // 等待设备重启
-        await delay(5000);
-        updateStatus(t("1223"), 10, UpgradeStep.WAITING_IAP_DEVICE);
-      } else {
-        const ackCode = response[7];
-        throw new Error(`切换失败，ACK代码: 0x${ackCode.toString(16).padStart(2, '0')}`);
+    let lastError = '';
+    for (let attempt = 1; attempt <= IAP_MAX_RETRIES; attempt++) {
+      try {
+        const response = await receiveReport(device, IAP_ACK_TIMEOUT_BOOT);
+        const ack = parseIapAck(response);
+        if (ack?.errCode === ACK_CODE.SUCCESS) {
+          ufl.info('切换Boot 成功', formatIapAckStatus(ack));
+          updateStatus(t("1222"), 8, UpgradeStep.ENTERING_IAP_MODE);
+          updateStatus(t("1223"), 10, UpgradeStep.WAITING_IAP_DEVICE);
+          return;
+        }
+        if (ack) {
+          lastError = formatIapAckStatus(ack);
+          ufl.warn(
+            `切换Boot ${formatIapAckStatus(ack)}`,
+            `重试 ${attempt}/${IAP_MAX_RETRIES}`,
+          );
+        } else {
+          lastError = '未收到有效 Boot 切换 ACK';
+          ufl.warn(`切换Boot ${lastError}`, `重试 ${attempt}/${IAP_MAX_RETRIES}`);
+        }
+      } catch (error: any) {
+        if (error.message.includes('超时')) {
+          // 设备切 Boot 后可能立即断开，无 ACK 也视为已发送成功
+          updateStatus(t('2912'), 10, UpgradeStep.WAITING_IAP_DEVICE);
+          return;
+        }
+        lastError = error.message;
       }
-    } catch (error: any) {
-      if (error.message.includes('超时')) {
-        updateStatus(t('2912'), 10, UpgradeStep.WAITING_IAP_DEVICE);
-      } else {
-        throw error;
+
+      if (attempt < IAP_MAX_RETRIES) {
+        await clearInputBufferQuick(device);
+        await sendReport(device, reportId, buildSwitchBootCmd());
+        await delay(IAP_RETRY_DELAY_MS);
       }
     }
+
+    throw new Error(`切换Boot失败: ${lastError}（已重试 ${IAP_MAX_RETRIES} 次）`);
   };
 
-  // 发送启动命令
+  // 发送启动命令（0xA0 Header），设备就绪后才允许 FLASH_WRITE
   const sendStartCommand = async (device: HIDDevice, firmwareData: Uint8Array): Promise<void> => {
     updateStatus(t("1228"), 15, UpgradeStep.UPGRADING);
+    iapHeaderReadyRef.current = false;
 
-    // 先清空输入缓冲区
     await clearInputBuffer(device);
 
     const header = firmwareData.slice(0, 128);
 
-    // Business层数据包
-    const businessData = new Uint8Array(1 + 2 + 128 + 2);
-    let idx = 0;
-
-    businessData[idx++] = IAP_CMD.START;  // 0xA0
-    businessData[idx++] = 128;  // 长度低字节
-    businessData[idx++] = 0;    // 长度高字节
-    businessData.set(header, idx);
-    idx += 128;
-
-    const crc = crc16Modbus(businessData.slice(0, idx));
-    businessData[idx++] = crc & 0xFF;
-    businessData[idx++] = (crc >> 8) & 0xFF;
-
-    console.log(`数据: CMD=0xA0, Header=128字节, CRC=0x${crc.toString(16).padStart(4, '0')}`);
-
-    await sendBusinessPacket(device, businessData.slice(0, idx));
-
-    // 等待设备验证Header（重要！设备需要时间验证，约1-2秒）
     updateStatus(t("1229"), 18, UpgradeStep.UPGRADING);
-    await delay(2000);
 
+    await sendIapBusinessCommandWithRetry(
+      device,
+      () => {
+        const businessData = new Uint8Array(1 + 2 + 128 + 2);
+        let idx = 0;
+
+        businessData[idx++] = IAP_CMD.START;
+        businessData[idx++] = 128;
+        businessData[idx++] = 0;
+        businessData.set(header, idx);
+        idx += 128;
+
+        const crc = crc16Modbus(businessData.slice(0, idx));
+        businessData[idx++] = crc & 0xFF;
+        businessData[idx++] = (crc >> 8) & 0xFF;
+
+        return businessData.slice(0, idx);
+      },
+      '发送启动命令',
+      IAP_ACK_TIMEOUT_START,
+    );
+
+    await delay(IAP_HEADER_READY_MS);
+    await clearInputBufferQuick(device);
+    iapHeaderReadyRef.current = true;
     updateStatus(t("1230"), 20, UpgradeStep.UPGRADING);
   };
 
   // 写入Flash
   const writeFlash = async (device: HIDDevice, firmwareData: Uint8Array): Promise<void> => {
+    if (!iapHeaderReadyRef.current) {
+      throw new Error('设备 Header 未就绪，请先发送启动命令');
+    }
+
     updateStatus(t('1231'), 25, UpgradeStep.UPGRADING);
 
     const binData = firmwareData.slice(128);
     const blockSize = firmwareData[66] | (firmwareData[67] << 8);
     const blockNum = Math.floor((binData.length - 1) / blockSize) + 1;
 
-    console.log(`块大小: ${blockSize}字节, 总块数: ${blockNum}`);
-
-    for (let blockIdx = 0; blockIdx < blockNum; blockIdx++) {
+    const buildFlashBlock = (blockIdx: number) => {
       const offset = blockIdx * blockSize;
       const currentSize = (blockIdx === blockNum - 1)
         ? ((binData.length - 1) % blockSize) + 1
         : blockSize;
 
-      // 每100块清空一次输入缓冲区（减少频率）
-      if (blockIdx % 100 === 0 && blockIdx > 0) {
-        await clearInputBufferQuick(device);
-      }
-
-      // Business层Flash写入包
       const businessData = new Uint8Array(1 + 2 + 6 + currentSize + 2);
       let idx = 0;
 
-      businessData[idx++] = IAP_CMD.FLASH_WRITE;  // 0xA1
+      businessData[idx++] = IAP_CMD.FLASH_WRITE;
       const length = currentSize + 6;
       businessData[idx++] = length & 0xFF;
       businessData[idx++] = (length >> 8) & 0xFF;
 
-      // 块编号 (最后一块用0xFFFF)
       if (blockIdx === blockNum - 1) {
         businessData[idx++] = 0xFF;
         businessData[idx++] = 0xFF;
@@ -797,46 +1247,121 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         businessData[idx++] = (blockIdx >> 8) & 0xFF;
       }
 
-      // 偏移地址
       businessData[idx++] = offset & 0xFF;
       businessData[idx++] = (offset >> 8) & 0xFF;
       businessData[idx++] = (offset >> 16) & 0xFF;
       businessData[idx++] = (offset >> 24) & 0xFF;
 
-      // 数据
       businessData.set(binData.slice(offset, offset + currentSize), idx);
       idx += currentSize;
 
-      // CRC
       const crc = crc16Modbus(businessData.slice(0, idx));
       businessData[idx++] = crc & 0xFF;
       businessData[idx++] = (crc >> 8) & 0xFF;
 
-      // 每50块或最后一块输出日志（减少日志频率）
-      if (blockIdx % 50 === 0 || blockIdx === blockNum - 1) {
-        console.log(`→ 块${blockIdx + 1}/${blockNum}: 偏移=0x${offset.toString(16)}, 大小=${currentSize}`);
+      return businessData.slice(0, idx);
+    };
+
+    const onFlashWriteErrCode = async (errCode: number) => {
+      if (
+        errCode === ACK_CODE.STATUS_ERROR ||
+        errCode === ACK_CODE.BLOCK_NUM_ERROR ||
+        errCode === ACK_CODE.WRITE_OFFSET_ERROR
+      ) {
+        iapHeaderReadyRef.current = false;
+        await sendStartCommand(device, firmwareData);
+      }
+    };
+
+    const writeBlockStrict = async (
+      blockIdx: number,
+      context: string,
+      sendOpts: { quiet?: boolean; skipBufferClear?: boolean },
+    ): Promise<void> => {
+      const preview = buildFlashBlock(blockIdx);
+      const off =
+        preview[5] |
+        (preview[6] << 8) |
+        (preview[7] << 16) |
+        (preview[8] << 24);
+      await sendIapBusinessCommandWithRetry(
+        device,
+        () => buildFlashBlock(blockIdx),
+        context,
+        getFlashBlockAckTimeout(off),
+        onFlashWriteErrCode,
+        sendOpts,
+      );
+    };
+
+    const writeBlockWithRetry = async (blockIdx: number): Promise<void> => {
+      const preview = buildFlashBlock(blockIdx);
+      const blkNum = preview[3] | (preview[4] << 8);
+      const off =
+        preview[5] |
+        (preview[6] << 8) |
+        (preview[7] << 16) |
+        (preview[8] << 24);
+      const payloadLen = preview.length - 9 - 2;
+      const payloadPreview = formatBytesHex(
+        preview.slice(9, 9 + Math.min(16, payloadLen)),
+        16,
+      );
+      const context = `写入块 ${blockIdx + 1}/${blockNum} | blk=0x${blkNum.toString(16).toUpperCase()} off=0x${off.toString(16).toUpperCase()} len=${payloadLen} data=${payloadPreview}`;
+      const quiet =
+        blockIdx !== 0 &&
+        blockIdx !== blockNum - 1 &&
+        blockIdx % IAP_FLASH_LOG_EVERY !== 0;
+      const skipBufferClear =
+        blockIdx > 0 && blockIdx % IAP_FLASH_BUFFER_FLUSH_INTERVAL !== 0;
+      const sendOpts = { quiet, skipBufferClear };
+
+      if (needsStrictFlashAck(blockIdx, blockNum, off)) {
+        await writeBlockStrict(blockIdx, context, sendOpts);
+        return;
       }
 
-      try {
-        await sendBusinessPacket(device, businessData.slice(0, idx));
-      } catch (error: any) {
-        throw new Error(`发送块${blockIdx + 1}失败: ${error.message}`);
+      // 极速通道：只发传输分包，ACK 已在队列则校验，否则直接写下一块（参考 Mechanical）
+      await sendBusinessPacket(device, preview, {
+        quiet: true,
+        turbo: true,
+        postAckWaitMs: 0,
+      });
+
+      const ackResult = takeIapAckFromQueue();
+      if (ackResult?.ack.errCode === ACK_CODE.SUCCESS) {
+        return;
       }
+      if (ackResult && ackResult.ack.errCode !== ACK_CODE.SUCCESS) {
+        ufl.warn(context, formatIapAckStatus(ackResult.ack));
+        await onFlashWriteErrCode(ackResult.ack.errCode);
+        await writeBlockStrict(blockIdx, context, { quiet: false, skipBufferClear: false });
+      }
+      // 无 ACK 也继续（设备可能在后台写 Flash）；检查点块会走 strict 校验
+    };
 
-      const progress = 25 + ((blockIdx + 1) / blockNum) * 65;  // 25%-90%
-      updateStatus(`写入进度: ${blockIdx + 1}/${blockNum} (${((blockIdx + 1) / blockNum * 100).toFixed(1)}%)`, progress, UpgradeStep.UPGRADING);
-    }
+    const prevDataLog = upgradeFlowLog.isDataLogEnabled();
+    upgradeFlowLog.setDataLogEnabled(false);
 
-    console.log('✅ Flash写入数据全部发送完成');
-
-    // 尝试读取最终ACK
-    updateStatus(t('1233'), 90, UpgradeStep.UPGRADING);
     try {
-      await clearInputBufferQuick(device);
-      const finalAck = await receiveReport(device, 5000);
-      console.log(`✓ 收到设备响应: ${Array.from(finalAck.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-    } catch (e) {
-      console.warn('⚠️ 未收到确认响应（可能设备已完成写入）');
+      for (let blockIdx = 0; blockIdx < blockNum; blockIdx++) {
+        await writeBlockWithRetry(blockIdx);
+
+        const progress = 25 + ((blockIdx + 1) / blockNum) * 65;
+        if (blockIdx % 4 === 0 || blockIdx === blockNum - 1) {
+          setUpgradeProgress(progress);
+        }
+
+        if (blockIdx % 50 === 0 || blockIdx === blockNum - 1) {
+          updateStatus(
+            `写入进度: ${blockIdx + 1}/${blockNum} (${((blockIdx + 1) / blockNum * 100).toFixed(1)}%)`,
+            progress,
+            UpgradeStep.UPGRADING,
+          );
+        }
+      }
+    } finally {
+      upgradeFlowLog.setDataLogEnabled(prevDataLog);
     }
 
     updateStatus(t('1234'), 90, UpgradeStep.UPGRADING);
@@ -846,87 +1371,98 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   const switchToApp = async (device: HIDDevice): Promise<void> => {
     updateStatus(t('1235'), 92, UpgradeStep.UPGRADING);
 
-    const businessData = new Uint8Array(7);
-    let idx = 0;
+    await sendIapBusinessCommandWithRetry(
+      device,
+      () => {
+        const businessData = new Uint8Array(7);
+        let idx = 0;
 
-    businessData[idx++] = IAP_CMD.SWITCH_APP;  // 0xA4
-    businessData[idx++] = 2;  // 长度
-    businessData[idx++] = 0;
-    businessData[idx++] = 0xE8;  // 延时1000ms低字节
-    businessData[idx++] = 0x03;  // 延时1000ms高字节
+        businessData[idx++] = IAP_CMD.SWITCH_APP;
+        businessData[idx++] = 2;
+        businessData[idx++] = 0;
+        businessData[idx++] = 0xF4;
+        businessData[idx++] = 0x01;
 
-    const crc = crc16Modbus(businessData.slice(0, idx));
-    businessData[idx++] = crc & 0xFF;
-    businessData[idx++] = (crc >> 8) & 0xFF;
+        const crc = crc16Modbus(businessData.slice(0, idx));
+        businessData[idx++] = crc & 0xFF;
+        businessData[idx++] = (crc >> 8) & 0xFF;
 
-    console.log(`数据: CMD=0xA4, Delay=1000ms, CRC=0x${crc.toString(16).padStart(4, '0')}`);
-
-    await sendBusinessPacket(device, businessData.slice(0, idx));
+        return businessData.slice(0, idx);
+      },
+      '切换APP',
+      IAP_ACK_TIMEOUT_FAST,
+    );
 
     updateStatus(t('1236'), 95, UpgradeStep.UPGRADING);
-    updateStatus(t('1237'), 95, UpgradeStep.UPGRADING);
-    await delay(2000);
+    await delay(IAP_SWITCH_APP_SETTLE_MS);
     updateStatus(t('2884'), 100, UpgradeStep.UPGRADING);
   };
 
   // 设备监控循环
   const startDeviceMonitoring = useCallback(() => {
-    const monitor = async () => {
-      try {
-        // 检测APP模式设备
-        const appDevice = await detectAppModeDevice();
-        if (appDevice && !keyboardDevice.isConnected) {
-          console.log('[设备监控] 检测到APP模式设备:', appDevice.productName);
-          setKeyboardDevice(prev => ({ ...prev, device: appDevice, isConnected: true, isAuthorized: false }));
-          // 记录原始设备PID（只在没有记录时设置）
-          if (!originalKeyboardPID) {
-            console.log("[设备监控] 记录原始PID:", appDevice.productId);
-            setOriginalKeyboardPID(appDevice.productId);
-          }
-        } else if (!appDevice && keyboardDevice.isConnected) {
-          console.log('[设备监控] APP模式设备已断开');
-          setKeyboardDevice(prev => ({ ...prev, device: null, isConnected: false, isAuthorized: false }));
-        }
+    if (upgradeFinishedRef.current) return;
 
-        // 检测Boot模式设备
-        const bootDevice = await detectBootModeDevice();
-        if (bootDevice && !iapDevice.isConnected) {
-          console.log('[设备监控---------------] 🎉 检测到Boot模式设备:', bootDevice.productName, 'PID:', bootDevice.productId.toString(16));
-          setIapDevice(prev => ({ ...prev, device: bootDevice, isConnected: true, isAuthorized: false }));
-          if (upgradeState.currentStep === UpgradeStep.WAITING_IAP_DEVICE ||
-            upgradeState.currentStep === UpgradeStep.ENTERING_IAP_MODE) {
-            console.log('[设备监控] 正在等待IAP设备，准备开始升级');
-            // 立即更新状态，防止重复触发
-            setUpgradeState(prev => ({ ...prev, currentStep: UpgradeStep.UPGRADING }));
-            // 使用setTimeout避免循环依赖
-            setTimeout(() => {
-              handleBootDeviceDetected(bootDevice);
-            }, 0);
-          }
-        } else if (!bootDevice && iapDevice.isConnected) {
-          console.log('[设备监控] Boot模式设备已断开');
-          setIapDevice(prev => ({ ...prev, device: null, isConnected: false, isAuthorized: false }));
-        }
-      } catch (error) {
-        console.error('[设备监控] 出错:', error);
-      }
-    };
-
-    console.log('[设备监控] 启动监控循环');
-    // 立即执行一次
-    monitor();
-
-    // 每500ms检查一次设备状态
-    deviceMonitorRef.current = setInterval(monitor, 500);
-  }, [keyboardDevice.isConnected, iapDevice.isConnected, detectAppModeDevice, detectBootModeDevice, originalKeyboardPID, upgradeState.currentStep]);
-
-  // 停止设备监控
-  const stopDeviceMonitoring = useCallback(() => {
     if (deviceMonitorRef.current) {
       clearInterval(deviceMonitorRef.current);
       deviceMonitorRef.current = null;
     }
-  }, []);
+
+    const monitor = async () => {
+      if (upgradeFinishedRef.current || monitorInFlightRef.current || isProcessingIAPRef.current) {
+        return;
+      }
+      monitorInFlightRef.current = true;
+      try {
+        const kbDev = keyboardDeviceRef.current;
+        const iapDev = iapDeviceRef.current;
+        const us = upgradeStateRef.current;
+
+        const appDevice = await detectAppModeDevice();
+        if (appDevice && !kbDev.isConnected) {
+          ufl.info('设备监控', `检测到APP模式: ${appDevice.productName}`);
+          setKeyboardDevice(prev => ({ ...prev, device: appDevice, isConnected: true, isAuthorized: false }));
+          if (!originalKeyboardPIDRef.current) {
+            ufl.info('设备监控', `记录原始PID=0x${appDevice.productId.toString(16)}`);
+            setOriginalKeyboardPID(appDevice.productId);
+          }
+        } else if (!appDevice && kbDev.isConnected) {
+          ufl.info('设备监控', 'APP模式设备已断开');
+          setKeyboardDevice(prev => ({ ...prev, device: null, isConnected: false, isAuthorized: false }));
+        }
+
+        const bootDevice = await detectBootModeDevice();
+        if (bootDevice && !iapDev.isConnected) {
+          ufl.info('设备监控', `检测到Boot模式: ${bootDevice.productName} PID=0x${bootDevice.productId.toString(16)}`);
+          setIapDevice(prev => ({ ...prev, device: bootDevice, isConnected: true, isAuthorized: false }));
+          const shouldAutoContinue =
+            us.isUpgrading &&
+            (
+              us.currentStep === UpgradeStep.WAITING_IAP_DEVICE ||
+              us.currentStep === UpgradeStep.ENTERING_IAP_MODE ||
+              us.currentStep === UpgradeStep.REQUESTING_AUTHORIZATION
+            );
+          if (shouldAutoContinue) {
+            ufl.info('设备监控', 'Boot 已授权，自动继续升级');
+            setUpgradeState(prev => ({ ...prev, currentStep: UpgradeStep.UPGRADING }));
+            setTimeout(() => {
+              void handleBootDeviceDetectedRef.current(bootDevice);
+            }, 0);
+          }
+        } else if (!bootDevice && iapDev.isConnected) {
+          ufl.info('设备监控', 'Boot模式设备已断开');
+          setIapDevice(prev => ({ ...prev, device: null, isConnected: false, isAuthorized: false }));
+        }
+      } catch (error) {
+        ufl.error('设备监控出错', String(error));
+      } finally {
+        monitorInFlightRef.current = false;
+      }
+    };
+
+    ufl.info('设备监控', '启动监控循环');
+    void monitor();
+    deviceMonitorRef.current = setInterval(monitor, IAP_DEVICE_MONITOR_MS);
+  }, [detectAppModeDevice, detectBootModeDevice]);
 
   // 处理Boot设备检测到的情况
   const handleBootDeviceDetected = useCallback(async (device: HIDDevice) => {
@@ -956,7 +1492,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
 
       // 检查固件文件是否已加载，如果没有则先加载
       let currentFirmwareData = fileData ? await loadFirmwareAsUint8Array(fileData) : null;
-      console.log("Boot设备检测：当前固件文件状态:", currentFirmwareData ? "已加载" : "未加载", "大小:", currentFirmwareData?.length);
+      ufl.info('Boot设备检测', `固件${currentFirmwareData ? '已加载' : '未加载'} size=${currentFirmwareData?.length ?? 0}`);
       if (!currentFirmwareData) {
         updateStatus(t('1227'), 10, UpgradeStep.UPGRADING);
 
@@ -964,7 +1500,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
           const loadedFileData = await loadLocalFirmware();
           setFileData(loadedFileData);
           currentFirmwareData = await loadFirmwareAsUint8Array(loadedFileData);
-          console.log("loadLocalFirmware: 使用外部传入的固件文件路径");
+          ufl.info('Boot设备检测', '从外部路径加载固件');
         } catch (error: any) {
           throw new Error('固件文件加载失败: ' + error.message);
         }
@@ -974,11 +1510,13 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       await performFirmwareUpgradeWithDeviceAndData(device, currentFirmwareData);
 
     } catch (error: any) {
-      showError(`${t('2914')}: ${error.message}`);
+      showUpgradeFailed(`${t('2914')}: ${error.message}`);
     } finally {
       isProcessingIAPRef.current = false;
     }
-  }, [updateStatus, connectDevice, showError, originalKeyboardPID, keyboardDevice, fileData, detectAppModeDevice, t]);
+  }, [updateStatus, connectDevice, showUpgradeFailed, originalKeyboardPID, keyboardDevice, fileData, detectAppModeDevice, t]);
+
+  handleBootDeviceDetectedRef.current = handleBootDeviceDetected;
 
   // 主升级流程
   const startFirmwareUpgrade = async () => {
@@ -988,11 +1526,12 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
     }
 
     try {
+      upgradeFinishedRef.current = false;
       setUpgradeState(prev => ({ ...prev, isUpgrading: true, error: undefined }));
       
       // 💾 保存升级状态到 localStorage（升级开始）
       try {
-        const upgradeStateInfo = {
+        saveFirmwareUpgradeState({
           isUpgrading: true,
           startTime: new Date().toISOString(),
           deviceInfo: {
@@ -1002,12 +1541,10 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
             currentVersion: deviceInfo?.currentVersion,
             upgradeVersion: deviceInfo?.upgradeVersion,
           },
-          step: 'starting'
-        };
-        localStorage.setItem('firmwareUpgradeState', JSON.stringify(upgradeStateInfo));
-        console.log('[升级状态] 已保存到 localStorage:', upgradeStateInfo);
+          step: 'starting',
+        });
       } catch (e) {
-        console.warn('[升级状态] 保存失败:', e);
+        ufl.warn('升级状态', `保存失败: ${String(e)}`);
       }
 
       // 步骤1: 检测设备
@@ -1017,6 +1554,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       const bootDevice = await detectBootModeDevice();
 
       if (bootDevice) {
+        persistUpgradeStep('waiting-iap');
         // 如果已经在Boot模式，直接开始升级
         updateStatus(t('1226'), 10, UpgradeStep.UPGRADING);
         setIapDevice({ device: bootDevice, isConnected: true, isAuthorized: true });
@@ -1043,20 +1581,27 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         await disconnectDevice(appDevice);
         setKeyboardDevice(prev => ({ ...prev, isConnected: false }));
 
-        // 🔑 关键：发送完切换Boot命令后，立即显示"立即授权"按钮
-        // 用户点击授权后，将筛选IAP模式设备（VID: 0x36B0, PID: 0x33FF）
-        console.log('[开始升级] 切换Boot命令已发送，显示授权按钮');
-        updateStatus(t('2898'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
-        // 不再等待自动检测，而是让用户手动授权IAP设备
+        persistUpgradeStep('awaiting-boot-auth');
+        await delay(IAP_BOOT_REENUMERATE_MS);
+
+        const bootAfterSwitch = await detectBootModeDevice();
+        if (bootAfterSwitch) {
+          ufl.info('开始升级', 'Boot 已授权，自动继续');
+          setIapDevice({ device: bootAfterSwitch, isConnected: true, isAuthorized: true });
+          await handleBootDeviceDetected(bootAfterSwitch);
+        } else {
+          ufl.info('开始升级', '切换Boot完成，等待用户授权 Boot 设备');
+          updateStatus(t('2898'), 12, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
+        }
       } else {
         // 未检测到设备，显示授权按钮
-        console.log('[开始升级] 未检测到已授权设备，显示授权按钮');
+        persistUpgradeStep('awaiting-boot-auth');
+        ufl.info('开始升级', '未检测到已授权设备，显示授权按钮');
         updateStatus(t('2899'), 5, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
-        // 保持 isUpgrading=true，显示授权按钮
       }
 
     } catch (error: any) {
-      console.error('升级启动失败:', error);
+      ufl.error('升级启动失败', error.message);
       showError(`${t('2917')}: ${error.message}`);
       setUpgradeState(prev => ({ ...prev, isUpgrading: false }));
     }
@@ -1078,7 +1623,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
         throw new Error('设备不在Bootloader模式，请先切换到Boot模式');
       }
 
+      iapHeaderReadyRef.current = false;
       updateStatus(t('1238'), 10, UpgradeStep.UPGRADING);
+      persistUpgradeStep('flashing');
 
       // 步骤1: 发送启动命令
       await sendStartCommand(device, firmwareData);
@@ -1086,32 +1633,77 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
       // 步骤2: 写入Flash
       await writeFlash(device, firmwareData);
 
+      // 刷写完成：先停监控，避免 switchToApp 重枚举时 250ms 轮询 + setState 把 tab 打崩
+      upgradeFinishedRef.current = true;
+      stopDeviceMonitoring();
+      inputQueueRef.current = [];
+      inputQueueWaitersRef.current = [];
+
       // 步骤3: 切换到APP
       await switchToApp(device);
 
-      showSuccess();
-      
-      // 🗑️ 清空升级状态（升级成功）
       try {
-        localStorage.removeItem('firmwareUpgradeState');
-        console.log('[升级状态] 升级成功，已清空状态');
+        clearFirmwareUpgradeState();
+        ufl.info('升级状态', '升级成功，已清空状态');
       } catch (e) {
-        console.warn('[升级状态] 清空失败:', e);
+        ufl.warn('升级状态', `清空失败: ${String(e)}`);
       }
 
-      // 清理资源
-      await disconnectDevice(device);
+      try {
+        await disconnectDevice(device);
+      } catch (e) {
+        ufl.warn('升级收尾', `断开 Boot 设备: ${String(e)}`);
+      }
+
       setIapDevice({ device: null, isConnected: false, isAuthorized: false });
+      releaseUpgradeMemory();
+      showSuccess();
 
     } catch (error: any) {
-      updateStatus(t('1219'), 0, UpgradeStep.ERROR, error.message, 'error');
-      
-      // ⚠️ 升级失败时不清空状态，保留用于异常检测
-      // localStorage 中的状态会在下次连接时检测到
-      console.log('[升级状态] 升级失败，保留状态用于异常检测');
-      
-      throw new Error('升级过程失败: ' + error.message);
+      ufl.info('升级状态', '升级失败，保留状态用于异常检测');
+      showUpgradeFailed(error.message);
     } finally {
+      setUpgradeState(prev => ({ ...prev, isUpgrading: false }));
+    }
+  };
+
+  // Boot 模式下重新尝试升级
+  const retryFirmwareUpgrade = async () => {
+    if (!fileData || upgradeState.isUpgrading) {
+      return;
+    }
+
+    try {
+      setUpgradeState(prev => ({
+        ...prev,
+        isUpgrading: true,
+        error: undefined,
+        statusType: 'normal',
+        currentStep: UpgradeStep.UPGRADING,
+      }));
+
+      let device = iapDevice.device;
+      if (!device) {
+        device = await detectBootModeDevice();
+      }
+
+      if (!device) {
+        throw new Error(t('1205'));
+      }
+
+      if (!device.opened) {
+        const connected = await connectDevice(device);
+        if (!connected) {
+          throw new Error('无法连接Boot设备');
+        }
+      }
+
+      setIapDevice({ device, isConnected: true, isAuthorized: true });
+
+      const firmwareData = await loadFirmwareAsUint8Array(fileData);
+      await performFirmwareUpgradeWithDeviceAndData(device, firmwareData);
+    } catch (error: any) {
+      showUpgradeFailed(error.message);
       setUpgradeState(prev => ({ ...prev, isUpgrading: false }));
     }
   };
@@ -1133,12 +1725,20 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
           device.productId === DEVICE_FILTERS.BOOT_MODE.productId;
 
         if (isBootMode) {
+          persistUpgradeStep('waiting-iap');
           await handleBootDeviceDetected(device);
         } else {
           // APP模式，需要切换到Boot模式
           await switchToBoot(device);
           await disconnectDevice(device);
-          updateStatus(t('2903'), 12, UpgradeStep.WAITING_IAP_DEVICE);
+          persistUpgradeStep('awaiting-boot-auth');
+          await delay(IAP_BOOT_REENUMERATE_MS);
+          const bootAfterSwitch = await detectBootModeDevice();
+          if (bootAfterSwitch) {
+            await handleBootDeviceDetected(bootAfterSwitch);
+          } else {
+            updateStatus(t('2903'), 12, UpgradeStep.REQUESTING_AUTHORIZATION);
+          }
         }
       } else {
         // 如果是自动调用且用户取消，保持错误提示状态
@@ -1172,8 +1772,12 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
 
   // 重置状态
   const resetState = () => {
+    upgradeFinishedRef.current = false;
+    monitorInFlightRef.current = false;
     stopDeviceMonitoring();
-    isProcessingIAPRef.current = false; // 重置处理标志
+    isProcessingIAPRef.current = false;
+    iapHeaderReadyRef.current = false;
+    releaseUpgradeMemory();
     setUpgradeState({
       isUpgrading: false,
       progress: 0,
@@ -1199,18 +1803,63 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
   // 重要：无论是否传入deviceInfo，都需要启动设备监控
   // 因为升级过程中需要检测设备从APP模式切换到Boot模式
   useEffect(() => {
-    if (isOpen) {
-      console.log('[设备监控] 窗口打开，启动设备监控');
-      startDeviceMonitoring();
-    } else {
-      console.log('[设备监控] 窗口关闭，停止设备监控');
+    if (!isOpen) {
+      ufl.info('设备监控', '窗口关闭，停止设备监控');
       stopDeviceMonitoring();
+      resumeAttemptedRef.current = false;
+      return;
     }
+    if (upgradeFinishedRef.current) {
+      stopDeviceMonitoring();
+      return;
+    }
+    ufl.info('设备监控', '窗口打开，启动设备监控');
+    startDeviceMonitoring();
 
     return () => {
       stopDeviceMonitoring();
     };
   }, [isOpen, startDeviceMonitoring, stopDeviceMonitoring]);
+
+  /** 页面刷新 / Boot 授权后：仅预加载固件，不自动开始刷写，用户可点「开始升级」重试 */
+  useEffect(() => {
+    if (!isOpen) {
+      resumeAttemptedRef.current = false;
+      return;
+    }
+    if (resumeAttemptedRef.current) return;
+
+    const persisted = readFirmwareUpgradeState();
+    if (!persisted?.isUpgrading) return;
+    resumeAttemptedRef.current = true;
+
+    const prep = async () => {
+      ufl.info('升级恢复', '预加载固件，等待用户开始升级');
+
+      if (!fileData && deviceInfo?.firmwareFile) {
+        try {
+          const loaded = await loadLocalFirmware();
+          setFileData(loaded);
+          const versionInfo = displayCurrentVersion && deviceInfo?.upgradeVersion
+            ? ` (${t('1206')}: ${displayCurrentVersion} → ${t('1207')}: ${deviceInfo.upgradeVersion})`
+            : '';
+          updateStatus(`${t('1209')} (${loaded.totalSize} ${t('字节')})${versionInfo}`, 0, UpgradeStep.IDLE);
+        } catch (error) {
+          ufl.error('升级恢复', `加载固件失败: ${String(error)}`);
+        }
+      }
+
+      const bootDevice = await detectBootModeDevice();
+      if (bootDevice) {
+        setIapDevice({ device: bootDevice, isConnected: true, isAuthorized: true });
+        updateStatus(t('1226'), 0, UpgradeStep.IDLE);
+      } else {
+        updateStatus(t('2899'), 5, UpgradeStep.REQUESTING_AUTHORIZATION, undefined, 'warning');
+      }
+    };
+
+    void prep();
+  }, [isOpen, deviceInfo?.firmwareFile, displayCurrentVersion, deviceInfo?.upgradeVersion, fileData, detectBootModeDevice, t, updateStatus]);
 
   const primaryColor = theme.palette.primary.main;
   const trackBg = isLightMode ? 'rgba(0, 0, 0, 0.06)' : alpha(theme.palette.common.white, 0.1);
@@ -1376,7 +2025,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                       }}
                     >
-                      0x{(deviceInfo?.vendorId || keyboardDevice.device?.vendorId || 0).toString(16).toUpperCase().padStart(4, '0')}
+                      0x{(iapDevice.device?.vendorId ?? deviceInfo?.vendorId ?? keyboardDevice.device?.vendorId ?? 0).toString(16).toUpperCase().padStart(4, '0')}
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
@@ -1389,16 +2038,16 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                       }}
                     >
-                      0x{(deviceInfo?.productId || keyboardDevice.device?.productId || 0).toString(16).toUpperCase().padStart(4, '0')}
+                      0x{(iapDevice.device?.productId ?? deviceInfo?.productId ?? keyboardDevice.device?.productId ?? 0).toString(16).toUpperCase().padStart(4, '0')}
                     </Typography>
                   </Box>
-                  {deviceInfo?.currentVersion && (
+                  {displayCurrentVersion && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
                       <Typography sx={{ color: 'text.secondary', fontSize: '14px', fontWeight: 500 }}>
                         {t('1206')}
                       </Typography>
                       <Typography sx={{ color: 'text.primary', fontSize: '14px', fontWeight: 600 }}>
-                        v{deviceInfo.currentVersion}
+                        v{displayCurrentVersion}
                       </Typography>
                     </Box>
                   )}
@@ -1474,7 +2123,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                     letterSpacing: '0.02em',
                   }}
                 >
-                  {Math.round(upgradeState.progress)}%
+                  {upgradeState.progress.toFixed(1)}%
                 </Typography>
               </Box>
             </Box>
@@ -1494,6 +2143,7 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                           ? theme.palette.warning.main
                           : primaryColor,
                     borderRadius: '999px',
+                    transition: 'transform 0.18s ease-out',
                   },
                 }}
               />
@@ -1625,7 +2275,13 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                 variant="contained"
                 color="primary"
                 size="large"
-                onClick={upgradeState.currentStep === UpgradeStep.COMPLETED ? handleClose : startFirmwareUpgrade}
+                onClick={
+                  upgradeState.currentStep === UpgradeStep.COMPLETED
+                    ? handleClose
+                    : upgradeState.currentStep === UpgradeStep.ERROR
+                      ? () => void retryFirmwareUpgrade()
+                      : () => void startFirmwareUpgrade()
+                }
                 disabled={
                   upgradeState.currentStep === UpgradeStep.COMPLETED
                     ? false
@@ -1660,7 +2316,9 @@ function FirmwareUpgrade({ isOpen, onClose, deviceInfo }: FirmwareUpgradeProps) 
                   ? t('1218')
                   : upgradeState.isUpgrading
                     ? t('2901')
-                    : t('1217')}
+                    : upgradeState.currentStep === UpgradeStep.ERROR
+                      ? t('2952')
+                      : t('1217')}
               </Button>
             </Stack>
           )}

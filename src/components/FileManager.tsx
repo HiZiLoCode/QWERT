@@ -20,6 +20,7 @@ import {
 } from '@mui/icons-material';
 import { ButtonRem } from '@/styled/ReconstructionRem';
 import * as IndexedDBStorage from '@/utils/indexeddb-storage';
+import { saveDefinition, validateDefinition } from '@/utils/definition-storage';
 
 interface FileItem {
     id: string;
@@ -43,7 +44,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
     // 从 IndexedDB 加载文件
     const loadFilesFromStorage = async (): Promise<FileItem[]> => {
         try {
-            const loadedFiles = await IndexedDBStorage.getAllFiles();
+            const loadedFiles = await IndexedDBStorage.getAllQmkDefinitions();
             console.log('[FileManager] 从 IndexedDB 加载文件:', loadedFiles.length, '个');
             return loadedFiles;
         } catch (error) {
@@ -85,31 +86,34 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
 
             setLoading(true);
 
-            // 读取文件内容并保存到 IndexedDB
+            const failedFiles: string[] = [];
+
             for (const file of jsonFiles) {
                 try {
                     const content = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
+                        const reader = new FileReader();
                         reader.onload = (event) => resolve(event.target?.result as string);
                         reader.onerror = reject;
                         reader.readAsText(file);
                     });
 
-                    const newFile: FileItem = {
-                        id: `${Date.now()}-${Math.random()}`,
-                        name: file.name,
-                        type: 'file',
-                        size: file.size,
-                        date: new Date().toISOString(),
-                        content: content,
-                    };
+                    const data = JSON.parse(content);
+                    const validation = validateDefinition(data);
+                    if (!validation.valid) {
+                        failedFiles.push(`${file.name}: ${validation.error}`);
+                        continue;
+                    }
 
-                    await IndexedDBStorage.saveFile(newFile);
-                    console.log('[FileManager] 文件已保存到 IndexedDB:', newFile.name);
+                    await saveDefinition(data);
+                    console.log('[FileManager] QMK 配置已保存:', file.name);
                 } catch (error) {
                     console.error('[FileManager] 保存文件失败:', error);
-                    alert(`保存文件 ${file.name} 失败`);
+                    failedFiles.push(`${file.name}: ${error instanceof Error ? error.message : '保存失败'}`);
                 }
+            }
+
+            if (failedFiles.length > 0) {
+                alert(`以下文件不是有效的 QMK 键盘配置，已跳过：\n${failedFiles.join('\n')}`);
             }
 
             // 重新加载文件列表
@@ -196,7 +200,7 @@ export const FileManager: React.FC<FileManagerProps> = ({ open, onClose, t }) =>
     const handleDelete = async (id: string) => {
         if (confirm('确定要删除这个文件吗？')) {
             try {
-                await IndexedDBStorage.deleteFile(id);
+                await IndexedDBStorage.deleteQmkDefinition(id);
                 console.log('[FileManager] 文件已删除:', id);
                 
                 // 重新加载文件列表

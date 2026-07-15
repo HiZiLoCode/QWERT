@@ -140,8 +140,9 @@ async function decompose(payload: DecomposePayload): Promise<WorkerOk> {
     payload.frameLimit && payload.frameLimit > 0 ? frames.slice(0, Math.min(payload.frameLimit, frames.length)) : frames;
   if (!effectiveFrames.length) throw new Error("GIF_NO_VALID_FRAMES");
 
-  const firstDelay = Math.max(effectiveFrames[0]?.delay ?? 100, 1);
-  const fpsFromGif = Math.max(2, Math.min(120, Math.round(1000 / firstDelay)));
+  const delaySum = effectiveFrames.reduce((sum, frame) => sum + Math.max(frame?.delay ?? 100, 1), 0);
+  const avgDelayMs = delaySum / effectiveFrames.length;
+  const fpsFromGif = Math.max(2, Math.min(120, Math.round(1000 / avgDelayMs)));
 
   const accCanvas = new OffscreenCanvas(gifW, gifH);
   const accCtx = accCanvas.getContext("2d");

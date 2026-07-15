@@ -4,6 +4,7 @@ import React, { createContext, useState, useMemo, useContext, ReactNode, useEffe
 import { ThemeProvider, Theme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { lightTheme, darkTheme, DARK_APP, LIGHT_APP } from './theme';
+import UpgradeFlowLogPanel from '@/components/common/UpgradeFlowLogPanel';
 interface ThemeContextType {
   toggleTheme: () => void;
   /** 直接设为明亮或深色（与切换等价，可幂等） */
@@ -27,29 +28,18 @@ interface ThemeContextProviderProps {
 // 直接获取 
 let cachedTheme: 'light' | 'dark' | null = null;
 
-const getLocalAppTheme = (): 'light' | 'dark' => {
-  if (cachedTheme !== null) return cachedTheme;
-
-  if (typeof window !== 'undefined') {
-    cachedTheme = localStorage.getItem('appTheme') as 'light' | 'dark' | null;
-    return cachedTheme === 'light' || cachedTheme === 'dark' ? cachedTheme : 'light';
-  }
-  cachedTheme = 'light';
-  return cachedTheme;
-};
-
 const ThemeContextProvider: React.FC<ThemeContextProviderProps> = ({ children }) => {
-  const [mode, setMode] = useState<'light' | 'dark'>(getLocalAppTheme()) ;
-  
-  // useEffect(() => {
-  //   if (typeof window !== 'undefined') {
-  //     const storedTheme = localStorage.getItem('appTheme') as 'light' | 'dark' | null;
-      
-  //     if (storedTheme === 'light' || storedTheme === 'dark') {
-  //       setMode(storedTheme);
-  //     }
-  //   }
-  // }, []);
+  // 首屏与服务端保持一致，避免读取 localStorage 导致 hydration 不匹配（HeroSection 等）
+  const [mode, setMode] = useState<'light' | 'dark'>('light');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const storedTheme = localStorage.getItem('appTheme') as 'light' | 'dark' | null;
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      setMode(storedTheme);
+      cachedTheme = storedTheme;
+    }
+  }, []);
 
   const toggleTheme = () => {
     const newMode = mode === 'light' ? 'dark' : 'light';
@@ -93,6 +83,7 @@ const ThemeContextProvider: React.FC<ThemeContextProviderProps> = ({ children })
       <ThemeProvider theme={theme}>
         <CssBaseline />
         {children}
+        <UpgradeFlowLogPanel />
       </ThemeProvider>
     </ThemeContext.Provider>
   );

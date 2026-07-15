@@ -71,19 +71,24 @@ export function expandKeyedPool(options: {
 
     const out: KeyPoolItem[] = [];
     const seen = new Set<string>();
+    let pendingSection: KeyPoolSection | null = null;
 
     for (const raw of layoutRows) {
         if (raw.uiKind === 'section' && raw.sectionTitleKey) {
-            out.push({
+            pendingSection = {
                 isSectionHeader: true,
                 sectionTitleKey: raw.sectionTitleKey,
                 code: `__section__${raw.sectionTitleKey}`,
-            });
+            };
             continue;
         }
         if (raw.uiKind === 'ref') {
             const key = resolveLayoutRef(raw, pools);
             if (key && itemFilter(key)) {
+                if (pendingSection) {
+                    out.push(pendingSection);
+                    pendingSection = null;
+                }
                 out.push(key);
                 seen.add(keyFingerprint(key));
             }

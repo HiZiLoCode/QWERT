@@ -1,0 +1,16 @@
+{
+    "previewSkins": [
+        {
+            "value": "flashWhite",
+            "label": "闪白",
+            "suffix": "",
+            "image": "/keyboard/owaria80_flash_white.png"
+        },
+        {
+            "value": "stoneGray",
+            "label": "石洗灰",
+            "suffix": "",
+            "image": "/keyboard/owaria80_stone_gray.png"
+        }
+    ]
+}

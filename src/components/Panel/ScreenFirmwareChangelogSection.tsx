@@ -27,7 +27,9 @@ import {
 } from '@/constants/settingsPanelTypography';
 import { settingsFirmwareCardSx } from '@/constants/lightingPanelChrome';
 import {
+    compareFirmwareVersions,
     findFirmwareRelease,
+    firmwareVersionsMatch,
     getScreenFirmwareReleasesForDevice,
     pickFirmwareReleaseChanges,
     type FirmwareRelease,
@@ -37,6 +39,7 @@ import { connectScreenLcdWebHid } from '@/lib/screenLcdWebHidConnect';
 import { notifyFirmwareUpdateAfterScreenConnect } from '@/utils/postScreenConnectFirmwareHint';
 import type { ConnectScreenHidResult, FilterDevice } from '@/types/types';
 import { getHiddenScrollbarSx } from '@/utils/comfortableScrollbarSx';
+import { canUpgradeToScreenRelease } from '@/utils/firmwareUpgradeReadiness';
 
 function pickChanges(release: FirmwareRelease, lang: string): string[] {
     return pickFirmwareReleaseChanges(release.changes, lang);
@@ -51,11 +54,19 @@ export type ScreenFirmwareChangelogSectionProps = {
     deviceNeedsUpgrade?: boolean;
     onCheckUpdates: () => void;
     checkingForUpdates: boolean;
+    /** deviceInfo 已配置 screenUpgradeVersion + screenFirmwareFile */
+    upgradePackageReady?: boolean;
     demoSession?: boolean;
     /** 已在设置页连接 LCD 并可读取 getScreenSize */
     lcdReady: boolean;
     /** 与动效页一致：通过键盘协议亮屏后再接 WebHID 屏幕 */
     keyboardForScreen?: KeyboardDevice;
+    /** 历史版本中选择指定版本进行屏幕 OTA */
+    onUpgradeToVersion?: (params: {
+        version: string;
+        firmwareFile: string;
+        imageFile?: string;
+    }) => void;
 };
 
 export default function ScreenFirmwareChangelogSection({
@@ -67,9 +78,11 @@ export default function ScreenFirmwareChangelogSection({
     deviceNeedsUpgrade,
     onCheckUpdates,
     checkingForUpdates,
+    upgradePackageReady = false,
     demoSession = false,
     lcdReady,
     keyboardForScreen,
+    onUpgradeToVersion,
 }: ScreenFirmwareChangelogSectionProps) {
     const { t, i18n } = useTranslation('common');
     const theme = useTheme();
@@ -154,6 +167,14 @@ export default function ScreenFirmwareChangelogSection({
         return findFirmwareRelease(releases, deviceUpgradeVersion);
     }, [releases, deviceNeedsUpgrade, deviceUpgradeVersion]);
 
+    const newerReleases = useMemo(() => {
+        if (!deviceNeedsUpgrade || !deviceVersion) return [];
+        return releases
+            .filter((r) => !firmwareVersionsMatch(r.version, deviceVersion))
+            .filter((r) => compareFirmwareVersions(r.version, deviceVersion) > 0)
+            .sort((a, b) => compareFirmwareVersions(b.version, a.version));
+    }, [releases, deviceNeedsUpgrade, deviceVersion]);
+
     const currentItems = currentRelease ? pickChanges(currentRelease, lang) : [];
     const upgradeItems = upgradeRelease ? pickChanges(upgradeRelease, lang) : [];
 
@@ -232,6 +253,23 @@ export default function ScreenFirmwareChangelogSection({
         [theme]
     );
 
+    const historyUpgradeBtnSx = useMemo(
+        () => ({
+            textTransform: 'none' as const,
+            height: '32px',
+            px: '16px',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: theme.palette.primary.contrastText,
+            bgcolor: theme.palette.primary.main,
+            border: `1px solid ${theme.palette.primary.main}`,
+            borderRadius: '8px',
+            boxShadow: 'none',
+            '&:hover': { bgcolor: theme.palette.primary.dark, borderColor: theme.palette.primary.dark },
+        }),
+        [theme]
+    );
+
     const accordionSx = useMemo(
         () => ({
             border: `1px solid ${isDark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(148, 163, 184, 0.25)'}`,
@@ -272,7 +310,7 @@ export default function ScreenFirmwareChangelogSection({
                 ) : null}
                 <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '8px' }}>
                     {t('2521')}: V{deviceVersion || '—'}
-                    {lcdReady && currentRelease?.date ? ` · ${currentRelease.date}` : null}
+                    {currentRelease?.date ? ` · ${currentRelease.date}` : null}
                 </Typography>
                 <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '5.6px' }}>{t('2522')}</Typography>
                 {releases.length === 0 ? (
@@ -309,7 +347,37 @@ export default function ScreenFirmwareChangelogSection({
                             {t('2509')}: V{deviceUpgradeVersion}
                         </Typography>
                         <Typography sx={{ ...getSettingsRowDescriptionSx(theme), mb: '5.6px' }}>{t('2529')}</Typography>
-                        {upgradeItems.length > 0 ? (
+                        {newerReleases.length > 0 ? (
+                            newerReleases.map((release) => {
+                                const items = pickChanges(release, lang);
+                                return (
+                                    <Box key={`${release.version}-${release.date}`} sx={{ mb: '12px' }}>
+                                        <Typography
+                                            sx={{
+                                                fontSize: '14px',
+                                                fontWeight: 600,
+                                                color: 'text.primary',
+                                                mb: '4px',
+                                            }}
+                                        >
+                                            V{release.version}
+                                            {release.date ? ` · ${release.date}` : ''}
+                                        </Typography>
+                                        {items.length > 0 ? (
+                                            <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
+                                                {items.map((line, idx) => (
+                                                    <li key={idx}>{line}</li>
+                                                ))}
+                                            </Box>
+                                        ) : (
+                                            <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>
+                                                {t('2532')}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                );
+                            })
+                        ) : upgradeItems.length > 0 ? (
                             <Box component="ul" sx={{ ...getSettingsRowListUlSx(theme) }}>
                                 {upgradeItems.map((line, idx) => (
                                     <li key={idx}>{line}</li>
@@ -335,28 +403,25 @@ export default function ScreenFirmwareChangelogSection({
                                   ? `${t('2725')}${'.'.repeat(openingDots + 1)}`
                                   : t('16')}
                         </ButtonRem>
-                    ) : null}
-                    {lcdReady ? (
-                        <>
-                            <ButtonRem
-                                type="button"
-                                onClick={onCheckUpdates}
-                                disabled={checkingForUpdates}
-                                sx={checkUpdatesBtnSx}
-                            >
-                                {checkingForUpdates ? t('733') : t('2514')}
-                            </ButtonRem>
-                            {releases.length > 0 && (
-                                <ButtonRem
-                                    type="button"
-                                    onClick={() => setHistoryOpen(true)}
-                                    sx={historyLinkBtnSx}
-                                >
-                                    {t('2523')}
-                                </ButtonRem>
-                            )}
-                        </>
-                    ) : null}
+                    ) : (
+                        <ButtonRem
+                            type="button"
+                            onClick={onCheckUpdates}
+                            disabled={checkingForUpdates || !upgradePackageReady}
+                            sx={checkUpdatesBtnSx}
+                        >
+                            {checkingForUpdates ? t('733') : t('2514')}
+                        </ButtonRem>
+                    )}
+                    {releases.length > 0 && (
+                        <ButtonRem
+                            type="button"
+                            onClick={() => setHistoryOpen(true)}
+                            sx={historyLinkBtnSx}
+                        >
+                            {t('2523')}
+                        </ButtonRem>
+                    )}
                 </Box>
             </Box>
 
@@ -371,7 +436,7 @@ export default function ScreenFirmwareChangelogSection({
                 <DialogContent dividers sx={{ maxHeight: '50vh', ...getHiddenScrollbarSx() }}>
                     {releases.map((release) => {
                         const items = pickChanges(release, lang);
-                        const isCurrent = release.version.toUpperCase() === deviceVersion.trim().toUpperCase();
+                        const isCurrent = firmwareVersionsMatch(release.version, deviceVersion);
                         return (
                             <Accordion
                                 key={`${release.version}-${release.date}`}
@@ -404,6 +469,32 @@ export default function ScreenFirmwareChangelogSection({
                                     ) : (
                                         <Typography sx={{ ...getSettingsRowDescriptionSx(theme) }}>{t('2526')}</Typography>
                                     )}
+                                    {lcdReady &&
+                                    canUpgradeToScreenRelease({
+                                        version: release.version,
+                                        screenFirmwareFile: release.screenFirmwareFile,
+                                        vendorId,
+                                        productId,
+                                        keySegment,
+                                    }) &&
+                                    onUpgradeToVersion ? (
+                                        <Box sx={{ mt: '12px' }}>
+                                            <ButtonRem
+                                                type="button"
+                                                onClick={() => {
+                                                    onUpgradeToVersion({
+                                                        version: release.version,
+                                                        firmwareFile: release.screenFirmwareFile!,
+                                                        imageFile: release.screenImageFile,
+                                                    });
+                                                    setHistoryOpen(false);
+                                                }}
+                                                sx={historyUpgradeBtnSx}
+                                            >
+                                                {t('1217')}
+                                            </ButtonRem>
+                                        </Box>
+                                    ) : null}
                                 </AccordionDetails>
                             </Accordion>
                         );

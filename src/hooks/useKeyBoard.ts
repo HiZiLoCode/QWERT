@@ -541,9 +541,15 @@ export default function useKeyboard() {
 
     layoutKeys,
     initLayoutKeys: (layoutKeys: LayoutKey[]) => {
-      const newLayoutKeys = layoutKeys.map((key) => {
-        return { ...key, index: key.row * 21 + key.col };
-      });
+      const newLayoutKeys = layoutKeys.map((key, idx) => ({
+        ...key,
+        index:
+          typeof key.index === 'number'
+            ? key.index
+            : key.row != null && key.col != null
+              ? key.row * 21 + key.col
+              : idx,
+      }));
       setLayoutKeys(newLayoutKeys);
     },
 
@@ -571,7 +577,21 @@ export default function useKeyboard() {
     updateQMKKey: (layerIdx: number, keyIdx: number, newKey: any) => {
       setAllQMKLayers(prev => {
         const next = prev.map(l => [...l]);
-        if (next[layerIdx]) next[layerIdx][keyIdx] = newKey;
+        const layer = next[layerIdx];
+        if (!layer) return prev;
+
+        let targetIdx = -1;
+        if (newKey?.row != null && newKey?.col != null) {
+          targetIdx = layer.findIndex(
+            (k) => k.row === newKey.row && k.col === newKey.col,
+          );
+        }
+        if (targetIdx < 0 && keyIdx >= 0 && keyIdx < layer.length) {
+          targetIdx = keyIdx;
+        }
+        if (targetIdx >= 0) {
+          layer[targetIdx] = { ...layer[targetIdx], ...newKey };
+        }
         return next;
       });
     },

@@ -746,3 +746,15 @@ export function buildMatrixKeyInfo(
   const keyDefs = buildSimpleKeyDefsFromLayoutKeymap(layoutKeymap);
   return buildMatrixKeyInfoStandalone(keycodesArray, keyDefs);
 }
+
+/** QMK code 字符串 → USB HID 用法字节（BindTest 物理键位映射） */
+export function qmkCodeStringToHidUsage(code: string): number | null {
+  if (!code || typeof code !== 'string') return null;
+  const trimmed = code.trim();
+  if (trimmed in CODE_TO_BYTE) return CODE_TO_BYTE[trimmed];
+  const modCombo = trimmed.match(
+    /^(?:LCTL|LSFT|LALT|LGUI|RCTL|RSFT|RALT|RGUI|C|S|A|G|HYPR|MEH|LCAG)\(([^)]+)\)$/,
+  );
+  if (modCombo?.[1] && modCombo[1] in CODE_TO_BYTE) return CODE_TO_BYTE[modCombo[1]];
+  return null;
+}

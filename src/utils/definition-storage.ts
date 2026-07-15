@@ -49,24 +49,25 @@ export interface StoredDefinition {
  */
 export async function getStoredDefinitions(): Promise<StoredDefinition[]> {
     try {
-        const files = await IndexedDBStorage.getAllFiles();
+        const files = await IndexedDBStorage.getAllQmkDefinitions();
         const definitions: StoredDefinition[] = [];
 
         for (const file of files) {
             if (!file.content) continue;
-            
+
             try {
                 const definition: KeyboardDefinition = JSON.parse(file.content);
-                if (definition.vendorId && definition.productId) {
-                    const vendorProductId = calculateVendorProductId(definition.vendorId, definition.productId);
-                    definitions.push({
-                        id: file.id,
-                        name: definition.name || file.name,
-                        vendorProductId,
-                        uploadTime: file.date ? new Date(file.date).getTime() : Date.now(),
-                        definition,
-                    });
-                }
+                const validation = validateDefinition(definition);
+                if (!validation.valid) continue;
+
+                const vendorProductId = calculateVendorProductId(definition.vendorId, definition.productId);
+                definitions.push({
+                    id: file.id,
+                    name: definition.name || file.name,
+                    vendorProductId,
+                    uploadTime: file.date ? new Date(file.date).getTime() : Date.now(),
+                    definition,
+                });
             } catch (error) {
                 console.error('解析配置文件失败:', error);
             }
@@ -128,7 +129,7 @@ export async function getDefinitionByVidPid(vendorId: number, productId: number)
  */
 export async function deleteDefinition(id: string): Promise<void> {
     try {
-        await IndexedDBStorage.deleteFile(id);
+        await IndexedDBStorage.deleteQmkDefinition(id);
         console.log(`[定义存储] 删除配置: ${id}`);
     } catch (error) {
         console.error('删除定义失败:', error);
@@ -141,7 +142,7 @@ export async function deleteDefinition(id: string): Promise<void> {
  */
 export async function clearAllDefinitions(): Promise<void> {
     try {
-        await IndexedDBStorage.clearAllFiles();
+        await IndexedDBStorage.clearAllQmkDefinitions();
         console.log(`[定义存储] 清空所有配置`);
     } catch (error) {
         console.error('清空定义失败:', error);

@@ -28,7 +28,24 @@ import ResetProgress from '../ResetProgress';
 import WebDriverChangelogSection from './WebDriverChangelogSection';
 import FirmwareChangelogSection from './FirmwareChangelogSection';
 import ScreenFirmwareChangelogSection from './ScreenFirmwareChangelogSection';
-import { getScreenFirmwareFile, getScreenImageFile, getScreenUpgradeVersion } from '@/config/deviceInfo';
+import {
+    getScreenFirmwareFile,
+    getScreenImageFile,
+    getScreenUpgradeVersion,
+    isKeyboardDriverUpgradeDisabled,
+    isScreenDriverUpgradeDisabled,
+} from '@/config/deviceInfo';
+import {
+    isFirmwareVersionBehind,
+} from '@/utils/firmwareVersionCompare';
+import {
+    canInitiateKeyboardFirmwareUpgrade,
+    canInitiateScreenFirmwareUpgrade,
+    canUpgradeToKeyboardRelease,
+    canUpgradeToScreenRelease,
+    isKeyboardFirmwarePackageConfigured,
+} from '@/utils/firmwareUpgradeReadiness';
+import { isActiveFirmwareUpgradeState, readFirmwareUpgradeState, resolveKeyboardUpgradeCurrentVersion } from '@/utils/firmwareUpgradeState';
 import FirmwareUpgrade from '@/components/common/FirmwareUpgrade';
 import ScreenFirmwareUpgrade from '@/components/common/ScreenFirmwareUpgrade';
 import DongleFirmwareUpgrade from '@/components/common/DongleFirmwareUpgrade';
@@ -40,11 +57,11 @@ import { useThemeMode } from '@/providers/ThemeContextProvider';
 import { getSettingsRowDescriptionSx, getSettingsRowTitleSx } from '@/constants/settingsPanelTypography';
 import { lightingPanelCardSx } from '@/constants/lightingPanelChrome';
 import { getComfortableScrollbarSx } from '@/utils/comfortableScrollbarSx';
+import { usesExtendedFuncInfoLayout } from '@/devices/KeyboardDevice';
 
-/** 与 KeyboardDevice 中扩展功能区 PID 一致，用于设置项显隐 */
-const PID_EXTENDED_FUNC_LAYOUT = 0x3059;
+import QmkLayoutPanel from './QmkLayoutPanel';
 
-type SettingTab = 'settings' | 'interface' | 'firmware';
+type SettingTab = 'settings' | 'interface' | 'firmware' | 'layout';
 
 export default function SettingPanel() {
     const { t } = useTranslation("common");
@@ -63,13 +80,21 @@ export default function SettingPanel() {
     const theme = useTheme();
     const [tab, setTab] = useState<SettingTab>('settings');
     const lastSettingsFwSeqRef = useRef(0);
+    const isQMK = keyboard?.keyboardType === 'QMK';
 
     useEffect(() => {
+        if (isQMK) {
+            setTab('interface');
+        }
+    }, [isQMK]);
+
+    useEffect(() => {
+        if (isQMK) return;
         if (settingsFirmwareTabRequestSeq > lastSettingsFwSeqRef.current) {
             lastSettingsFwSeqRef.current = settingsFirmwareTabRequestSeq;
             setTab('firmware');
         }
-    }, [settingsFirmwareTabRequestSeq]);
+    }, [settingsFirmwareTabRequestSeq, isQMK]);
 
     const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
@@ -124,9 +149,54 @@ export default function SettingPanel() {
     const screenDeviceVersion = lcdVersionHex || screenVerFromContext;
     const lcdReady = Boolean(deviceComm && deviceStatus && screenDeviceVersion);
     const screenNeedsUpgrade = Boolean(
+        !isScreenDriverUpgradeDisabled(fwVid, fwPid, firmwareChangelogKeySegment) &&
         screenUpgradeVersionCfg &&
         screenDeviceVersion &&
-        parseInt(screenDeviceVersion, 10) < parseInt(screenUpgradeVersionCfg, 10)
+        isFirmwareVersionBehind(screenDeviceVersion, screenUpgradeVersionCfg),
+    );
+    const keyboardUpgradeReady = isKeyboardFirmwarePackageConfigured({
+        targetVersion: deviceUpgradeVersion,
+        firmwareFile: deviceUpgradeFile,
+        vendorId: fwVid,
+        productId: fwPid,
+        keySegment: firmwareChangelogKeySegment,
+    }) || isActiveFirmwareUpgradeState({
+        vendorId: fwVid || deviceVID,
+        productId: fwPid || devicePID,
+        currentUpgradeVersion: deviceUpgradeVersion,
+    });
+    const persistedUpgrade = useMemo(
+        () => (isUpgradeWindowOpen ? readFirmwareUpgradeState() : null),
+        [isUpgradeWindowOpen],
+    );
+    const keyboardUpgradeCurrentVersion = useMemo(
+        () => resolveKeyboardUpgradeCurrentVersion({
+            deviceVersion,
+            persistedCurrentVersion: persistedUpgrade?.deviceInfo?.currentVersion,
+            upgradeStep: persistedUpgrade?.step,
+        }),
+        [deviceVersion, persistedUpgrade?.deviceInfo?.currentVersion, persistedUpgrade?.step],
+    );
+    const keyboardCanReflash = canInitiateKeyboardFirmwareUpgrade({
+        currentVersion: deviceVersion,
+        targetVersion: deviceUpgradeVersion,
+        firmwareFile: deviceUpgradeFile,
+        vendorId: fwVid,
+        productId: fwPid,
+        keySegment: firmwareChangelogKeySegment,
+    });
+    const screenCanReflash = canInitiateScreenFirmwareUpgrade({
+        currentVersion: screenDeviceVersion,
+        targetVersion: screenUpgradeVersionCfg,
+        firmwareFile: screenFwPath,
+        vendorId: fwVid,
+        productId: fwPid,
+        keySegment: firmwareChangelogKeySegment,
+    });
+    const screenUpgradePackageReady = Boolean(
+        screenFwPath?.trim() &&
+        screenUpgradeVersionCfg?.trim() &&
+        !isScreenDriverUpgradeDisabled(fwVid, fwPid, firmwareChangelogKeySegment),
     );
 
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -135,6 +205,15 @@ export default function SettingPanel() {
     const [screenUpdateDialogOpen, setScreenUpdateDialogOpen] = useState(false);
     const [isScreenUpgradeOpen, setIsScreenUpgradeOpen] = useState(false);
     const [checkingScreenUpdates, setCheckingScreenUpdates] = useState(false);
+    const [screenUpgradeTarget, setScreenUpgradeTarget] = useState<{
+        version: string;
+        firmwareFile: string;
+        imageFile?: string;
+    } | null>(null);
+    const [keyboardUpgradeTarget, setKeyboardUpgradeTarget] = useState<{
+        version: string;
+        firmwareFile: string;
+    } | null>(null);
 
     const upgradeSteps = [
         t("727"),
@@ -143,7 +222,14 @@ export default function SettingPanel() {
     ];
 
     const checkForUpdates = () => {
-        if (deviceNeedsUpgrade) {
+        if (!keyboardUpgradeReady) {
+            showMessage({
+                message: t('1240'),
+                type: 'warning',
+            });
+            return;
+        }
+        if (keyboardCanReflash) {
             setUpdateDialogOpen(true);
         } else {
             setCheckingForUpdates(true);
@@ -158,7 +244,14 @@ export default function SettingPanel() {
     };
 
     const checkScreenForUpdates = () => {
-        if (screenNeedsUpgrade) {
+        if (!screenFwPath?.trim() || !screenUpgradeVersionCfg?.trim()) {
+            showMessage({
+                message: t('1240'),
+                type: 'warning',
+            });
+            return;
+        }
+        if (screenCanReflash) {
             setScreenUpdateDialogOpen(true);
         } else {
             setCheckingScreenUpdates(true);
@@ -173,13 +266,67 @@ export default function SettingPanel() {
     };
 
     const handleDownloadUpdate = () => {
+        if (!keyboardUpgradeReady) {
+            showMessage({ message: t('1240'), type: 'warning' });
+            return;
+        }
         setUpdateDialogOpen(false);
+        setKeyboardUpgradeTarget(null);
+        setIsUpgradeWindowOpen?.(true);
+    };
+
+    const handleKeyboardUpgradeToVersion = (params: { version: string; firmwareFile: string }) => {
+        if (
+            isKeyboardDriverUpgradeDisabled(fwVid, fwPid, firmwareChangelogKeySegment) ||
+            !canUpgradeToKeyboardRelease({
+                ...params,
+                vendorId: fwVid,
+                productId: fwPid,
+                keySegment: firmwareChangelogKeySegment,
+            })
+        ) {
+            showMessage({ message: t('1240'), type: 'warning' });
+            return;
+        }
+        setKeyboardUpgradeTarget(params);
         setIsUpgradeWindowOpen?.(true);
     };
 
     const handleScreenDownloadUpdate = () => {
+        if (!screenFwPath?.trim() || !screenUpgradeVersionCfg?.trim()) {
+            showMessage({ message: t('1240'), type: 'warning' });
+            return;
+        }
         setScreenUpdateDialogOpen(false);
+        setScreenUpgradeTarget(null);
         setIsScreenUpgradeOpen(true);
+    };
+
+    const handleScreenUpgradeToVersion = (params: {
+        version: string;
+        firmwareFile: string;
+        imageFile?: string;
+    }) => {
+        if (
+            isScreenDriverUpgradeDisabled(fwVid, fwPid, firmwareChangelogKeySegment) ||
+            !canUpgradeToScreenRelease({
+                ...params,
+                screenFirmwareFile: params.firmwareFile,
+                vendorId: fwVid,
+                productId: fwPid,
+                keySegment: firmwareChangelogKeySegment,
+            })
+        ) {
+            showMessage({ message: t('1240'), type: 'warning' });
+            return;
+        }
+        setScreenUpgradeTarget(params);
+        setIsScreenUpgradeOpen(true);
+    };
+
+    const handleCloseScreenUpgrade = () => {
+        setIsScreenUpgradeOpen(false);
+        setScreenUpgradeTarget(null);
     };
 
     const getDeviceType = () => {
@@ -200,6 +347,7 @@ export default function SettingPanel() {
 
     const handleCloseUpgrade = () => {
         setIsUpgradeWindowOpen?.(false);
+        setKeyboardUpgradeTarget(null);
     };
 
     const handleFirmwareDownload = () => {
@@ -270,8 +418,9 @@ export default function SettingPanel() {
         setNumLockInvert((funcInfo?.numLockMode ?? 0) === 1);
     }, [funcInfo]);
 
-    const supportsNumLockMode =
-        (connectedKeyboard?.productId ?? productId ?? 0) === PID_EXTENDED_FUNC_LAYOUT;
+    const supportsNumLockMode = usesExtendedFuncInfoLayout(
+        connectedKeyboard?.productId ?? productId ?? 0,
+    );
 
     const isDarkMode = theme.palette.mode === 'dark';
 
@@ -516,13 +665,15 @@ export default function SettingPanel() {
     return (
         <Box sx={panelBaseSx}>
             <Box sx={settingsSidebarSx}>
-                <ButtonRem
-                    data-setting-tab="settings"
-                    onClick={() => setTab('settings')}
-                    sx={settingTabBtnSx(tab === 'settings')}
-                >
-                    {t('2500')}
-                </ButtonRem>
+                {!isQMK && (
+                    <ButtonRem
+                        data-setting-tab="settings"
+                        onClick={() => setTab('settings')}
+                        sx={settingTabBtnSx(tab === 'settings')}
+                    >
+                        {t('2500')}
+                    </ButtonRem>
+                )}
                 <ButtonRem
                     data-setting-tab="interface"
                     onClick={() => setTab('interface')}
@@ -530,13 +681,24 @@ export default function SettingPanel() {
                 >
                     {t('1491')}
                 </ButtonRem>
-                <ButtonRem
-                    data-setting-tab="firmware"
-                    onClick={() => setTab('firmware')}
-                    sx={settingTabBtnSx(tab === 'firmware')}
-                >
-                    {t('2501')}
-                </ButtonRem>
+                {isQMK && (
+                    <ButtonRem
+                        data-setting-tab="layout"
+                        onClick={() => setTab('layout')}
+                        sx={settingTabBtnSx(tab === 'layout')}
+                    >
+                        {t('2703')}
+                    </ButtonRem>
+                )}
+                {!isQMK && (
+                    <ButtonRem
+                        data-setting-tab="firmware"
+                        onClick={() => setTab('firmware')}
+                        sx={settingTabBtnSx(tab === 'firmware')}
+                    >
+                        {t('2501')}
+                    </ButtonRem>
+                )}
             </Box>
 
             <Box
@@ -551,7 +713,7 @@ export default function SettingPanel() {
                     ...getComfortableScrollbarSx(isDarkMode),
                 }}
             >
-                {tab === 'settings' ? (
+                {tab === 'settings' && !isQMK ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <SettingCard>
                             <Row
@@ -716,6 +878,8 @@ export default function SettingPanel() {
                             />
                         </SettingCard>
                     </Box>
+                ) : tab === 'layout' && isQMK ? (
+                    <QmkLayoutPanel />
                 ) : tab === 'interface' ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <SettingCard>
@@ -814,7 +978,7 @@ export default function SettingPanel() {
                             </Box>
                         </SettingCard>
                     </Box>
-                ) : (
+                ) : tab === 'firmware' && !isQMK ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                         <FirmwareCard
                             title={t('710')}
@@ -834,12 +998,14 @@ export default function SettingPanel() {
                             keySegment={firmwareChangelogKeySegment}
                             deviceVersion={deviceVersion || ''}
                             deviceUpgradeVersion={deviceUpgradeVersion || undefined}
-                            deviceNeedsUpgrade={Boolean(deviceNeedsUpgrade)}
+                            deviceNeedsUpgrade={Boolean(deviceNeedsUpgrade) && keyboardUpgradeReady}
                             onCheckUpdates={checkForUpdates}
                             checkingForUpdates={checkingForUpdates}
+                            upgradePackageReady={keyboardUpgradeReady}
                             demoSession={isDemoFirmwareSession}
+                            onUpgradeToVersion={handleKeyboardUpgradeToVersion}
                         />
-                        {screenFwPath ? (
+                        {screenUpgradePackageReady ? (
                             <ScreenFirmwareChangelogSection
                                 vendorId={fwVid}
                                 productId={fwPid}
@@ -849,14 +1015,16 @@ export default function SettingPanel() {
                                 deviceNeedsUpgrade={screenNeedsUpgrade}
                                 onCheckUpdates={checkScreenForUpdates}
                                 checkingForUpdates={checkingScreenUpdates}
+                                upgradePackageReady={screenUpgradePackageReady}
                                 demoSession={isDemoFirmwareSession}
                                 lcdReady={lcdReady}
                                 keyboardForScreen={connectedKeyboard}
+                                onUpgradeToVersion={handleScreenUpgradeToVersion}
                             />
                         ) : null}
                         <WebDriverChangelogSection />
                     </Box>
-                )}
+                ) : null}
             </Box>
             <Dialog onClose={() => setResetConfirmOpen(false)} open={resetConfirmOpen}>
                 <DialogTitle>{t("712")}</DialogTitle>
@@ -891,7 +1059,7 @@ export default function SettingPanel() {
                 </DialogTitle>
                 <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
                     <Typography variant="body2" component="div" sx={updateDialogBodySx}>
-                        {t('2730')}
+                        {/* {t('2730')} */}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
@@ -940,7 +1108,7 @@ export default function SettingPanel() {
                 </DialogTitle>
                 <DialogContent sx={{ px: '24px', pt: '12px', pb: '8px' }}>
                     <Typography variant="body2" component="div" sx={updateDialogBodySx}>
-                        {t('2730')}
+                        {/* {t('2730')} */}
                         <Box component="span" sx={{ color: 'primary.main', fontWeight: 600 }}>
                             {t('2731')}
                         </Box>
@@ -1035,48 +1203,51 @@ export default function SettingPanel() {
                 </DialogActions>
             </Dialog>
 
-            {deviceType === 'keyboard' ? (
+            {!isQMK && (deviceType === 'keyboard' ? (
                 <FirmwareUpgrade
-                    isOpen={isUpgradeWindowOpen}
+                    isOpen={isUpgradeWindowOpen && keyboardUpgradeReady}
                     onClose={handleCloseUpgrade}
                     deviceInfo={{
-                        vendorId: vendorId || 0,
-                        productId: productId || 0,
-                        firmwareFile: deviceUpgradeFile,
-                        currentVersion: deviceVersion,
-                        upgradeVersion: deviceUpgradeVersion,
+                        vendorId: fwVid || persistedUpgrade?.deviceInfo?.vendorId || deviceVID || 0,
+                        productId: fwPid || persistedUpgrade?.deviceInfo?.productId || devicePID || 0,
+                        firmwareFile:
+                            keyboardUpgradeTarget?.firmwareFile
+                            ?? deviceUpgradeFile
+                            ?? persistedUpgrade?.deviceInfo?.firmwareFile,
+                        currentVersion: keyboardUpgradeCurrentVersion,
+                        upgradeVersion: keyboardUpgradeTarget?.version ?? deviceUpgradeVersion,
                     }}
                 />
             ) : deviceType === 'keyboard-8k' ? (
                 <KeyboardFirmwareUpgrade
-                    isOpen={isUpgradeWindowOpen}
+                    isOpen={isUpgradeWindowOpen && keyboardUpgradeReady}
                     onClose={handleCloseUpgrade}
                 />
             ) : (
                 <DongleFirmwareUpgrade
-                    isOpen={isUpgradeWindowOpen}
+                    isOpen={isUpgradeWindowOpen && keyboardUpgradeReady}
                     onClose={handleCloseUpgrade}
                     deviceInfo={{
-                        firmwareFile: deviceUpgradeFile,
+                        firmwareFile: keyboardUpgradeTarget?.firmwareFile ?? deviceUpgradeFile,
                         currentVersion: deviceVersion,
-                        upgradeVersion: deviceUpgradeVersion,
+                        upgradeVersion: keyboardUpgradeTarget?.version ?? deviceUpgradeVersion,
                     }}
                 />
-            )}
-            {screenFwPath ? (
+            ))}
+            {!isQMK && screenUpgradePackageReady ? (
                 <ScreenFirmwareUpgrade
                     isOpen={isScreenUpgradeOpen}
-                    onClose={() => setIsScreenUpgradeOpen(false)}
+                    onClose={handleCloseScreenUpgrade}
                     lcdConnected={Boolean(deviceComm && deviceStatus)}
                     screenDeviceComm={deviceComm}
                     keyboardHidForExit={connectedKeyboard?.api?.getHID()?.getWebHidDevice?.()}
                     keyboardForLightOff={connectedKeyboard}
                     keyboardForScreen={connectedKeyboard ?? undefined}
                     deviceInfo={{
-                        firmwareFile: screenFwPath,
-                        imageFile: screenImagePath || undefined,
+                        firmwareFile: screenUpgradeTarget?.firmwareFile ?? screenFwPath,
+                        imageFile: screenUpgradeTarget?.imageFile ?? (screenImagePath || undefined),
                         currentVersion: screenDeviceVersion || undefined,
-                        upgradeVersion: screenUpgradeVersionCfg || undefined,
+                        upgradeVersion: screenUpgradeTarget?.version ?? (screenUpgradeVersionCfg || undefined),
                         vendorId: fwVid,
                         productId: fwPid,
                     }}

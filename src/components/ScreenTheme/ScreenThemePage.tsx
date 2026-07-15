@@ -1089,6 +1089,7 @@ export default function ScreenThemePage() {
       );
       console.info(`[ScreenTheme] 本次下载 GIF 帧数: ${frames.length}`);
       const fps = isNativeGifPlaybackSpeed(videoSpeed) ? fpsFromGif : getScreenThemeGifPlaybackFps(videoSpeed);
+      console.log(fps);
       let qgifBin: Uint8Array;
       let qgifTrimmedForLimit = false;
       try {
@@ -2128,10 +2129,10 @@ export default function ScreenThemePage() {
         themeColorSlot={
           isPersonalIsland
             ? {
-                value: personalThemeColors.theme,
-                onChange: (next) => setPersonalThemeColors((prev) => ({ ...prev, theme: next })),
-                disabled: isTransferLocked,
-              }
+              value: personalThemeColors.theme,
+              onChange: (next) => setPersonalThemeColors((prev) => ({ ...prev, theme: next })),
+              disabled: isTransferLocked,
+            }
             : null
         }
       />
@@ -2285,136 +2286,136 @@ export default function ScreenThemePage() {
 
   return (
     <ScreenThemeVisualSet value={sv}>
-    <Box
-      sx={{
-        flex: 1,
-        width: "100%",
-        minHeight: 0,
-        height: "100%",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg,.webp" hidden onChange={onImageFileChange} />
-      <input ref={albumRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple hidden onChange={onAlbumFileChange} />
-      <input ref={videoRef} type="file" accept=".gif" hidden onChange={onVideoFileChange} />
-      <ScreenThemeConfirmDialog
-        open={saveConfirmDialog.open}
-        title={t("2565")}
-        content={t("2714")}
-        cancelText={t("2570")}
-        confirmText={t("2569")}
-        onCancel={() => resolveSaveConfirm(false)}
-        onConfirm={() => resolveSaveConfirm(true)}
-      />
-      <ScreenThemeConfirmDialog
-        open={trimConfirmDialog.open}
-        title={t("2565")}
-        content={`${t("2563")} (${trimConfirmDialog.frameCount} -> ${MAX_GIF_FRAMES})`}
-        cancelText={t("2570")}
-        confirmText={t("2569")}
-        onCancel={() => resolveGifTrimConfirm(false)}
-        onConfirm={() => resolveGifTrimConfirm(true)}
-      />
-      <ScreenThemeConfirmDialog
-        open={oversizeConfirmDialog.open}
-        title={t("2565")}
-        content={t(oversizeConfirmDialog.kind === "save-qgif" ? "2591" : "2590")}
-        cancelText={t("2570")}
-        confirmText={t("2569")}
-        onCancel={() => resolveMediaOversizeConfirm(false)}
-        onConfirm={() => resolveMediaOversizeConfirm(true)}
-      />
-      <Dialog
-        open={transferDialog.open}
-        onClose={() => {}}
-        disableEscapeKeyDown
-        fullWidth
-        maxWidth="xs"
-      >
-        <DialogTitle>{t("2565")}</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ mb: 1, color: "#334155", fontSize: "18px" }}>{transferStageText}</Typography>
-          <LinearProgress
-            variant={transferDialog.stage === "download" ? "determinate" : "indeterminate"}
-            value={transferDialog.progress}
-            sx={{ height: "8px", borderRadius: "6px" }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Box
-        sx={{
-          flex: "0 1 48%",
-          minHeight: "45%",
-          maxHeight: "50%",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          flexShrink: 0,
-          px: { xs: 1, sm: 2 },
-          pt: 1,
-          pb: 0.5,
-          margin: "0 auto",
-          width: "100%",
-        }}
-      >
-        <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", display: "flex", flexDirection: "column" }}>
-          <TravelVirtualKeyboard
-            layoutKeys={mappedLayoutKeys}
-            patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
-            travelKeys={[]}
-            selectedKeys={[]}
-            travelValue={0}
-            showActuation={false}
-            alignTop
-            showLayerOverlay={false}
-            onToggleKey={() => {}}
-          />
-        </Box>
-      </Box>
-      <ScreenThemeKeyboardLegend variant={activeTab === "typing" ? "typing" : "media"} />
-
       <Box
         sx={{
           flex: 1,
+          width: "100%",
           minHeight: 0,
+          height: "100%",
+          boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          px: 2,
-          pb: 2,
         }}
       >
+        <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg,.webp" hidden onChange={onImageFileChange} />
+        <input ref={albumRef} type="file" accept=".png,.jpg,.jpeg,.webp" multiple hidden onChange={onAlbumFileChange} />
+        <input ref={videoRef} type="file" accept=".gif" hidden onChange={onVideoFileChange} />
+        <ScreenThemeConfirmDialog
+          open={saveConfirmDialog.open}
+          title={t("2565")}
+          content={t("2714")}
+          cancelText={t("2570")}
+          confirmText={t("2569")}
+          onCancel={() => resolveSaveConfirm(false)}
+          onConfirm={() => resolveSaveConfirm(true)}
+        />
+        <ScreenThemeConfirmDialog
+          open={trimConfirmDialog.open}
+          title={t("2565")}
+          content={`${t("2563")} (${trimConfirmDialog.frameCount} -> ${MAX_GIF_FRAMES})`}
+          cancelText={t("2570")}
+          confirmText={t("2569")}
+          onCancel={() => resolveGifTrimConfirm(false)}
+          onConfirm={() => resolveGifTrimConfirm(true)}
+        />
+        <ScreenThemeConfirmDialog
+          open={oversizeConfirmDialog.open}
+          title={t("2565")}
+          content={t(oversizeConfirmDialog.kind === "save-qgif" ? "2591" : "2590")}
+          cancelText={t("2570")}
+          confirmText={t("2569")}
+          onCancel={() => resolveMediaOversizeConfirm(false)}
+          onConfirm={() => resolveMediaOversizeConfirm(true)}
+        />
+        <Dialog
+          open={transferDialog.open}
+          onClose={() => { }}
+          disableEscapeKeyDown
+          fullWidth
+          maxWidth="xs"
+        >
+          <DialogTitle>{t("2565")}</DialogTitle>
+          <DialogContent>
+            <Typography sx={{ mb: 1, color: "#334155", fontSize: "18px" }}>{transferStageText}</Typography>
+            <LinearProgress
+              variant={transferDialog.stage === "download" ? "determinate" : "indeterminate"}
+              value={transferDialog.progress}
+              sx={{ height: "8px", borderRadius: "6px" }}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <Box
+          sx={{
+            flex: "0 1 48%",
+            minHeight: "45%",
+            maxHeight: "50%",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            flexShrink: 0,
+            px: { xs: 1, sm: 2 },
+            pt: 1,
+            pb: 0.5,
+            margin: "0 auto",
+            width: "100%",
+          }}
+        >
+          <Box sx={{ flex: 1, minHeight: 0, minWidth: 0, width: "100%", display: "flex", flexDirection: "column" }}>
+            <TravelVirtualKeyboard
+              layoutKeys={mappedLayoutKeys}
+              patternKeys={keyboardLayout?.layouts?.patternKeys ?? []}
+              travelKeys={[]}
+              selectedKeys={[]}
+              travelValue={0}
+              showActuation={false}
+              alignTop
+              showLayerOverlay={false}
+              onToggleKey={() => { }}
+            />
+          </Box>
+        </Box>
+        <ScreenThemeKeyboardLegend variant={activeTab === "typing" ? "typing" : "media"} />
+
         <Box
           sx={{
             flex: 1,
             minHeight: 0,
-            borderRadius: "12px",
             display: "flex",
-            flexDirection: "row",
-            alignItems: "stretch",
-            px: 163,
+            flexDirection: "column",
+            overflow: "hidden",
+            px: 2,
+            pb: 2,
           }}
         >
-          <ScreenThemeSidebar
-            embedded
-            activeTab={activeTab}
-            disabled={isTransferLocked}
-            onTabChange={(tab) => {
-              if (isTransferLocked) return;
-              setActiveTab(tab);
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              borderRadius: "12px",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "stretch",
+              px: 163,
             }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.25, minHeight: 0 }}>
-            <ScreenThemeTopBar timeLabel={timeLabel} onSyncTime={handleSyncTime} />
-            {renderPanelByTab()}
+          >
+            <ScreenThemeSidebar
+              embedded
+              activeTab={activeTab}
+              disabled={isTransferLocked}
+              onTabChange={(tab) => {
+                if (isTransferLocked) return;
+                setActiveTab(tab);
+              }}
+            />
+            <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.25, minHeight: 0 }}>
+              <ScreenThemeTopBar timeLabel={timeLabel} onSyncTime={handleSyncTime} />
+              {renderPanelByTab()}
+            </Box>
           </Box>
         </Box>
       </Box>
-    </Box>
     </ScreenThemeVisualSet>
   );
 }
